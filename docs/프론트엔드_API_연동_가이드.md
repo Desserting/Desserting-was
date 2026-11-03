@@ -15,7 +15,7 @@
 | 환경 | BASE_URL | 비고 |
 |---|---|---|
 | 로컬 | `http://localhost:8080` | README 방법 A/B로 실행 |
-| 시연(ngrok) | 배포 후 공유 예정 | 모든 요청에 `ngrok-skip-browser-warning: true` 헤더 추가 |
+| 시연(ngrok) | `https://acetone-suffocate-uncombed.ngrok-free.dev` | 모든 요청에 `ngrok-skip-browser-warning: 69420` 헤더 추가 |
 
 - 모든 REST API는 `/api/v1`로 시작합니다.
 - 실시간 채팅 웹소켓은 `ws(s)://{호스트}/ws` 입니다 (4장).
@@ -182,22 +182,24 @@ api.interceptors.response.use(undefined, async (error) => {
 - `distanceKm`은 `lat`·`lng`를 보내면 그 위치 기준, 안 보내면 저장된 내 위치 기준이며, 기준이 있으면 가까운 순으로 정렬됩니다.
 - 지도 영역 4개 값(`swLat`, `swLng`, `neLat`, `neLng`)은 **모두 함께** 보내야 합니다 (하나라도 빠지면 `EX201`).
 
-### ⑧ 매장 상세·예약 (D-02 ~ D-05)
+### ⑧ 매장 상세·예약 및 쿠폰 할인 (D-02 ~ D-05)
 | 화면 | 동작 | API |
 |---|---|---|
 | D-02 매장 상세 | 정보·메뉴·제휴 할인 | `GET /stores/{storeId}` |
+| 매장 사용 가능 쿠폰 | 활성 쿠폰 목록 조회 | `GET /stores/{storeId}/coupons` (SHOP-03) |
 | 날짜 선택 (달력) | 예약 가능 날짜 | `GET /stores/{storeId}/reservation-dates` (기본 오늘부터 14일) → `available`이 false인 날은 비활성 |
 | 시간 선택 | 시간대·잔여 | `GET /stores/{storeId}/reservation-slots?date=2026-11-15` → `available`이 false면 비활성 |
-| 예약하기 | 예약 생성 | `POST /reservations` `{slotId, guestCount(1~10), specialRequest?}` → 상태 `PENDING` |
+| 예약하기 (쿠폰/주문 포함) | 예약 생성 | `POST /reservations` `{slotId, guestCount(1~10), specialRequest?, couponId?, orderMenus?: [{menuId, quantity}]}` → 상태 `PENDING` (RSV-02, RSV-04) |
 | 예약 내역 (E-07) | 내 예약 | `GET /reservations/me` |
 | 예약 상세 | 예약 1건 | `GET /reservations/{reservationId}` |
 | 예약 취소 | 취소 (대기·확정 상태만) | `PATCH /reservations/{reservationId}/cancel` |
 
 - 정원은 **팀 수** 기준입니다 (예약 1건 = 1팀, `guestCount`는 기록용).
+- `couponId` 전달 시 쿠폰 할인 금액(`discountAmount`)이 자동 차감되며, `finalAmount` 실결제 금액이 산출됩니다.
 - 지난 시간대는 `available: false`이며 예약 시 `EX302`.
 - 예약 상태(`PREPARING`, `COMPLETED` 등)는 점주가 바꿉니다. 사용자 화면은 `GET /reservations/me`를 다시 불러 반영합니다.
 
-### ⑨ 하트 구매·마이페이지 (E-01 ~ E-07)
+### ⑨ 하트 구매·마이페이지 및 프리미엄 전용 기능 (E-01 ~ E-07)
 | 화면 | 동작 | API |
 |---|---|---|
 | E-01 마이페이지 | 내 정보 | `GET /users/me` |
@@ -206,13 +208,20 @@ api.interceptors.response.use(undefined, async (error) => {
 | 하트 내역 | 충전·차감 이력 | `GET /hearts/history` |
 | 구매 내역 | 결제 이력 | `GET /hearts/purchases` |
 | E-05 나를 좋아요한 사람 | **프리미엄 전용** | `GET /users/me/likes` (일반 회원은 `A002`) |
-| E-04 프리미엄 패스 | ❌ 결제·가입 API 미구현 | — |
+| E-06 내 프로필 방문자 | **프리미엄 전용** | `GET /users/me/visitors` (PRF-05, 일반 회원은 `A002`) |
+| B-04 스킵한 상대 재선택 | **프리미엄 전용** | `GET /matches/history` (MAT-04, 일반 회원은 `A002`) |
 
 - 가격은 프론트에 하드코딩하지 말고 `GET /hearts/packages` 값을 표시하세요 (가격 정책 변경 대비).
 - 프리미엄 회원은 하트를 쓰지 않아 구매가 막혀 있습니다 (`C001`).
 
-### ⑩ 메뉴 주문·모의 결제 (D-06 ~ D-09) — ❌ 미구현
-메뉴 선택, 주문 금액, 모의 결제, 주문 상태 API는 아직 없습니다 (4-7 담당 개발 중). 현재는 예약까지만 가능합니다.
+### ⑩ AI 맞춤 데이트 장소 추천 (AI-01)
+| 화면 | 동작 | API |
+|---|---|---|
+| C-02 채팅방 상단 AI 버튼 | 맞춤 카페/메뉴 추천 및 카드 발행 | `POST /chats/rooms/{roomId}/ai-recommendation` |
+
+- 로컬 온디바이스 Qwen 2.5 3B (Ollama) 모델이 채팅방 최근 대화와 두 사람의 디저트 취향을 분석하여 최적의 카페와 메뉴를 선정합니다.
+- 호출 완료 시 채팅방에 `PLACE_PROPOSAL` 타입 카드 메시지가 실시간 STOMP 브로드캐스트되어 양측 화면에 즉시 노출됩니다.
+- Ollama 미기동 시에도 스마트 Fallback 엔진이 100% 정상 작동합니다.
 
 ---
 
@@ -346,13 +355,15 @@ client.publish({
 
 ---
 
-## 7. 아직 없는 기능 / 확인 필요
-| 항목 | 상태 |
-|---|---|
-| 4-7 메뉴 주문·모의 결제·주문 상태 (D-06 ~ D-09) | ❌ 미구현 (개발 중) |
-| 프리미엄 패스 결제·가입 (E-04) | ❌ 미구현 |
-| 소셜 로그인 (카카오·구글·애플) | ❌ 미구현 |
-| 1:1 직접 대화방 API의 사용 범위 | 백엔드와 확정 필요 (3장 ⑥) |
-| 카페 방문 제안 `metadata` 형식 | 4.4 제안안으로 확정 필요 |
-| 시연 서버(ngrok) 주소 | 배포 후 공유 |
-| 실시간 채팅 수신 | PR #3 머지 후 동작 (4.5) |
+## 7. 아직 없는 기능 / 확인 필요 (최신 상태)
+| 항목 | 상태 | 비고 |
+|---|:---:|---|
+| 4-7 메뉴 주문·모의 결제 (D-06 ~ D-09) | ✅ 구현 완료 | 예약 생성(`POST /reservations`)에 `orderMenus` 및 `couponId` 포함 시 결제금액 자동 계산 |
+| 4-1 방문자 확인 (PRF-05) & 4-2 스킵 상대 (MAT-04) | ✅ 구현 완료 | 프리미엄 전용 `GET /users/me/visitors`, `GET /matches/history` 제공 |
+| 4-5 로컬 AI 데이트 추천 (AI-01) | ✅ 구현 완료 | `POST /chats/rooms/{roomId}/ai-recommendation` (Qwen 2.5 3B 연동) |
+| 시연 서버(ngrok) 주소 | ✅ 연동 완료 | `https://acetone-suffocate-uncombed.ngrok-free.dev` |
+| 실시간 채팅 수신 & WebSocket | ✅ 동작 완료 | `/pub/chat/message`, `/sub/chat/room/{roomId}` 정상 동작 |
+| 외부 PG사(토스/포트원) 실제 카드 결제 | ❌ 미구현 | 해커톤 기획상 모의 결제 시스템으로 대체 운영 |
+| 실시간 모바일 푸시 알림 (FCM) | ❌ 미구현 | 모바일 앱 백그라운드 푸시 알림 (웹소켓 실시간 수신으로 대체) |
+| 개인 프로필 사진 업로드 | ❌ 미구현 | 기획상 외모 지양 및 디저트 취향 아바타(6종) 중심 매칭 |
+| 동성 카페 친구 매칭 | ❌ 미구현 | 기획상 초기엔 이성 소개팅 및 데이트 위주로 집중 운영 |

@@ -73,7 +73,7 @@ public class ReservationController {
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "예약 생성 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
-                    description = "C001 요청 값 검증 실패(인원 1~10명 등) / EX302 이미 지난 시간대",
+                    description = "C001 요청 값 검증 실패(인원 1~10명 등) / EX001 JSON 형식 오류 / EX302 이미 지난 시간대",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "A001 인증 실패",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),

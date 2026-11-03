@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -47,5 +48,14 @@ public class ExploreExceptionHandler {
                 : e.getMessage();
         ExploreErrorCode code = ExploreErrorCode.INVALID_PARAMETER;
         return ResponseEntity.status(code.getHttpStatus()).body(ExploreErrorResponse.of(code.getCode(), detail));
+    }
+
+    /** JSON 형식이 깨졌거나 타입이 맞지 않는 요청 본문 (예약 생성 등) */
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ExploreErrorResponse> handleUnreadableBody(HttpMessageNotReadableException e) {
+        log.warn("Unreadable request body: {}", e.getMessage());
+        ExploreErrorCode code = ExploreErrorCode.INVALID_PARAMETER;
+        return ResponseEntity.status(code.getHttpStatus())
+                .body(ExploreErrorResponse.of(code.getCode(), "요청 본문(JSON) 형식이 올바르지 않습니다."));
     }
 }

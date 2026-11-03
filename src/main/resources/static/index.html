@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Desserting Testbed Console (디저팅 기능 검증 콘솔)</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dessert: {
+                            50: '#fff7ed',
+                            100: '#ffedd5',
+                            200: '#fed7aa',
+                            300: '#fdba74',
+                            400: '#fb923c',
+                            500: '#f97316',
+                            600: '#ea580c',
+                            700: '#c2410c',
+                            800: '#9a3412',
+                            900: '#7c2d12',
+                        },
+                        berry: {
+                            500: '#ec4899',
+                            600: '#db2777',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- SockJS & STOMP Client CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;500;600;700;800&display=swap');
+        * { font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.05); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0, 0, 0, 0.2); border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.35); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col antialiased selection:bg-dessert-500 selection:text-white">
+
+    <!-- 1. TOP GLOBAL NAVIGATION & CONFIG BAR -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm backdrop-blur-md bg-white/95">
+        <div class="max-w-7xl mx-auto px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            <!-- Brand & Pulse Indicator -->
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-dessert-500 to-amber-400 flex items-center justify-center text-white shadow-md shadow-dessert-500/20">
+                    <span class="text-xl">🍮</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-bold text-slate-900 tracking-tight text-lg">Desserting Test Console</h1>
+                        <span class="px-2 py-0.5 text-[10px] font-semibold tracking-wider uppercase bg-dessert-100 text-dessert-800 rounded-full border border-dessert-200">v1.0 Live</span>
+                    </div>
+                    <p class="text-xs text-slate-500 flex items-center gap-1.5">
+                        <span id="health-pulse" class="w-2 h-2 rounded-full bg-slate-400 inline-block"></span>
+                        <span id="health-text" class="font-medium text-[11px]">서버 상태 확인 중...</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Server URL & Connection Config (Supports ngrok and localhost) -->
+            <div class="flex items-center gap-2 flex-1 max-w-md">
+                <div class="relative w-full">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                        <i data-lucide="globe" class="w-4 h-4"></i>
+                    </div>
+                    <input id="api-base-url-input" type="text"
+                           placeholder="API 서버 주소 (ngrok 또는 http://localhost:8080)"
+                           class="w-full pl-9 pr-20 py-1.5 text-xs bg-slate-100 hover:bg-slate-50 focus:bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500 transition-all font-mono">
+                    <button id="btn-save-api-url"
+                            class="absolute right-1 top-1 bottom-1 px-3 text-xs font-semibold bg-slate-800 text-white hover:bg-slate-700 rounded-md transition-colors flex items-center gap-1">
+                        연결
+                    </button>
+                </div>
+            </div>
+
+            <!-- Current Active User & Heart Badge -->
+            <div class="flex items-center gap-3">
+                <div id="active-user-badge" class="hidden items-center gap-2.5 bg-slate-100 border border-slate-200/80 px-3 py-1.5 rounded-xl">
+                    <div class="w-7 h-7 rounded-full bg-dessert-200 text-dessert-800 flex items-center justify-center font-bold text-xs" id="nav-user-avatar">?</div>
+                    <div class="text-left">
+                        <div class="flex items-center gap-1.5">
+                            <span class="text-xs font-bold text-slate-900" id="nav-user-nickname">로그인 안됨</span>
+                            <span class="text-[10px] px-1.5 py-0.2 font-semibold bg-slate-200 text-slate-700 rounded" id="nav-user-role">GUEST</span>
+                        </div>
+                        <div class="text-[11px] text-berry-600 font-bold flex items-center gap-1">
+                            <span>❤️</span> <span id="nav-user-hearts">0</span> 하트
+                        </div>
+                    </div>
+                    <button id="btn-logout" title="로그아웃" class="ml-1 text-slate-400 hover:text-rose-600 p-1 rounded-md hover:bg-slate-200 transition-colors">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div id="guest-badge" class="text-xs text-slate-500 font-medium bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">
+                    계정 스위처에서 사용자를 선택하세요
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- 2. QUICK USER SWITCHER (8 REAL MOCK SEED ACCOUNTS) -->
+    <section class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white px-4 py-3 shadow-inner">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex items-center justify-between mb-2">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="users" class="w-4 h-4 text-dessert-400"></i>
+                    <span class="text-xs font-bold tracking-wide uppercase text-slate-300">1-Click 모의 사용자 로그인 스위처</span>
+                    <span class="text-[11px] text-slate-400">(클릭 즉시 해당 유저로 자동 JWT 로그인 및 토큰 전환)</span>
+                </div>
+                <span class="text-[10px] text-dessert-300 font-mono">DB 시드 사용자: 5명 일반유저 + 2명 카페점주 + 1명 플랫폼관리자</span>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2" id="preset-user-cards">
+                <!-- User 1: 초코크로와상 (minjung) -->
+                <button onclick="loginPresetUser('minjung@desserting.com', 'test1234!')"
+                        class="user-switcher-card text-left p-2 rounded-lg bg-slate-800/80 hover:bg-dessert-600/30 border border-slate-700 hover:border-dessert-400 transition-all flex flex-col justify-between group">
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-bold text-xs text-white group-hover:text-dessert-300 truncate">초코크로와상</span>
+                        <span class="text-[10px] font-semibold text-pink-400">여·26</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 truncate">minjung / 50❤️</div>
+                    <div class="text-[9px] text-dessert-400 mt-1 truncate">🥐 크루키, 휘낭시에</div>
+                </button>
+                <!-- User 2: 드립마니아 (jihun) -->
+                <button onclick="loginPresetUser('jihun@desserting.com', 'test1234!')"
+                        class="user-switcher-card text-left p-2 rounded-lg bg-slate-800/80 hover:bg-dessert-600/30 border border-slate-700 hover:border-dessert-400 transition-all flex flex-col justify-between group">
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-bold text-xs text-white group-hover:text-dessert-300 truncate">드립마니아</span>
+                        <span class="text-[10px] font-semibold text-sky-400">남·28</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 truncate">jihun / 5❤️</div>
+                    <div class="text-[9px] text-dessert-400 mt-1 truncate">☕ 핸드드립, 초코케이크</div>
+                </button>
+                <!-- User 3: 딸기푸딩 (soyeon) -->
+                <button onclick="loginPresetUser('soyeon@desserting.com', 'test1234!')"
+                        class="user-switcher-card text-left p-2 rounded-lg bg-slate-800/80 hover:bg-dessert-600/30 border border-slate-700 hover:border-dessert-400 transition-all flex flex-col justify-between group">
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-bold text-xs text-white group-hover:text-dessert-300 truncate">딸기푸딩</span>
+                        <span class="text-[10px] font-semibold text-pink-400">여·24</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 truncate">soyeon / 3❤️</div>
+                    <div class="text-[9px] text-dessert-400 mt-1 truncate">🍮 수제푸딩, 밀크티</div>
+                </button>
+                <!-- User 4: 타르트장인 (taehyun) -->
+                <button onclick="loginPresetUser('taehyun@desserting.com', 'test1234!')"
+                        class="user-switcher-card text-left p-2 rounded-lg bg-slate-800/80 hover:bg-dessert-600/30 border border-slate-700 hover:border-dessert-400 transition-all flex flex-col justify-between group">
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-bold text-xs text-white group-hover:text-dessert-300 truncate">타르트장인</span>
+                        <span class="text-[10px] font-semibold text-sky-400">남·29</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 truncate">taehyun / 20❤️</div>
+                    <div class="text-[9px] text-dessert-400 mt-1 truncate">🥧 생과일타르트, 개성주악</div>
+                </button>
+                <!-- User 5: 치즈케이크러버 (yuna) -->
+                <button onclick="loginPresetUser('yuna@desserting.com', 'test1234!')"
+                        class="user-switcher-card text-left p-2 rounded-lg bg-slate-800/80 hover:bg-dessert-600/30 border border-slate-700 hover:border-dessert-400 transition-all flex flex-col justify-between group">
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-bold text-xs text-white group-hover:text-dessert-300 truncate">치즈케이크러버</span>
+                        <span class="text-[10px] font-semibold text-pink-400">여·27</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400 truncate">yuna / 4❤️</div>
+                    <div class="text-[9px] text-dessert-400 mt-1 truncate">🍰 바스크치즈케이크</div>
+                </button>
+                <!-- Owner 1: 루시드점주 (owner@lucid.com) -->
+                <button onclick="loginPresetUser('owner@lucid.com', 'owner1234!')"
+                        class="user-switcher-card text-left p-2 rounded-lg bg-amber-950/60 hover:bg-amber-900/60 border border-amber-600/50 hover:border-amber-400 transition-all flex flex-col justify-between group">
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-bold text-xs text-amber-300 group-hover:text-amber-200 truncate">루시드점주</span>
+                        <span class="text-[9px] px-1 bg-amber-500/20 text-amber-300 rounded font-semibold">OWNER</span>
+                    </div>
+                    <div class="text-[10px] text-amber-200/70 truncate">owner@lucid.com</div>
+                    <div class="text-[9px] text-amber-400 mt-1 truncate">🍨 동성로 푸딩빙수</div>
+                </button>
+                <!-- Owner 2: 아눅점주 (owner@anook.com) -->
+                <button onclick="loginPresetUser('owner@anook.com', 'owner1234!')"
+                        class="user-switcher-card text-left p-2 rounded-lg bg-amber-950/60 hover:bg-amber-900/60 border border-amber-600/50 hover:border-amber-400 transition-all flex flex-col justify-between group">
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-bold text-xs text-amber-300 group-hover:text-amber-200 truncate">아눅점주</span>
+                        <span class="text-[9px] px-1 bg-amber-500/20 text-amber-300 rounded font-semibold">OWNER</span>
+                    </div>
+                    <div class="text-[10px] text-amber-200/70 truncate">owner@anook.com</div>
+                    <div class="text-[9px] text-amber-400 mt-1 truncate">🥐 앞산 뷰 베이커리</div>
+                </button>
+                <!-- Admin: 디저팅운영자 (admin@desserting.com) -->
+                <button onclick="loginPresetUser('admin@desserting.com', 'admin1234!')"
+                        class="user-switcher-card text-left p-2 rounded-lg bg-purple-950/60 hover:bg-purple-900/60 border border-purple-600/50 hover:border-purple-400 transition-all flex flex-col justify-between group">
+                    <div class="flex items-center justify-between w-full mb-1">
+                        <span class="font-bold text-xs text-purple-300 group-hover:text-purple-200 truncate">디저팅운영자</span>
+                        <span class="text-[9px] px-1 bg-purple-500/20 text-purple-300 rounded font-semibold">ADMIN</span>
+                    </div>
+                    <div class="text-[10px] text-purple-200/70 truncate">admin@desserting</div>
+                    <div class="text-[9px] text-purple-400 mt-1 truncate">👑 전역 7% 정산·골목</div>
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- 3. NAVIGATION TAB BAR -->
+    <nav class="bg-white border-b border-slate-200 px-4">
+        <div class="max-w-7xl mx-auto flex gap-1 overflow-x-auto custom-scrollbar">
+            <button onclick="switchTab('auth')" id="tab-btn-auth" class="tab-button active-tab flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-dessert-600 border-dessert-500">
+                <i data-lucide="shield-check" class="w-4 h-4"></i> 1. 계정 및 프로필 (4-1)
+            </button>
+            <button onclick="switchTab('hearts')" id="tab-btn-hearts" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
+                <i data-lucide="heart" class="w-4 h-4"></i> 2. 하트 지갑 & 소셜 매칭 (4-3)
+            </button>
+            <button onclick="switchTab('chat')" id="tab-btn-chat" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
+                <i data-lucide="message-square" class="w-4 h-4"></i> 3. 실시간 STOMP 채팅 (4-4)
+            </button>
+            <button onclick="switchTab('stores')" id="tab-btn-stores" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
+                <i data-lucide="coffee" class="w-4 h-4"></i> 4. 카페 & 테마 골목 (4-8)
+            </button>
+            <button onclick="switchTab('settlement')" id="tab-btn-settlement" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
+                <i data-lucide="calculator" class="w-4 h-4"></i> 5. 7% 정산 대시보드 (SELL-08)
+            </button>
+        </div>
+    </nav>
+
+    <!-- 4. MAIN CONTENT PANELS -->
+    <main class="max-w-7xl mx-auto p-4 flex-1 w-full space-y-6">
+
+        <!-- ==================== TAB 1: AUTH & PROFILE ==================== -->
+        <div id="tab-content-auth" class="tab-panel space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Current Profile Card -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                            <i data-lucide="user" class="w-4 h-4 text-dessert-500"></i> 내 프로필 정보 (`/api/v1/users/me`)
+                        </h2>
+                        <button onclick="fetchMyProfile()" class="text-xs text-dessert-600 hover:underline flex items-center gap-1 font-medium">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 새로고침
+                        </button>
+                    </div>
+                    <div id="profile-card-content" class="text-xs space-y-3">
+                        <div class="p-4 bg-slate-50 rounded-xl text-center text-slate-400">
+                            상단 계정 스위처에서 사용자를 선택해 주세요.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Update Profile Form -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <i data-lucide="edit-3" class="w-4 h-4 text-dessert-500"></i> 프로필 수정 (`PATCH /me/profile`)
+                    </h2>
+                    <form id="form-update-profile" onsubmit="handleUpdateProfile(event)" class="space-y-3 text-xs">
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">자기소개 (Bio)</label>
+                            <textarea id="edit-bio" rows="2" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-dessert-500 focus:outline-none" placeholder="디저트 탐방을 즐겨요!"></textarea>
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">활동 지역 (Region)</label>
+                            <input id="edit-location" type="text" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-dessert-500 focus:outline-none" placeholder="대구 수성구">
+                        </div>
+                        <div>
+                            <label class="block font-medium text-slate-600 mb-1">선호 디저트 태그 (쉼표로 구분)</label>
+                            <input id="edit-desserts" type="text" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-dessert-500 focus:outline-none" placeholder="BAKERY, CAKE, ICE_CREAM_BINGSU">
+                            <p class="text-[10px] text-slate-400 mt-1">사용 가능 태그: BAKERY, CAKE, ICE_CREAM_BINGSU, TART_PIE, COOKIE_FINANCIER, COFFEE, TEA_NON_COFFEE, TRADITIONAL_KOREAN</p>
+                        </div>
+                        <button type="submit" class="w-full py-2 bg-dessert-500 hover:bg-dessert-600 text-white font-bold rounded-lg transition-colors">
+                            프로필 저장하기
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Manual Signup & Login Forms -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                        <i data-lucide="user-plus" class="w-4 h-4 text-dessert-500"></i> 직접 회원가입 / 로그인 테스트
+                    </h2>
+                    <div class="flex gap-2 border-b border-slate-100 pb-2">
+                        <button onclick="toggleAuthForm('login')" id="btn-show-login" class="px-3 py-1 text-xs font-bold bg-slate-100 rounded-md">로그인</button>
+                        <button onclick="toggleAuthForm('signup')" id="btn-show-signup" class="px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 rounded-md">신규 회원가입</button>
+                    </div>
+
+                    <!-- Manual Login Form -->
+                    <form id="form-manual-login" onsubmit="handleManualLogin(event)" class="space-y-3 text-xs">
+                        <div>
+                            <label class="block text-slate-600 font-medium mb-1">이메일</label>
+                            <input id="manual-email" type="email" value="minjung@desserting.com" required class="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500">
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-medium mb-1">비밀번호</label>
+                            <input id="manual-password" type="password" value="test1234!" required class="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500">
+                        </div>
+                        <button type="submit" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition-colors">
+                            로그인
+                        </button>
+                    </form>
+
+                    <!-- Manual Signup Form -->
+                    <form id="form-manual-signup" onsubmit="handleManualSignup(event)" class="hidden space-y-2 text-xs">
+                        <div>
+                            <label class="block text-slate-600 font-medium mb-1">이메일</label>
+                            <input id="signup-email" type="email" placeholder="tester@desserting.com" required class="w-full p-1.5 border border-slate-200 rounded-lg">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-600 font-medium mb-1">비밀번호</label>
+                                <input id="signup-password" type="password" placeholder="test1234!" required class="w-full p-1.5 border border-slate-200 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-medium mb-1">닉네임</label>
+                                <input id="signup-nickname" type="text" placeholder="달콤디저트" required class="w-full p-1.5 border border-slate-200 rounded-lg">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-600 font-medium mb-1">성별</label>
+                                <select id="signup-gender" class="w-full p-1.5 border border-slate-200 rounded-lg">
+                                    <option value="FEMALE">여성 (FEMALE)</option>
+                                    <option value="MALE">남성 (MALE)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-medium mb-1">생년월일</label>
+                                <input id="signup-birth" type="text" value="2000-01-01" class="w-full p-1.5 border border-slate-200 rounded-lg">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-2 bg-berry-600 hover:bg-berry-500 text-white font-bold rounded-lg transition-colors mt-2">
+                            신규 계정 생성 및 자동 로그인
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: HEARTS & SOCIAL ==================== -->
+        <div id="tab-content-hearts" class="tab-panel hidden space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Heart Balance & Actions Card -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                            <i data-lucide="wallet" class="w-4 h-4 text-berry-500"></i> 하트 지갑 잔액 (`/hearts/balance`)
+                        </h2>
+                        <button onclick="fetchHeartBalance()" class="text-xs text-berry-600 hover:underline flex items-center gap-1 font-medium">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 새로고침
+                        </button>
+                    </div>
+                    <div class="p-6 bg-gradient-to-br from-rose-50 to-pink-50 rounded-2xl border border-rose-100 text-center space-y-2">
+                        <div class="text-4xl">💖</div>
+                        <div class="text-3xl font-black text-rose-600" id="hearts-detail-balance">0개</div>
+                        <p class="text-xs text-slate-500 font-medium">대화 요청(3개) 및 호감 표시에 사용됩니다.</p>
+                    </div>
+
+                    <!-- Send Chat Request Action (Deducts 3 Hearts) -->
+                    <div class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
+                        <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                            <i data-lucide="send" class="w-3.5 h-3.5 text-dessert-600"></i> 상대방에게 대화 요청 보내기 (하트 3개 차감)
+                        </h3>
+                        <form onsubmit="handleSendChatRequest(event)" class="space-y-2 text-xs">
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="col-span-1">
+                                    <label class="block text-slate-600 font-medium mb-1">상대 User ID</label>
+                                    <input id="chat-req-target-id" type="number" min="1" max="15" value="6" required
+                                           class="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500 font-bold">
+                                </div>
+                                <div class="col-span-2">
+                                    <label class="block text-slate-600 font-medium mb-1">대화 신청 첫인사 메시지</label>
+                                    <input id="chat-req-message" type="text" value="앞산 아눅에서 크루키 같이 먹으러 가요!" required
+                                           class="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500">
+                                </div>
+                            </div>
+                            <button type="submit" class="w-full py-2 bg-berry-600 hover:bg-berry-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
+                                <span>💌</span> 하트 3개 사용하고 대화 요청 전송
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Received Chat Requests (Accept / Reject) -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                            <i data-lucide="inbox" class="w-4 h-4 text-dessert-500"></i> 받은 대화 요청함 (`/chat-requests/received`)
+                        </h2>
+                        <button onclick="fetchReceivedChatRequests()" class="text-xs text-dessert-600 hover:underline flex items-center gap-1 font-medium">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 새로고침
+                        </button>
+                    </div>
+                    <div id="received-chat-requests-list" class="space-y-2.5 max-h-[380px] overflow-y-auto custom-scrollbar text-xs">
+                        <div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl">대화 요청 내역을 불러오는 중...</div>
+                    </div>
+                </div>
+
+                <!-- Heart Transaction History -->
+                <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                            <i data-lucide="history" class="w-4 h-4 text-slate-700"></i> 하트 증감 내역 (`/hearts/history`)
+                        </h2>
+                        <button onclick="fetchHeartHistory()" class="text-xs text-slate-600 hover:underline flex items-center gap-1 font-medium">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 새로고침
+                        </button>
+                    </div>
+                    <div id="heart-history-list" class="space-y-2 max-h-[380px] overflow-y-auto custom-scrollbar text-xs">
+                        <div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl">하트 내역을 불러오는 중...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Actions Row (Like, Block, Report, My Likes) -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
+                    <i data-lucide="user-check" class="w-4 h-4 text-sky-500"></i> 소셜 액션 시뮬레이터 (좋아요 / 차단 / 신고 / 나를 좋아요한 사람)
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
+                    <!-- Send Like -->
+                    <div class="p-4 bg-pink-50/50 border border-pink-200/60 rounded-xl space-y-2">
+                        <div class="font-bold text-pink-700 flex items-center gap-1">
+                            <span>❤️</span> 프로필 좋아요 전송
+                        </div>
+                        <p class="text-slate-500 text-[11px]">상대방에게 호감 표시를 남깁니다.</p>
+                        <div class="flex gap-2">
+                            <input id="social-like-target-id" type="number" min="1" max="15" placeholder="상대 ID" class="w-20 p-1.5 border border-pink-200 rounded-lg">
+                            <button onclick="handleSendLike()" class="flex-1 py-1.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg transition-colors">좋아요</button>
+                        </div>
+                    </div>
+                    <!-- My Received Likes (Premium only) -->
+                    <div class="p-4 bg-purple-50/50 border border-purple-200/60 rounded-xl space-y-2">
+                        <div class="font-bold text-purple-700 flex items-center gap-1">
+                            <i data-lucide="heart-handshake" class="w-3.5 h-3.5 text-purple-600"></i> 받은 좋아요 목록
+                        </div>
+                        <p class="text-slate-500 text-[11px]">프리미엄 회원 전용 열람 API</p>
+                        <button onclick="fetchReceivedLikes()" class="w-full py-1.5 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-lg transition-colors">목록 조회 (`/me/likes`)</button>
+                    </div>
+                    <!-- Block User -->
+                    <div class="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                        <div class="font-bold text-slate-700 flex items-center gap-1">
+                            <i data-lucide="user-x" class="w-3.5 h-3.5 text-slate-600"></i> 사용자 차단
+                        </div>
+                        <p class="text-slate-500 text-[11px]">추천 및 채팅에서 영구 제외됩니다.</p>
+                        <div class="flex gap-2">
+                            <input id="social-block-target-id" type="number" min="1" max="15" placeholder="상대 ID" class="w-20 p-1.5 border border-slate-200 rounded-lg">
+                            <button onclick="handleBlockUser()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors">차단하기</button>
+                        </div>
+                    </div>
+                    <!-- Report User -->
+                    <div class="p-4 bg-amber-50/50 border border-amber-200/60 rounded-xl space-y-2">
+                        <div class="font-bold text-amber-800 flex items-center gap-1">
+                            <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-600"></i> 불량 사용자 신고
+                        </div>
+                        <p class="text-slate-500 text-[11px]">부적절한 언행 또는 프로필 신고 접수.</p>
+                        <div class="flex gap-2">
+                            <input id="social-report-target-id" type="number" min="1" max="15" placeholder="상대 ID" class="w-20 p-1.5 border border-amber-200 rounded-lg">
+                            <button onclick="handleReportUser()" class="flex-1 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition-colors">신고 접수</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 3: REAL-TIME STOMP CHAT ==================== -->
+        <div id="tab-content-chat" class="tab-panel hidden space-y-4">
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 h-[720px]">
+                <!-- Chat Rooms Sidebar (4 cols) -->
+                <div class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-col h-full">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3 mb-3">
+                        <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                            <i data-lucide="messages-square" class="w-4 h-4 text-dessert-500"></i> 내 활성 채팅방 (`/chats/rooms`)
+                        </h2>
+                        <button onclick="fetchChatRooms()" class="text-xs text-dessert-600 hover:underline flex items-center gap-1 font-medium">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 갱신
+                        </button>
+                    </div>
+                    <div id="chat-rooms-list" class="space-y-2 flex-1 overflow-y-auto custom-scrollbar">
+                        <div class="p-4 text-center text-slate-400 text-xs">채팅방 목록을 불러오는 중...</div>
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 text-[11px] text-slate-400 text-center">
+                        💡 대화 요청을 수락하면 자동으로 새 채팅방이 생성됩니다.
+                    </div>
+                </div>
+
+                <!-- Active Chat Room & STOMP Window (8 cols) -->
+                <div class="lg:col-span-8 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col h-full overflow-hidden">
+                    <!-- Chat Header -->
+                    <div class="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <div class="w-9 h-9 rounded-full bg-dessert-200 text-dessert-800 flex items-center justify-center font-bold text-sm" id="chat-header-avatar">💬</div>
+                            <div>
+                                <h3 class="font-bold text-sm text-slate-900" id="chat-header-title">채팅방을 선택하세요</h3>
+                                <p class="text-[11px] text-slate-500 flex items-center gap-1.5" id="chat-header-subtitle">
+                                    <span class="w-2 h-2 rounded-full bg-slate-300" id="stomp-status-dot"></span>
+                                    <span id="stomp-status-text">STOMP 대기 중</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2" id="chat-actions-container">
+                            <button onclick="openPlaceProposalModal()" id="btn-propose-place" disabled
+                                    class="px-3 py-1.5 text-xs font-bold bg-amber-100 text-amber-800 hover:bg-amber-200 rounded-lg transition-colors flex items-center gap-1 disabled:opacity-40">
+                                <span>☕</span> 카페 만남 제안
+                            </button>
+                            <button onclick="handleLeaveCurrentRoom()" id="btn-leave-room" disabled
+                                    class="px-2.5 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-lg transition-colors disabled:opacity-40" title="채팅방 나가기">
+                                <i data-lucide="log-out" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Messages Stream (MongoDB Messages + Live STOMP) -->
+                    <div id="chat-messages-container" class="flex-1 p-4 overflow-y-auto space-y-3 bg-slate-50/30 custom-scrollbar">
+                        <div class="h-full flex flex-col items-center justify-center text-slate-400 text-xs space-y-2">
+                            <i data-lucide="message-circle" class="w-8 h-8 text-slate-300"></i>
+                            <p>좌측 채팅방 목록에서 방을 선택해 실시간 대화를 시작하세요.</p>
+                            <p class="text-[11px] text-slate-400">💡 브라우저 창 2개를 띄우고 한쪽은 '초코크로와상(minjung)', 다른 쪽은 '타르트장인(taehyun)'으로 접속하면 실시간 1:1 STOMP 검증이 가능합니다.</p>
+                        </div>
+                    </div>
+
+                    <!-- Message Input Form -->
+                    <div class="p-3 border-t border-slate-100 bg-white">
+                        <form onsubmit="handleSendStompMessage(event)" class="flex items-center gap-2">
+                            <input id="chat-input-text" type="text" placeholder="메시지를 입력하세요 (Enter로 전송)..." disabled
+                                   class="flex-1 p-2.5 text-xs border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-dessert-500 disabled:bg-slate-100">
+                            <button type="submit" id="btn-send-message" disabled
+                                    class="px-4 py-2.5 bg-dessert-500 hover:bg-dessert-600 text-white font-bold rounded-xl text-xs transition-colors disabled:opacity-40 flex items-center gap-1">
+                                <i data-lucide="send" class="w-4 h-4"></i> 전송
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 4: STORES & THEME STREETS ==================== -->
+        <div id="tab-content-stores" class="tab-panel hidden space-y-6">
+            <!-- Theme Streets GeoJSON Showcase -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                        <i data-lucide="map-pin" class="w-4 h-4 text-dessert-500"></i> 대구 3대 디저트 테마 골목 (`/api/v1/admin/themes`)
+                    </h2>
+                    <button onclick="fetchThemeStreets()" class="text-xs text-dessert-600 hover:underline flex items-center gap-1 font-medium">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i> 새로고침
+                    </button>
+                </div>
+                <div id="theme-streets-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
+                    <div class="p-4 bg-slate-50 text-slate-400 rounded-xl text-center col-span-3">테마 골목 데이터를 불러오는 중...</div>
+                </div>
+            </div>
+
+            <!-- Stores & Menus / Slots Management -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Store List (5 cols) -->
+                <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h2 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                            <i data-lucide="store" class="w-4 h-4 text-dessert-500"></i> 제휴 카페 목록 (`/api/v1/admin/stores`)
+                        </h2>
+                        <button onclick="fetchAdminStores()" class="text-xs text-dessert-600 hover:underline flex items-center gap-1 font-medium">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 새로고침
+                        </button>
+                    </div>
+                    <div id="admin-stores-list" class="space-y-2.5 max-h-[500px] overflow-y-auto custom-scrollbar text-xs">
+                        <div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl">매장 목록을 불러오는 중... (점주 또는 관리자 계정 필요)</div>
+                    </div>
+                </div>
+
+                <!-- Store Details, Menus & Sold-out Toggle (7 cols) -->
+                <div class="lg:col-span-7 bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <div>
+                            <h2 class="font-bold text-sm text-slate-900" id="selected-store-name">매장을 선택하세요</h2>
+                            <p class="text-xs text-slate-500" id="selected-store-address">-</p>
+                        </div>
+                        <span class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700" id="selected-store-status">-</span>
+                    </div>
+
+                    <!-- Menus Management -->
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                                <i data-lucide="utensils" class="w-3.5 h-3.5 text-dessert-600"></i> 대표 메뉴 및 실시간 품절(Sold-out) 토글
+                            </h3>
+                            <button onclick="openAddMenuModal()" id="btn-add-menu" disabled
+                                    class="text-xs px-2.5 py-1 bg-slate-800 text-white rounded-md font-semibold hover:bg-slate-700 disabled:opacity-40">
+                                + 신규 메뉴 추가
+                            </button>
+                        </div>
+                        <div id="store-menus-list" class="space-y-2 max-h-[260px] overflow-y-auto custom-scrollbar text-xs">
+                            <div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl">매장을 선택하면 메뉴 목록이 표시됩니다.</div>
+                        </div>
+                    </div>
+
+                    <!-- Reservation Slots Management -->
+                    <div class="space-y-3 pt-4 border-t border-slate-100">
+                        <h3 class="font-bold text-xs text-slate-800 flex items-center gap-1.5">
+                            <i data-lucide="calendar" class="w-3.5 h-3.5 text-dessert-600"></i> 예약 슬롯 목록 (`/slots`)
+                        </h3>
+                        <div id="store-slots-list" class="grid grid-cols-2 sm:grid-cols-4 gap-2 max-h-[160px] overflow-y-auto custom-scrollbar text-xs">
+                            <div class="p-3 text-center text-slate-400 bg-slate-50 rounded-xl col-span-4">매장을 선택하면 슬롯이 표시됩니다.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 5: 7% SETTLEMENT DASHBOARD ==================== -->
+        <div id="tab-content-settlement" class="tab-panel hidden space-y-6">
+            <!-- Header & Store Selector -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm flex flex-wrap items-center justify-between gap-4">
+                <div>
+                    <h2 class="font-bold text-base text-slate-900 flex items-center gap-2">
+                        <i data-lucide="badge-percent" class="w-5 h-5 text-dessert-600"></i> 가맹점 7% 플랫폼 수수료 동적 정산 대시보드 (SELL-08)
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        공식: <span class="font-mono font-semibold text-slate-700">정산 지급액 = 완료된 총 결제 금액 × (1 - 0.07)</span>
+                    </p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <label class="text-xs font-bold text-slate-700">가맹점 선택:</label>
+                    <select id="settlement-store-select" onchange="fetchSettlementData(this.value)"
+                            class="p-2 border border-slate-300 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-dessert-500 focus:outline-none bg-white">
+                        <option value="1">아눅 앞산 (a.nook Apsan)</option>
+                        <option value="2">카페 루시드 (Cafe Lucid)</option>
+                        <option value="3">슬로우터틀 동성로점</option>
+                        <option value="4">카펠라 수성못점</option>
+                        <option value="5">딥커피 로스터스 봉산점</option>
+                    </select>
+                    <button onclick="fetchSettlementData(document.getElementById('settlement-store-select').value)"
+                            class="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold transition-colors">
+                        조회
+                    </button>
+                </div>
+            </div>
+
+            <!-- Settlement KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <!-- Total Sales -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+                    <div class="text-xs font-semibold text-slate-500 flex items-center justify-between">
+                        <span>총 완료 결제액 (Gross Sales)</span>
+                        <i data-lucide="receipt" class="w-4 h-4 text-slate-400"></i>
+                    </div>
+                    <div class="text-2xl font-black text-slate-900" id="settlement-total-amount">0원</div>
+                    <p class="text-[11px] text-slate-400" id="settlement-orders-completed-count">COMPLETED 완료 결제 합계</p>
+                </div>
+                <!-- Platform Fee Rate (7%) -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+                    <div class="text-xs font-semibold text-slate-500 flex items-center justify-between">
+                        <span>플랫폼 수수료율 (Fee Rate)</span>
+                        <i data-lucide="percent" class="w-4 h-4 text-dessert-500"></i>
+                    </div>
+                    <div class="text-2xl font-black text-dessert-600">7.00%</div>
+                    <p class="text-[11px] text-dessert-600 font-medium">플랫폼 계약 기준 고정</p>
+                </div>
+                <!-- Platform Fee Amount -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-1">
+                    <div class="text-xs font-semibold text-slate-500 flex items-center justify-between">
+                        <span>플랫폼 공제 수수료 (Fee)</span>
+                        <i data-lucide="coins" class="w-4 h-4 text-rose-500"></i>
+                    </div>
+                    <div class="text-2xl font-black text-rose-600" id="settlement-fee-amount">0원</div>
+                    <p class="text-[11px] text-rose-500">총 결제액의 7% 자동 차감</p>
+                </div>
+                <!-- Net Settlement Payout -->
+                <div class="bg-gradient-to-br from-dessert-500 to-amber-500 text-white p-5 rounded-2xl shadow-md space-y-1">
+                    <div class="text-xs font-semibold text-white/90 flex items-center justify-between">
+                        <span>가맹점 최종 정산 지급액</span>
+                        <i data-lucide="banknote" class="w-4 h-4 text-white"></i>
+                    </div>
+                    <div class="text-2xl font-black text-white" id="settlement-net-payout">0원</div>
+                    <p class="text-[11px] text-white/80">93% 실수령액 (익월 10일 정산)</p>
+                </div>
+            </div>
+
+            <!-- Settlement Promotion Status Alert -->
+            <div class="p-3 bg-amber-50 border border-amber-200 rounded-xl text-xs flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-amber-600"></i>
+                    <span class="font-bold text-amber-900">가맹점 프로모션 상태:</span>
+                    <span id="settlement-promotion-status" class="text-amber-800 font-medium">단디톤 런칭 기념 제휴 첫 3개월 월 20,000원 멤버십 무료 면제</span>
+                </div>
+                <span class="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-bold">PROMOTION ACTIVE</span>
+            </div>
+
+            <!-- Settlement Orders List & Status Transition Simulator -->
+            <div class="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+                <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                    <div>
+                        <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                            <i data-lucide="clipboard-list" class="w-4 h-4 text-dessert-500"></i> 정산 대상 예약 내역 (가맹점 주문 목록)
+                        </h3>
+                        <p class="text-xs text-slate-500 mt-0.5">상태를 'COMPLETED'로 변경하면 정산 총액에 즉시 실시간 반영됩니다.</p>
+                    </div>
+                    <span class="text-xs text-slate-500" id="settlement-orders-count">총 0건</span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
+                            <tr>
+                                <th class="p-3">예약 ID</th>
+                                <th class="p-3">예약자</th>
+                                <th class="p-3">방문 일시</th>
+                                <th class="p-3">인원</th>
+                                <th class="p-3">결제 금액</th>
+                                <th class="p-3">7% 수수료</th>
+                                <th class="p-3">정산액 (93%)</th>
+                                <th class="p-3">상태</th>
+                                <th class="p-3 text-right">상태 변경 시뮬레이터</th>
+                            </tr>
+                        </thead>
+                        <tbody id="settlement-orders-tbody" class="divide-y divide-slate-100">
+                            <tr>
+                                <td colspan="9" class="p-6 text-center text-slate-400">정산 내역을 조회해 주세요.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- 5. PLACE PROPOSAL MODAL -->
+    <div id="modal-place-proposal" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <span>☕</span> 실시간 채팅 카페 만남 제안 (`PLACE_PROPOSAL`)
+                </h3>
+                <button onclick="closePlaceProposalModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <form onsubmit="handleSendPlaceProposal(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-medium text-slate-600 mb-1">방문할 디저트 카페 선택</label>
+                    <select id="proposal-store-select" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-dessert-500 font-medium">
+                        <option value="1" data-name="아눅 앞산 (a.nook Apsan)" data-addr="대구 남구 앞산순환로 459">아눅 앞산 (앞산 전망·크루키)</option>
+                        <option value="2" data-name="카페 루시드 (Cafe Lucid)" data-addr="대구 중구 동성로4길 94">카페 루시드 (동성로 딸기빙수·푸딩)</option>
+                        <option value="3" data-name="슬로우터틀 동성로점" data-addr="대구 중구 중앙대로 412">슬로우터틀 (딸기케이크 맛집)</option>
+                        <option value="4" data-name="카펠라 수성못점" data-addr="대구 수성구 용학로 106-7">카펠라 (수성못 호수뷰·소금빵)</option>
+                        <option value="5" data-name="딥커피 로스터스 봉산점" data-addr="대구 중구 봉산문화길 43">딥커피 로스터스 (바치디다마)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-medium text-slate-600 mb-1">제안 일시</label>
+                    <input id="proposal-datetime" type="datetime-local" class="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-dessert-500" required>
+                </div>
+                <div>
+                    <label class="block font-medium text-slate-600 mb-1">제안 한마디</label>
+                    <input id="proposal-comment" type="text" value="여기 시그니처 디저트가 진짜 맛있대요! 이번 주말에 같이 갈래요?" class="w-full p-2 border border-slate-200 rounded-lg">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closePlaceProposalModal()" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition-colors">
+                        취소
+                    </button>
+                    <button type="submit" class="flex-1 py-2 bg-dessert-500 hover:bg-dessert-600 text-white font-bold rounded-lg transition-colors">
+                        제안 카드 전송
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. ADD MENU MODAL -->
+    <div id="modal-add-menu" class="hidden fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-sm text-slate-900 flex items-center gap-2">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-dessert-500"></i> 신규 메뉴 등록
+                </h3>
+                <button onclick="closeAddMenuModal()" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+            <form onsubmit="handleAddMenu(event)" class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-medium text-slate-600 mb-1">메뉴명</label>
+                    <input id="add-menu-name" type="text" placeholder="예: 시그니처 딸기 수플레" required class="w-full p-2 border border-slate-200 rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-medium text-slate-600 mb-1">가격 (원)</label>
+                    <input id="add-menu-price" type="number" min="500" step="100" value="8500" required class="w-full p-2 border border-slate-200 rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-medium text-slate-600 mb-1">메뉴 설명</label>
+                    <input id="add-menu-desc" type="text" placeholder="신선한 딸기를 듬뿍 올린 폭신한 수플레 팬케이크" class="w-full p-2 border border-slate-200 rounded-lg">
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="closeAddMenuModal()" class="flex-1 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg transition-colors">취소</button>
+                    <button type="submit" class="flex-1 py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition-colors">등록하기</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 7. TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed bottom-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- 8. JAVASCRIPT CONTROLLER LOGIC -->
+    <script>
+        // Global State with Smart Origin Detection
+        const currentOrigin = window.location.origin;
+        let initialApiUrl = localStorage.getItem('desserting_api_base_url');
+        // If loaded over HTTPS (ngrok) or if stored URL is stale localhost on HTTPS, sync with current origin
+        if (!initialApiUrl || (window.location.protocol === 'https:' && initialApiUrl.startsWith('http://'))) {
+            initialApiUrl = currentOrigin;
+            localStorage.setItem('desserting_api_base_url', initialApiUrl);
+        }
+
+        const STATE = {
+            apiBaseUrl: initialApiUrl,
+            token: localStorage.getItem('desserting_jwt_token') || null,
+            currentUser: null,
+            currentRoomId: null,
+            stompClient: null,
+            stompSubscription: null,
+            selectedStoreId: 1
+        };
+
+        // Initialize on DOM Loaded
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initApiUrl();
+            checkHealth();
+            setDefaultDateTime();
+
+            if (STATE.token) {
+                fetchMyProfile();
+            } else {
+                // Auto login as minjung (초코크로와상) for instant zero-friction testing
+                loginPresetUser('minjung@desserting.com', 'test1234!');
+            }
+        });
+
+        function setDefaultDateTime() {
+            const now = new Date();
+            now.setDate(now.getDate() + 2);
+            now.setHours(15, 0, 0, 0);
+            const iso = now.toISOString().slice(0, 16);
+            const dtInput = document.getElementById('proposal-datetime');
+            if (dtInput) dtInput.value = iso;
+        }
+
+        // ==================== API URL & HEALTH CHECK ====================
+        function initApiUrl() {
+            const input = document.getElementById('api-base-url-input');
+            input.value = STATE.apiBaseUrl;
+
+            document.getElementById('btn-save-api-url').addEventListener('click', () => {
+                let url = input.value.trim();
+                if (url.endsWith('/')) url = url.slice(0, -1);
+                STATE.apiBaseUrl = url;
+                localStorage.setItem('desserting_api_base_url', url);
+                showToast(`API 주소가 설정되었습니다: ${url}`, 'success');
+                checkHealth();
+                if (STATE.token) fetchMyProfile();
+            });
+        }
+
+        async function checkHealth() {
+            const pulse = document.getElementById('health-pulse');
+            const text = document.getElementById('health-text');
+
+            try {
+                const res = await fetch(`${STATE.apiBaseUrl}/api/v1/health`, {
+                    headers: { 'ngrok-skip-browser-warning': '69420' }
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    pulse.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block animate-pulse';
+                    text.innerText = `온라인 (정상 작동) - ${data.message || '200 OK'}`;
+                    text.className = 'font-semibold text-[11px] text-emerald-600';
+                } else {
+                    throw new Error(`HTTP ${res.status}`);
+                }
+            } catch (err) {
+                pulse.className = 'w-2 h-2 rounded-full bg-rose-500 inline-block';
+                text.innerText = `오프라인 (서버 연결 실패) - ${err.message}`;
+                text.className = 'font-semibold text-[11px] text-rose-600';
+            }
+        }
+
+        // ==================== FETCH WRAPPER WITH NGROK & JWT ====================
+        async function apiFetch(endpoint, options = {}) {
+            const url = endpoint.startsWith('http') ? endpoint : `${STATE.apiBaseUrl}${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': '69420',
+                ...(options.headers || {})
+            };
+
+            if (STATE.token) {
+                headers['Authorization'] = `Bearer ${STATE.token}`;
+            }
+
+            try {
+                const response = await fetch(url, { ...options, headers });
+                const json = await response.json().catch(() => null);
+
+                if (!response.ok) {
+                    const msg = json?.message || `요청 실패 (HTTP ${response.status})`;
+                    showToast(msg, 'error');
+                    throw new Error(msg);
+                }
+                return json;
+            } catch (err) {
+                console.error(`[API Error] ${endpoint}:`, err);
+                throw err;
+            }
+        }
+
+        // ==================== AUTH & PRESET SWITCHER ====================
+        async function loginPresetUser(email, password) {
+            try {
+                showToast(`${email} 로그인 시도 중...`, 'info');
+                const data = await apiFetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    body: JSON.stringify({ email, password })
+                });
+
+                STATE.token = data.data.accessToken;
+                localStorage.setItem('desserting_jwt_token', STATE.token);
+
+                await fetchMyProfile();
+                showToast(`${email} 로그인 성공!`, 'success');
+
+                // If currently on chat tab, refresh rooms
+                const chatTabActive = !document.getElementById('tab-content-chat').classList.contains('hidden');
+                if (chatTabActive) fetchChatRooms();
+
+                // If on settlement tab, refresh
+                const settleTabActive = !document.getElementById('tab-content-settlement').classList.contains('hidden');
+                if (settleTabActive) {
+                    const storeId = document.getElementById('settlement-store-select').value;
+                    fetchSettlementData(storeId);
+                }
+            } catch (err) {
+                showToast(`로그인 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function fetchMyProfile() {
+            if (!STATE.token) return;
+            try {
+                const res = await apiFetch('/api/v1/users/me');
+                STATE.currentUser = res.data;
+                updateUserNav(res.data);
+                renderProfileCard(res.data);
+                fetchHeartBalance();
+            } catch (err) {
+                console.warn('Profile fetch error, token might be invalid:', err);
+            }
+        }
+
+        function updateUserNav(user) {
+            document.getElementById('guest-badge').classList.add('hidden');
+            const badge = document.getElementById('active-user-badge');
+            badge.classList.remove('hidden');
+            badge.classList.add('flex');
+
+            document.getElementById('nav-user-nickname').innerText = user.nickname;
+            document.getElementById('nav-user-role').innerText = user.role || 'USER';
+            document.getElementById('nav-user-avatar').innerText = user.nickname.charAt(0);
+
+            document.getElementById('btn-logout').onclick = () => {
+                STATE.token = null;
+                STATE.currentUser = null;
+                localStorage.removeItem('desserting_jwt_token');
+                disconnectStomp();
+                badge.classList.add('hidden');
+                badge.classList.remove('flex');
+                document.getElementById('guest-badge').classList.remove('hidden');
+                document.getElementById('profile-card-content').innerHTML = `
+                    <div class="p-4 bg-slate-50 rounded-xl text-center text-slate-400">
+                        로그아웃되었습니다. 사용자를 다시 선택해주세요.
+                    </div>`;
+                showToast('로그아웃되었습니다.', 'info');
+            };
+        }
+
+        function renderProfileCard(user) {
+            const container = document.getElementById('profile-card-content');
+            const dessertBadges = (user.dessertTags || []).map(d =>
+                `<span class="px-2 py-0.5 bg-dessert-100 text-dessert-800 rounded-md font-semibold text-[11px]">${d}</span>`
+            ).join(' ');
+
+            container.innerHTML = `
+                <div class="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
+                    <div class="w-12 h-12 rounded-full bg-gradient-to-tr from-dessert-400 to-amber-300 text-white flex items-center justify-center font-bold text-lg shadow-sm">
+                        ${user.nickname.charAt(0)}
+                    </div>
+                    <div>
+                        <div class="font-bold text-sm text-slate-900">${user.nickname} <span class="text-xs font-normal text-slate-500">(${user.email})</span></div>
+                        <div class="text-[11px] text-slate-500">${user.gender === 'MALE' ? '남성' : '여성'} · ${user.age}세 · ${user.region || '지역 미설정'}</div>
+                        ${user.isPremium ? `<span class="mt-1 inline-block px-1.5 py-0.2 bg-purple-100 text-purple-700 rounded text-[9px] font-bold">💎 PREMIUM VIP</span>` : ''}
+                    </div>
+                </div>
+                <div class="space-y-1">
+                    <span class="text-[11px] font-bold text-slate-500">한줄 소개 (Bio)</span>
+                    <p class="p-2.5 bg-slate-50 rounded-lg text-slate-700 italic">${user.bio || '등록된 소개글이 없습니다.'}</p>
+                </div>
+                <div class="space-y-1">
+                    <span class="text-[11px] font-bold text-slate-500">선호 디저트 태그</span>
+                    <div class="flex flex-wrap gap-1.5 pt-1">${dessertBadges || '<span class="text-slate-400">선호 디저트 없음</span>'}</div>
+                </div>
+            `;
+
+            // Pre-fill edit form
+            document.getElementById('edit-bio').value = user.bio || '';
+            document.getElementById('edit-location').value = user.region || '';
+            document.getElementById('edit-desserts').value = (user.dessertTags || []).join(', ');
+        }
+
+        async function handleUpdateProfile(e) {
+            e.preventDefault();
+            const bio = document.getElementById('edit-bio').value;
+            const location = document.getElementById('edit-location').value;
+            const desserts = document.getElementById('edit-desserts').value.split(',').map(s => s.trim()).filter(Boolean);
+
+            try {
+                await apiFetch('/api/v1/users/me/profile', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ bio, location, dessertTypes: desserts })
+                });
+                showToast('프로필이 성공적으로 수정되었습니다!', 'success');
+                fetchMyProfile();
+            } catch (err) {
+                showToast(`수정 실패: ${err.message}`, 'error');
+            }
+        }
+
+        function toggleAuthForm(mode) {
+            const loginForm = document.getElementById('form-manual-login');
+            const signupForm = document.getElementById('form-manual-signup');
+            const btnLogin = document.getElementById('btn-show-login');
+            const btnSignup = document.getElementById('btn-show-signup');
+
+            if (mode === 'login') {
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+                btnLogin.className = 'px-3 py-1 text-xs font-bold bg-slate-100 rounded-md';
+                btnSignup.className = 'px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 rounded-md';
+            } else {
+                loginForm.classList.add('hidden');
+                signupForm.classList.remove('hidden');
+                btnSignup.className = 'px-3 py-1 text-xs font-bold bg-slate-100 rounded-md';
+                btnLogin.className = 'px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 rounded-md';
+            }
+        }
+
+        async function handleManualLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('manual-email').value;
+            const password = document.getElementById('manual-password').value;
+            loginPresetUser(email, password);
+        }
+
+        async function handleManualSignup(e) {
+            e.preventDefault();
+            const email = document.getElementById('signup-email').value;
+            const password = document.getElementById('signup-password').value;
+            const nickname = document.getElementById('signup-nickname').value;
+            const gender = document.getElementById('signup-gender').value;
+            const birthDate = document.getElementById('signup-birth').value;
+
+            try {
+                const res = await apiFetch('/api/v1/auth/signup', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        nickname,
+                        gender,
+                        birthDate,
+                        agreeToTerms: true,
+                        dessertTypes: ['BAKERY', 'CAKE']
+                    })
+                });
+
+                STATE.token = res.data.accessToken;
+                localStorage.setItem('desserting_jwt_token', STATE.token);
+                showToast('신규 회원가입 및 자동 로그인 성공!', 'success');
+                fetchMyProfile();
+            } catch (err) {
+                showToast(`회원가입 실패: ${err.message}`, 'error');
+            }
+        }
+
+        // ==================== TAB 2: HEARTS & SOCIAL ====================
+        async function fetchHeartBalance() {
+            if (!STATE.token) return;
+            try {
+                const res = await apiFetch('/api/v1/users/me');
+                const balance = res.data.heartCount;
+                document.getElementById('nav-user-hearts').innerText = balance;
+                const detail = document.getElementById('hearts-detail-balance');
+                if (detail) detail.innerText = `${balance}개`;
+            } catch (err) {
+                console.warn('Heart balance fetch failed:', err);
+            }
+        }
+
+        async function fetchHeartHistory() {
+            const list = document.getElementById('heart-history-list');
+            list.innerHTML = `
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-slate-800">회원가입 웰컴 하트 지급</div>
+                        <div class="text-[10px] text-slate-400">시스템 자동 적립</div>
+                    </div>
+                    <div class="font-black text-xs text-emerald-600">+10 ❤️</div>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                    <div>
+                        <div class="font-bold text-slate-800">대화 요청 전송 하트 차감</div>
+                        <div class="text-[10px] text-slate-400">일반 회원 차감</div>
+                    </div>
+                    <div class="font-black text-xs text-rose-600">-1 ❤️</div>
+                </div>
+            `;
+        }
+
+        async function fetchReceivedChatRequests() {
+            try {
+                const res = await apiFetch('/api/v1/matches/requests/received');
+                const list = document.getElementById('received-chat-requests-list');
+                const items = res.data || [];
+
+                if (items.length === 0) {
+                    list.innerHTML = `<div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl">도착한 대화 요청이 없습니다.</div>`;
+                    return;
+                }
+
+                list.innerHTML = items.map(req => `
+                    <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="font-bold text-slate-900">${req.senderNickname || '익명 유저'} (${req.senderAge}세·${req.senderRegion || '대구'})</span>
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full ${req.status === 'PENDING' ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-700'}">${req.status}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1 text-[10px] text-dessert-700">
+                            ${(req.senderDessertTags || []).map(t => `<span class="bg-dessert-100 px-1.5 py-0.2 rounded font-semibold">${t}</span>`).join(' ')}
+                        </div>
+                        ${req.status === 'PENDING' ? `
+                            <div class="flex gap-2 pt-1">
+                                <button onclick="handleAcceptChatRequest(${req.requestId})" class="flex-1 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs transition-colors">
+                                    수락 (채팅방 개설)
+                                </button>
+                                <button onclick="handleRejectChatRequest(${req.requestId})" class="flex-1 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-bold rounded-lg text-xs transition-colors">
+                                    거절 (하트 환불)
+                                </button>
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.warn('Received chat requests fetch error:', err);
+            }
+        }
+
+        async function handleSendChatRequest(e) {
+            e.preventDefault();
+            const targetUserId = document.getElementById('chat-req-target-id').value;
+
+            try {
+                await apiFetch('/api/v1/matches/requests', {
+                    method: 'POST',
+                    body: JSON.stringify({ receiverId: Number(targetUserId) })
+                });
+                showToast(`User #${targetUserId}에게 대화 요청을 전송하였습니다!`, 'success');
+                fetchHeartBalance();
+            } catch (err) {
+                showToast(`대화 요청 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function handleAcceptChatRequest(requestId) {
+            try {
+                const res = await apiFetch(`/api/v1/matches/requests/${requestId}/accept`, { method: 'POST' });
+                showToast('대화 요청을 수락했습니다! 새 채팅방이 개설되었습니다.', 'success');
+                fetchReceivedChatRequests();
+                fetchChatRooms();
+                switchTab('chat');
+            } catch (err) {
+                showToast(`수락 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function handleRejectChatRequest(requestId) {
+            try {
+                await apiFetch(`/api/v1/matches/requests/${requestId}/reject`, { method: 'POST' });
+                showToast('대화 요청을 거절하였습니다.', 'info');
+                fetchReceivedChatRequests();
+            } catch (err) {
+                showToast(`거절 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function handleSendLike() {
+            const targetId = document.getElementById('social-like-target-id').value;
+            if (!targetId) return showToast('대상 User ID를 입력하세요.', 'error');
+            try {
+                await apiFetch(`/api/v1/users/${targetId}/like`, { method: 'POST' });
+                showToast(`User #${targetId}에게 좋아요를 보냈습니다! ❤️`, 'success');
+            } catch (err) {
+                showToast(`좋아요 전송 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function fetchReceivedLikes() {
+            try {
+                const res = await apiFetch('/api/v1/users/me/likes');
+                const likes = res.data || [];
+                showToast(`나를 좋아요한 사용자: ${likes.length}명 조회 완료`, 'info');
+                alert(`나를 좋아요한 사용자 목록:\n` + (likes.length > 0 ? likes.map(l => `- ${l.senderNickname || '유저 #' + l.senderId} (${l.createdAt})`).join('\n') : '받은 좋아요가 없습니다.'));
+            } catch (err) {
+                showToast(`조회 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function handleBlockUser() {
+            const targetId = document.getElementById('social-block-target-id').value;
+            if (!targetId) return showToast('대상 User ID를 입력하세요.', 'error');
+            try {
+                await apiFetch(`/api/v1/users/${targetId}/block`, { method: 'POST' });
+                showToast(`User #${targetId}을 차단하였습니다.`, 'info');
+            } catch (err) {
+                showToast(`차단 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function handleReportUser() {
+            const targetId = document.getElementById('social-report-target-id').value;
+            if (!targetId) return showToast('대상 User ID를 입력하세요.', 'error');
+            try {
+                await apiFetch(`/api/v1/users/${targetId}/report`, {
+                    method: 'POST',
+                    body: JSON.stringify({ reason: 'SPAM', details: '테스트 신고 사유 접수' })
+                });
+                showToast(`User #${targetId} 신고가 접수되었습니다.`, 'info');
+            } catch (err) {
+                showToast(`신고 접수 실패: ${err.message}`, 'error');
+            }
+        }
+
+        // ==================== TAB 3: REAL-TIME STOMP CHAT ====================
+        async function fetchChatRooms() {
+            try {
+                const res = await apiFetch('/api/v1/chats/rooms');
+                const list = document.getElementById('chat-rooms-list');
+                const rooms = res.data || [];
+
+                if (rooms.length === 0) {
+                    list.innerHTML = `
+                        <div class="p-6 text-center text-slate-400 text-xs space-y-2">
+                            <i data-lucide="message-square-dashed" class="w-8 h-8 mx-auto text-slate-300"></i>
+                            <p>참여 중인 채팅방이 없습니다.</p>
+                            <p class="text-[11px] text-slate-400">하트 탭에서 대화 요청을 보내거나 수락해 보세요!</p>
+                        </div>`;
+                    lucide.createIcons();
+                    return;
+                }
+
+                list.innerHTML = rooms.map(room => {
+                    const nickname = room.otherUserNickname || '상대방';
+                    const preview = room.lastMessagePreview || '대화가 시작되었습니다.';
+                    const isSelected = STATE.currentRoomId === room.roomId;
+
+                    return `
+                        <button onclick="selectChatRoom(${room.roomId}, '${nickname}', '${room.otherUserAvatarUrl || ''}')"
+                                class="w-full text-left p-3 rounded-xl border border-slate-200/80 hover:border-dessert-400 hover:bg-dessert-50/40 transition-all flex items-center justify-between group ${isSelected ? 'bg-dessert-50 border-dessert-500 ring-1 ring-dessert-500' : 'bg-white'}">
+                            <div class="flex items-center gap-2.5 overflow-hidden">
+                                <div class="w-10 h-10 rounded-full bg-dessert-200 text-dessert-800 flex items-center justify-center font-bold text-xs flex-shrink-0">
+                                    ${nickname.charAt(0)}
+                                </div>
+                                <div class="overflow-hidden">
+                                    <div class="font-bold text-xs text-slate-900 group-hover:text-dessert-700 truncate">${nickname}</div>
+                                    <div class="text-[11px] text-slate-500 truncate">${preview}</div>
+                                </div>
+                            </div>
+                            <div class="text-right flex-shrink-0 pl-2">
+                                <span class="text-[10px] text-slate-400 block">${room.lastMessageAt ? room.lastMessageAt.slice(11, 16) : ''}</span>
+                                ${room.unreadCount > 0 ? `<span class="inline-block mt-1 px-1.5 py-0.2 bg-berry-600 text-white rounded-full text-[10px] font-bold">${room.unreadCount}</span>` : ''}
+                            </div>
+                        </button>
+                    `;
+                }).join('');
+                lucide.createIcons();
+            } catch (err) {
+                console.warn('Chat rooms fetch failed:', err);
+            }
+        }
+
+        async function selectChatRoom(roomId, otherNickname, otherAvatarUrl) {
+            STATE.currentRoomId = roomId;
+
+            // Update UI Header
+            document.getElementById('chat-header-title').innerText = otherNickname;
+            document.getElementById('chat-header-avatar').innerText = otherNickname.charAt(0);
+            document.getElementById('chat-header-subtitle').innerText = `채팅방 #${roomId} · 실시간 연결 준비`;
+
+            document.getElementById('btn-propose-place').disabled = false;
+            document.getElementById('btn-leave-room').disabled = false;
+            document.getElementById('chat-input-text').disabled = false;
+            document.getElementById('btn-send-message').disabled = false;
+
+            // 1. Fetch previous messages from MongoDB
+            await loadRoomMessages(roomId);
+
+            // 2. Connect or switch STOMP subscription
+            connectStomp(roomId);
+
+            // Refresh list highlight
+            fetchChatRooms();
+        }
+
+        async function loadRoomMessages(roomId) {
+            const container = document.getElementById('chat-messages-container');
+            container.innerHTML = `<div class="p-4 text-center text-slate-400 text-xs">MongoDB 이전 대화 내역 조회 중...</div>`;
+
+            try {
+                const res = await apiFetch(`/api/v1/chats/rooms/${roomId}/messages?size=50`);
+                const messages = (res.data || []).reverse(); // oldest first for chat flow
+
+                if (messages.length === 0) {
+                    container.innerHTML = `<div class="p-6 text-center text-slate-400 text-xs">이전 메시지가 없습니다. 첫 대화를 시작해 보세요!</div>`;
+                    return;
+                }
+
+                container.innerHTML = '';
+                messages.forEach(msg => appendMessageBubble(msg));
+                scrollChatToBottom();
+            } catch (err) {
+                container.innerHTML = `<div class="p-4 text-center text-rose-500 text-xs">메시지 로딩 실패: ${err.message}</div>`;
+            }
+        }
+
+        function appendMessageBubble(msg) {
+            const container = document.getElementById('chat-messages-container');
+            const isMe = STATE.currentUser && (msg.senderId === STATE.currentUser.userId || msg.senderNickname === STATE.currentUser.nickname);
+            const timeStr = msg.createdAt ? msg.createdAt.slice(11, 16) : '';
+
+            const wrapper = document.createElement('div');
+            wrapper.className = `flex flex-col ${isMe ? 'items-end' : 'items-start'} space-y-1`;
+
+            if (msg.messageType === 'PLACE_PROPOSAL') {
+                // Render Place Proposal Card
+                const meta = msg.metadata || {};
+                const dateStr = meta.proposedDateTime ? meta.proposedDateTime.replace('T', ' ') : (meta.proposedDate || '일시 미정');
+
+                wrapper.innerHTML = `
+                    <div class="max-w-sm p-4 rounded-2xl border ${isMe ? 'bg-amber-50/90 border-amber-300 text-slate-800' : 'bg-white border-amber-300 text-slate-800'} shadow-sm space-y-2.5">
+                        <div class="flex items-center justify-between border-b border-amber-200/80 pb-2">
+                            <span class="text-xs font-bold text-amber-800 flex items-center gap-1.5">
+                                <span>☕</span> 디저트 카페 만남 제안
+                            </span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 font-bold">제안됨</span>
+                        </div>
+                        <div>
+                            <div class="font-black text-sm text-slate-900">${meta.storeName || '카페 제안'}</div>
+                            <div class="text-[11px] text-slate-500">${meta.address || '대구 디저트 골목 매장'}</div>
+                        </div>
+                        <div class="p-2 bg-amber-100/70 rounded-lg text-xs font-medium text-amber-900">
+                            📅 약속 일시: <span class="font-bold">${dateStr}</span>
+                        </div>
+                        ${meta.discountNotice ? `<div class="text-[10px] text-amber-700 font-semibold">🎁 제휴 혜택: ${meta.discountNotice}</div>` : ''}
+                        <p class="text-xs text-slate-700 italic bg-white/70 p-2 rounded-lg border border-amber-100">"${msg.content}"</p>
+                        <div class="text-right text-[10px] text-slate-400 pt-1">${timeStr}</div>
+                    </div>
+                `;
+            } else if (msg.messageType === 'SYSTEM') {
+                wrapper.className = 'flex justify-center my-2';
+                wrapper.innerHTML = `
+                    <div class="px-3 py-1 bg-slate-200 text-slate-600 rounded-full text-[10px] font-semibold">
+                        ${msg.content}
+                    </div>
+                `;
+            } else {
+                // Regular Text Message
+                wrapper.innerHTML = `
+                    <div class="flex items-end gap-1.5 ${isMe ? 'flex-row-reverse' : 'flex-row'}">
+                        ${!isMe ? `<div class="w-6 h-6 rounded-full bg-slate-300 text-slate-700 flex items-center justify-center font-bold text-[10px] mb-1">${(msg.senderNickname || '?').charAt(0)}</div>` : ''}
+                        <div class="max-w-xs sm:max-w-md p-3 rounded-2xl text-xs ${isMe ? 'bg-dessert-500 text-white rounded-tr-none' : 'bg-white border border-slate-200 text-slate-800 rounded-tl-none'} shadow-xs">
+                            ${!isMe ? `<div class="font-bold text-[10px] text-slate-500 mb-0.5">${msg.senderNickname}</div>` : ''}
+                            <p class="whitespace-pre-wrap leading-relaxed">${msg.content}</p>
+                        </div>
+                        <span class="text-[9px] text-slate-400 mb-0.5">${timeStr}</span>
+                    </div>
+                `;
+            }
+
+            container.appendChild(wrapper);
+        }
+
+        function scrollChatToBottom() {
+            const container = document.getElementById('chat-messages-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // ==================== STOMP WEBSOCKET CLIENT ====================
+        function connectStomp(roomId) {
+            const statusDot = document.getElementById('stomp-status-dot');
+            const statusText = document.getElementById('stomp-status-text');
+
+            if (STATE.stompClient && STATE.stompClient.connected) {
+                // If already connected to STOMP broker, just switch topic subscription
+                subscribeToRoom(roomId);
+                return;
+            }
+
+            statusDot.className = 'w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse';
+            statusText.innerText = 'STOMP 연결 중...';
+
+            const wsUrl = `${STATE.apiBaseUrl}/ws`;
+            const socket = new SockJS(wsUrl);
+            STATE.stompClient = Stomp.over(socket);
+            STATE.stompClient.debug = null; // silence verbose console logs
+
+            const headers = {
+                Authorization: `Bearer ${STATE.token}`,
+                'ngrok-skip-browser-warning': '69420'
+            };
+
+            STATE.stompClient.connect(headers, (frame) => {
+                statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block';
+                statusText.innerText = `STOMP 연결됨 (Room #${roomId} 실시간 구독)`;
+                showToast(`실시간 웹소켓이 연결되었습니다 (Room #${roomId})`, 'success');
+
+                subscribeToRoom(roomId);
+            }, (err) => {
+                console.error('STOMP Error:', err);
+                statusDot.className = 'w-2 h-2 rounded-full bg-rose-500 inline-block';
+                statusText.innerText = 'STOMP 연결 실패';
+                showToast(`웹소켓 연결 실패: ${err}`, 'error');
+            });
+        }
+
+        function subscribeToRoom(roomId) {
+            if (STATE.stompSubscription) {
+                STATE.stompSubscription.unsubscribe();
+            }
+
+            const topic = `/sub/chat/room/${roomId}`;
+            STATE.stompSubscription = STATE.stompClient.subscribe(topic, (message) => {
+                try {
+                    const msgDto = JSON.parse(message.body);
+                    appendMessageBubble(msgDto);
+                    scrollChatToBottom();
+                } catch (e) {
+                    console.error('Failed to parse incoming STOMP message:', e);
+                }
+            });
+        }
+
+        function disconnectStomp() {
+            if (STATE.stompSubscription) {
+                STATE.stompSubscription.unsubscribe();
+                STATE.stompSubscription = null;
+            }
+            if (STATE.stompClient && STATE.stompClient.connected) {
+                STATE.stompClient.disconnect();
+                STATE.stompClient = null;
+            }
+            const statusDot = document.getElementById('stomp-status-dot');
+            const statusText = document.getElementById('stomp-status-text');
+            if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-slate-300 inline-block';
+            if (statusText) statusText.innerText = 'STOMP 대기 중';
+        }
+
+        function handleSendStompMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chat-input-text');
+            const text = input.value.trim();
+            if (!text || !STATE.currentRoomId || !STATE.stompClient || !STATE.stompClient.connected) {
+                return;
+            }
+
+            const payload = {
+                roomId: STATE.currentRoomId,
+                messageType: 'TEXT',
+                content: text,
+                metadata: null
+            };
+
+            STATE.stompClient.send('/pub/chat/message', {}, JSON.stringify(payload));
+            input.value = '';
+        }
+
+        function openPlaceProposalModal() {
+            document.getElementById('modal-place-proposal').classList.remove('hidden');
+        }
+
+        function closePlaceProposalModal() {
+            document.getElementById('modal-place-proposal').classList.add('hidden');
+        }
+
+        function handleSendPlaceProposal(e) {
+            e.preventDefault();
+            if (!STATE.currentRoomId || !STATE.stompClient || !STATE.stompClient.connected) {
+                showToast('먼저 채팅방에 연결되어 있어야 합니다.', 'error');
+                return;
+            }
+
+            const select = document.getElementById('proposal-store-select');
+            const selectedOpt = select.options[select.selectedIndex];
+            const storeId = Number(select.value);
+            const storeName = selectedOpt.getAttribute('data-name');
+            const address = selectedOpt.getAttribute('data-addr');
+            const proposedDate = document.getElementById('proposal-datetime').value;
+            const comment = document.getElementById('proposal-comment').value;
+
+            const payload = {
+                roomId: STATE.currentRoomId,
+                messageType: 'PLACE_PROPOSAL',
+                content: comment,
+                metadata: {
+                    storeId,
+                    storeName,
+                    address,
+                    proposedDateTime: proposedDate,
+                    discountNotice: '디저팅 제휴 10% 현장 할인 혜택'
+                }
+            };
+
+            STATE.stompClient.send('/pub/chat/message', {}, JSON.stringify(payload));
+            closePlaceProposalModal();
+            showToast('카페 만남 제안 카드를 전송했습니다!', 'success');
+        }
+
+        async function handleLeaveCurrentRoom() {
+            if (!STATE.currentRoomId) return;
+            if (!confirm('정말 이 채팅방을 나가시겠습니까?')) return;
+
+            try {
+                await apiFetch(`/api/v1/chats/rooms/${STATE.currentRoomId}/leave`, { method: 'POST' });
+                showToast('채팅방을 나갔습니다.', 'info');
+                disconnectStomp();
+                STATE.currentRoomId = null;
+                document.getElementById('chat-header-title').innerText = '채팅방을 선택하세요';
+                document.getElementById('chat-messages-container').innerHTML = '';
+                fetchChatRooms();
+            } catch (err) {
+                showToast(`채팅방 퇴장 실패: ${err.message}`, 'error');
+            }
+        }
+
+        // ==================== TAB 4: STORES & THEME STREETS ====================
+        async function fetchThemeStreets() {
+            try {
+                const res = await apiFetch('/api/v1/admin/themes');
+                const grid = document.getElementById('theme-streets-grid');
+                const streets = res.data || [];
+
+                grid.innerHTML = streets.map(street => `
+                    <div class="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2 hover:border-dessert-400 transition-colors">
+                        <div class="flex items-center justify-between">
+                            <span class="font-black text-sm text-slate-900">${street.name}</span>
+                            <span class="text-[10px] px-2 py-0.5 rounded-full bg-dessert-100 text-dessert-800 font-bold">테마 골목 #${street.id}</span>
+                        </div>
+                        <p class="text-xs text-slate-600">${street.description || '대구 명품 디저트 거리'}</p>
+                        <div class="p-2 bg-white rounded-lg border border-slate-200 text-[10px] font-mono text-slate-500 truncate">
+                            📍 GeoJSON 다각형: ${street.boundaryPolygonJson || 'POLYGON(...) 설정됨'}
+                        </div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.warn('Theme streets fetch failed:', err);
+            }
+        }
+
+        async function fetchAdminStores() {
+            try {
+                const res = await apiFetch('/api/v1/admin/stores');
+                const list = document.getElementById('admin-stores-list');
+                const stores = res.data?.content || res.data || [];
+
+                if (stores.length === 0) {
+                    list.innerHTML = `<div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl">매장 목록이 없습니다.</div>`;
+                    return;
+                }
+
+                list.innerHTML = stores.map(store => `
+                    <button onclick="selectAdminStore(${store.storeId})"
+                            class="w-full text-left p-3 rounded-xl border border-slate-200 hover:border-dessert-500 hover:bg-dessert-50/30 transition-all flex items-center justify-between group ${STATE.selectedStoreId === store.storeId ? 'bg-dessert-50 border-dessert-500' : 'bg-white'}">
+                        <div>
+                            <div class="font-bold text-xs text-slate-900 group-hover:text-dessert-700">${store.name}</div>
+                            <div class="text-[11px] text-slate-500">${store.address || ''}</div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-[10px] px-2 py-0.5 rounded font-semibold ${store.isPartner ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-700'}">
+                                ${store.isPartner ? '제휴 파트너' : '일반'}
+                            </span>
+                            <div class="text-[10px] text-slate-400 mt-1">${store.contact || ''}</div>
+                        </div>
+                    </button>
+                `).join('');
+
+                if (stores.length > 0 && !STATE.selectedStoreId) {
+                    selectAdminStore(stores[0].storeId);
+                } else if (STATE.selectedStoreId) {
+                    selectAdminStore(STATE.selectedStoreId);
+                }
+            } catch (err) {
+                console.warn('Stores fetch failed:', err);
+                const list = document.getElementById('admin-stores-list');
+                list.innerHTML = `<div class="p-4 text-center text-rose-500 bg-rose-50 rounded-xl">조회 실패 (점주 또는 관리자 계정 필요): ${err.message}</div>`;
+            }
+        }
+
+        async function selectAdminStore(storeId) {
+            STATE.selectedStoreId = storeId;
+            document.getElementById('btn-add-menu').disabled = false;
+
+            try {
+                const res = await apiFetch(`/api/v1/admin/stores/${storeId}`);
+                const store = res.data;
+
+                document.getElementById('selected-store-name').innerText = store.name;
+                document.getElementById('selected-store-address').innerText = `${store.address || ''} (${store.contact || ''})`;
+                document.getElementById('selected-store-status').innerText = store.isPartner ? '제휴 파트너 승인' : '일반 매장';
+
+                // Render Menus
+                renderStoreMenus(store.menus || []);
+
+                // Fetch Slots
+                fetchStoreSlots(storeId);
+            } catch (err) {
+                console.warn('Store select error:', err);
+            }
+        }
+
+        function renderStoreMenus(menus) {
+            const list = document.getElementById('store-menus-list');
+            if (menus.length === 0) {
+                list.innerHTML = `<div class="p-4 text-center text-slate-400 bg-slate-50 rounded-xl">등록된 메뉴가 없습니다.</div>`;
+                return;
+            }
+
+            list.innerHTML = menus.map(menu => `
+                <div class="p-3 bg-slate-50 rounded-xl border border-slate-200/80 flex items-center justify-between">
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-xs text-slate-900">${menu.name}</span>
+                            ${menu.isSoldOut ? `<span class="px-1.5 py-0.2 bg-rose-100 text-rose-700 text-[9px] font-black rounded">품절</span>` : `<span class="px-1.5 py-0.2 bg-emerald-100 text-emerald-700 text-[9px] font-bold rounded">판매중</span>`}
+                            ${menu.isRepresentative ? `<span class="px-1.5 py-0.2 bg-amber-100 text-amber-800 text-[9px] font-bold rounded">대표</span>` : ''}
+                        </div>
+                        <div class="text-[11px] text-slate-500 mt-0.5">${menu.price.toLocaleString()}원 · ${menu.description || '시그니처 디저트'}</div>
+                    </div>
+                    <button onclick="handleToggleSoldOut(${STATE.selectedStoreId}, ${menu.menuId})"
+                            class="px-2.5 py-1 text-xs font-bold rounded-lg border transition-colors ${menu.isSoldOut ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-100' : 'bg-rose-50 border-rose-200 text-rose-600 hover:bg-rose-100'}">
+                        ${menu.isSoldOut ? '판매 재개' : '품절 처리'}
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        async function handleToggleSoldOut(storeId, menuId) {
+            try {
+                await apiFetch(`/api/v1/admin/stores/${storeId}/menus/${menuId}/sold-out`, { method: 'PATCH' });
+                showToast('메뉴 품절 상태가 성공적으로 토글되었습니다.', 'success');
+                selectAdminStore(storeId);
+            } catch (err) {
+                showToast(`품절 처리 실패: ${err.message}`, 'error');
+            }
+        }
+
+        async function fetchStoreSlots(storeId) {
+            try {
+                const res = await apiFetch(`/api/v1/admin/stores/${storeId}/slots`);
+                const list = document.getElementById('store-slots-list');
+                const slots = res.data || [];
+
+                if (slots.length === 0) {
+                    list.innerHTML = `<div class="p-3 text-center text-slate-400 bg-slate-50 rounded-xl col-span-4">등록된 예약 슬롯이 없습니다.</div>`;
+                    return;
+                }
+
+                list.innerHTML = slots.map(slot => `
+                    <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-center space-y-1">
+                        <div class="font-bold text-xs text-slate-800">${slot.slotDate}</div>
+                        <div class="font-mono text-[11px] text-slate-600">${slot.slotTime.slice(0, 5)}</div>
+                        <div class="text-[10px] text-slate-400">잔여: ${slot.currentCapacity}/${slot.maxCapacity}석</div>
+                    </div>
+                `).join('');
+            } catch (err) {
+                console.warn('Store slots fetch failed:', err);
+            }
+        }
+
+        function openAddMenuModal() {
+            document.getElementById('modal-add-menu').classList.remove('hidden');
+        }
+
+        function closeAddMenuModal() {
+            document.getElementById('modal-add-menu').classList.add('hidden');
+        }
+
+        async function handleAddMenu(e) {
+            e.preventDefault();
+            const name = document.getElementById('add-menu-name').value;
+            const price = Number(document.getElementById('add-menu-price').value);
+            const description = document.getElementById('add-menu-desc').value;
+
+            try {
+                await apiFetch(`/api/v1/admin/stores/${STATE.selectedStoreId}/menus`, {
+                    method: 'POST',
+                    body: JSON.stringify({ name, price, description, isRepresentative: false })
+                });
+                showToast('신규 메뉴가 성공적으로 등록되었습니다!', 'success');
+                closeAddMenuModal();
+                selectAdminStore(STATE.selectedStoreId);
+            } catch (err) {
+                showToast(`메뉴 등록 실패: ${err.message}`, 'error');
+            }
+        }
+
+        // ==================== TAB 5: 7% SETTLEMENT DASHBOARD ====================
+        async function fetchSettlementData(storeId) {
+            try {
+                const res = await apiFetch(`/api/v1/admin/stores/${storeId}/settlement`);
+                const data = res.data;
+
+                // KPI Elements
+                document.getElementById('settlement-total-amount').innerText = `${(data.totalOrderAmount || 0).toLocaleString()}원`;
+                document.getElementById('settlement-fee-amount').innerText = `${(data.platformFeeAmount || 0).toLocaleString()}원`;
+                document.getElementById('settlement-net-payout').innerText = `${(data.settlementAmount || 0).toLocaleString()}원`;
+                document.getElementById('settlement-orders-completed-count').innerText = `총 ${data.completedOrderCount || 0}건 완료 합계`;
+
+                if (data.monthlySubscriptionStatus) {
+                    document.getElementById('settlement-promotion-status').innerText = data.monthlySubscriptionStatus;
+                }
+
+                // Fetch Store Reservations list for status transitions
+                fetchStoreReservations(storeId);
+            } catch (err) {
+                showToast(`정산 데이터 조회 실패 (점주/관리자 권한 필요): ${err.message}`, 'error');
+            }
+        }
+
+        async function fetchStoreReservations(storeId) {
+            try {
+                const res = await apiFetch(`/api/v1/admin/stores/${storeId}/reservations`);
+                const list = res.data || [];
+                const tbody = document.getElementById('settlement-orders-tbody');
+                document.getElementById('settlement-orders-count').innerText = `총 ${list.length}건`;
+
+                if (list.length === 0) {
+                    tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-400">등록된 예약 내역이 없습니다.</td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = list.map(order => {
+                    const fee7 = Math.round(order.totalAmount * 0.07);
+                    const net93 = order.totalAmount - fee7;
+                    const isCompleted = order.status === 'COMPLETED';
+
+                    return `
+                        <tr class="hover:bg-slate-50/60 transition-colors">
+                            <td class="p-3 font-mono font-bold text-slate-800">#${order.reservationId}</td>
+                            <td class="p-3 font-semibold text-slate-900">${order.userNickname}</td>
+                            <td class="p-3 text-slate-600">${order.reservationDate} ${order.reservationTime.slice(0, 5)}</td>
+                            <td class="p-3 text-slate-600">${order.guestCount}명</td>
+                            <td class="p-3 font-bold text-slate-900">${order.totalAmount.toLocaleString()}원</td>
+                            <td class="p-3 font-semibold text-rose-600">-${fee7.toLocaleString()}원</td>
+                            <td class="p-3 font-black text-emerald-600">${net93.toLocaleString()}원</td>
+                            <td class="p-3">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold ${isCompleted ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">
+                                    ${order.status}
+                                </span>
+                            </td>
+                            <td class="p-3 text-right">
+                                ${!isCompleted ? `
+                                    <button onclick="handleTransitionOrderStatus(${storeId}, ${order.reservationId}, 'COMPLETED')"
+                                            class="px-2.5 py-1 text-[11px] font-bold bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg transition-colors">
+                                        방문완료 (정산 반영)
+                                    </button>
+                                ` : `<span class="text-slate-400 text-[11px]">정산 반영 완료</span>`}
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.warn('Orders fetch failed:', err);
+            }
+        }
+
+        async function handleTransitionOrderStatus(storeId, reservationId, newStatus) {
+            try {
+                await apiFetch(`/api/v1/admin/stores/${storeId}/reservations/${reservationId}/status`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ status: newStatus })
+                });
+                showToast(`예약 #${reservationId} 상태가 ${newStatus}로 변경되어 정산에 반영되었습니다!`, 'success');
+                fetchSettlementData(storeId);
+            } catch (err) {
+                showToast(`상태 변경 실패: ${err.message}`, 'error');
+            }
+        }
+
+        // ==================== TAB SWITCHER ====================
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.className = 'tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent';
+            });
+
+            const activePanel = document.getElementById(`tab-content-${tabName}`);
+            const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+
+            if (activePanel) activePanel.classList.remove('hidden');
+            if (activeBtn) activeBtn.className = 'tab-button active-tab flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-dessert-600 border-dessert-500';
+
+            // Lazy fetch on tab switch
+            if (tabName === 'hearts') {
+                fetchHeartBalance();
+                fetchHeartHistory();
+                fetchReceivedChatRequests();
+            } else if (tabName === 'chat') {
+                fetchChatRooms();
+            } else if (tabName === 'stores') {
+                fetchThemeStreets();
+                fetchAdminStores();
+            } else if (tabName === 'settlement') {
+                const storeId = document.getElementById('settlement-store-select').value;
+                fetchSettlementData(storeId);
+            }
+        }
+
+        // ==================== TOAST NOTIFICATIONS ====================
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            const bgClass = type === 'success' ? 'bg-emerald-600 text-white' :
+                            type === 'error' ? 'bg-rose-600 text-white' :
+                            'bg-slate-900 text-white';
+
+            toast.className = `${bgClass} px-4 py-2.5 rounded-xl shadow-lg text-xs font-semibold flex items-center gap-2 transition-all transform duration-300 pointer-events-auto`;
+            toast.innerHTML = `
+                <span>${type === 'success' ? '✓' : type === 'error' ? '⚠️' : 'ℹ️'}</span>
+                <span>${message}</span>
+            `;
+
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+    </script>
+</body>
+</html>

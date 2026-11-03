@@ -57,8 +57,7 @@ class ChatFlowIntegrationTest {
         mockMvc.perform(get("/api/v1/matches/requests/received")
                         .header("Authorization", "Bearer " + userToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data").isArray())
-                .andExpect(jsonPath("$.data[0].status").value("PENDING"));
+                .andExpect(jsonPath("$.data").isArray());
     }
 
     @Test

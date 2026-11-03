@@ -40,6 +40,8 @@ class DessertingApplicationTests {
                 .andExpect(jsonPath("$.paths['/api/v1/reservations']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/auth/signup']").exists())
                 .andExpect(jsonPath("$.paths['/api/v1/hearts/history']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/hearts/packages']").exists())
+                .andExpect(jsonPath("$.paths['/api/v1/hearts/purchase']").exists())
                 .andExpect(jsonPath("$.tags[?(@.name == '00. 헬스 체크 API')]").exists())
                 .andExpect(jsonPath("$.tags[?(@.name == '4-1. 계정 인증 및 토큰 API')]").exists())
                 .andExpect(jsonPath("$.tags[?(@.name == '4-1. 사용자 및 디저트 프로필 API')]").exists())

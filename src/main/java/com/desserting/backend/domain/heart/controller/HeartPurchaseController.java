@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -41,7 +42,8 @@ public class HeartPurchaseController {
     }
 
     @Operation(summary = "하트 구매 - 모의 결제 (HRT-04, HRT-05)",
-            description = "선택한 상품만큼 하트를 즉시 충전하고 하트 변동 내역(PURCHASE)에 기록합니다. 실제 결제는 일어나지 않습니다(모의 결제).")
+            description = "선택한 상품만큼 하트를 즉시 충전하고 하트 변동 내역(PURCHASE)에 기록합니다. 실제 결제는 일어나지 않습니다(모의 결제).",
+            security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "구매 및 충전 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
@@ -60,7 +62,8 @@ public class HeartPurchaseController {
         return ApiResponse.success("하트 구매가 완료되었습니다.", heartPurchaseService.purchase(userId, request));
     }
 
-    @Operation(summary = "내 하트 구매 내역 (HRT-05)", description = "최근 구매순으로 반환합니다.")
+    @Operation(summary = "내 하트 구매 내역 (HRT-05)", description = "최근 구매순으로 반환합니다.",
+            security = @SecurityRequirement(name = "bearerAuth"))
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "A001 인증 실패",

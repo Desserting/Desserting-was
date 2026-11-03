@@ -13,6 +13,7 @@ public enum ErrorCode {
     METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "C002", "허용되지 않은 HTTP 메서드입니다."),
     ENTITY_NOT_FOUND(HttpStatus.NOT_FOUND, "C003", "대상을 찾을 수 없습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C004", "서버 내부 오류가 발생했습니다."),
+    CONFLICT(HttpStatus.CONFLICT, "C005", "동시에 다른 요청이 처리되어 충돌이 발생했습니다. 다시 시도해주세요."),
 
     // Auth & User
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "A001", "인증에 실패하였습니다."),

@@ -52,6 +52,13 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, ErrorCode.METHOD_NOT_ALLOWED.getHttpStatus());
     }
 
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleObjectOptimisticLockingFailureException(org.springframework.orm.ObjectOptimisticLockingFailureException e) {
+        log.warn("ObjectOptimisticLockingFailureException: {}", e.getMessage());
+        ErrorResponse response = ErrorResponse.of(ErrorCode.CONFLICT, "동시에 다른 변경 요청이 처리되었습니다. 잠시 후 다시 시도해주세요.");
+        return new ResponseEntity<>(response, ErrorCode.CONFLICT.getHttpStatus());
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleException(Exception e) {
         log.error("Unhandled Exception: ", e);

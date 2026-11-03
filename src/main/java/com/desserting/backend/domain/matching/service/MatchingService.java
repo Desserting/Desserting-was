@@ -23,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
@@ -205,5 +206,34 @@ public class MatchingService {
                 .appliedFilter(filter)
                 .guide(guide)
                 .build();
+    }
+
+    /**
+     * 4-2. 이전 매칭 상대(스킵한 상대) 목록 조회 (프리미엄 전용, MAT-04)
+     */
+    @Transactional(readOnly = true)
+    public List<MatchCandidateResponse> getSkippedMatchHistory(Long userId, int limit) {
+        User me = userRepository.findByIdWithTags(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (!Boolean.TRUE.equals(me.getIsPremium())) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "프리미엄 회원만 이전 매칭 상대 기록을 확인할 수 있습니다.");
+        }
+
+        int safeLimit = (limit <= 0 || limit > 50) ? 20 : limit;
+        List<Long> candidateIds = matchExposureRepository.findHistoryUserIds(userId, safeLimit);
+        if (candidateIds.isEmpty()) {
+            return List.of();
+        }
+
+        Set<DessertType> myTags = tagsOf(me);
+        List<User> candidates = userRepository.findAllById(candidateIds);
+        Map<Long, User> userMap = candidates.stream().collect(Collectors.toMap(User::getId, u -> u));
+
+        return candidateIds.stream()
+                .filter(userMap::containsKey)
+                .map(userMap::get)
+                .map(candidate -> toCandidate(me, candidate, myTags))
+                .toList();
     }
 }

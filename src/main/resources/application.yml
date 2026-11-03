@@ -37,3 +37,14 @@ jwt:
 # CORS Configuration
 cors:
   allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,https://desserting.vercel.app}
+
+# Desserting Business & AI Configuration
+desserting:
+  heart:
+    unit-price: 200
+  ai:
+    ollama:
+      enabled: true
+      base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
+      model: ${OLLAMA_MODEL:qwen2.5:3b}
+      timeout-seconds: 5

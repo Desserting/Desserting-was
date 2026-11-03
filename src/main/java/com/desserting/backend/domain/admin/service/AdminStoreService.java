@@ -3,9 +3,12 @@ package com.desserting.backend.domain.admin.service;
 import com.desserting.backend.domain.admin.dto.*;
 import com.desserting.backend.domain.reservation.entity.ReservationStatus;
 import com.desserting.backend.domain.reservation.repository.ReservationRepository;
+import com.desserting.backend.domain.store.dto.StoreCouponResponse;
 import com.desserting.backend.domain.store.entity.Store;
+import com.desserting.backend.domain.store.entity.StoreCoupon;
 import com.desserting.backend.domain.store.entity.StoreMenu;
 import com.desserting.backend.domain.store.entity.StoreReservationSlot;
+import com.desserting.backend.domain.store.repository.StoreCouponRepository;
 import com.desserting.backend.domain.store.repository.StoreMenuRepository;
 import com.desserting.backend.domain.store.repository.StoreRepository;
 import com.desserting.backend.domain.store.repository.StoreReservationSlotRepository;
@@ -33,6 +36,7 @@ public class AdminStoreService {
     private final StoreReservationSlotRepository slotRepository;
     private final ThemeStreetRepository themeStreetRepository;
     private final ReservationRepository reservationRepository;
+    private final StoreCouponRepository storeCouponRepository;
 
     @Transactional
     public StoreAdminResponse createStore(StoreCreateRequest request) {
@@ -223,5 +227,45 @@ public class AdminStoreService {
         Long totalAmount = reservationRepository.sumTotalAmountByStoreIdAndStatus(storeId, ReservationStatus.COMPLETED);
 
         return StoreSettlementResponse.of(store.getId(), store.getName(), completedCount, totalAmount);
+    }
+
+    @Transactional
+    public StoreCouponResponse createCoupon(Long storeId, StoreCouponCreateRequest request) {
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
+
+        StoreCoupon coupon = StoreCoupon.builder()
+                .store(store)
+                .couponName(request.couponName())
+                .discountAmount(request.discountAmount())
+                .minOrderAmount(request.minOrderAmount())
+                .expiryDate(request.expiryDate())
+                .isActive(true)
+                .build();
+
+        StoreCoupon saved = storeCouponRepository.save(coupon);
+        log.info("매장 할인쿠폰 등록 완료: storeId={}, couponId={}, name={}, discount={}",
+                storeId, saved.getId(), saved.getCouponName(), saved.getDiscountAmount());
+        return StoreCouponResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<StoreCouponResponse> getStoreCoupons(Long storeId) {
+        if (!storeRepository.existsById(storeId)) {
+            throw new CustomException(ErrorCode.STORE_NOT_FOUND);
+        }
+        return storeCouponRepository.findAllByStoreIdOrderByIdDesc(storeId).stream()
+                .map(StoreCouponResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public StoreCouponResponse toggleCoupon(Long storeId, Long couponId) {
+        StoreCoupon coupon = storeCouponRepository.findByIdAndStoreId(couponId, storeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.ENTITY_NOT_FOUND, "해당 매장의 쿠폰을 찾을 수 없습니다."));
+
+        coupon.toggleActive();
+        log.info("매장 할인쿠폰 활성화 상태 변경: couponId={}, isActive={}", couponId, coupon.getIsActive());
+        return StoreCouponResponse.from(coupon);
     }
 }

@@ -1,6 +1,7 @@
 package com.desserting.backend.domain.reservation.entity;
 
 import com.desserting.backend.domain.store.entity.Store;
+import com.desserting.backend.domain.store.entity.StoreCoupon;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
@@ -48,6 +49,18 @@ public class Reservation extends BaseTimeEntity {
     @Builder.Default
     private Integer totalAmount = 0; // 메뉴 선주문 합산 금액
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "coupon_id")
+    private StoreCoupon coupon;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer discountAmount = 0; // 쿠폰 할인 금액
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Integer finalAmount = 0; // 할인 적용 후 실결제 금액
+
     @Column(length = 255)
     private String specialRequest;
 
@@ -55,5 +68,11 @@ public class Reservation extends BaseTimeEntity {
         if (status != null) {
             this.status = status;
         }
+    }
+
+    public void applyCoupon(StoreCoupon coupon, int discount) {
+        this.coupon = coupon;
+        this.discountAmount = discount;
+        this.finalAmount = Math.max(0, this.totalAmount - discount);
     }
 }

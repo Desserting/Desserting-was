@@ -52,6 +52,9 @@ class AdminStoreServiceTest {
     @Mock
     private ReservationRepository reservationRepository;
 
+    @Mock
+    private com.desserting.backend.domain.store.repository.StoreCouponRepository storeCouponRepository;
+
     @InjectMocks
     private AdminStoreService adminStoreService;
 
@@ -221,5 +224,31 @@ class AdminStoreServiceTest {
         assertThat(response.getTotalOrderAmount()).isEqualTo(0L);
         assertThat(response.getPlatformFeeAmount()).isEqualTo(0L);
         assertThat(response.getSettlementAmount()).isEqualTo(0L);
+    }
+
+    @Test
+    @DisplayName("매장 자율 할인쿠폰 등록 성공 및 기본 활성화(isActive=true) 검증")
+    void createCoupon_Success() {
+        // given
+        Store store = Store.builder().name("아눅 앞산").build();
+        ReflectionTestUtils.setField(store, "id", 1L);
+
+        StoreCouponCreateRequest request = new StoreCouponCreateRequest("오픈기념 2천원 할인", 2000, 10000, LocalDate.now().plusMonths(1));
+        given(storeRepository.findById(1L)).willReturn(Optional.of(store));
+        given(storeCouponRepository.save(any(com.desserting.backend.domain.store.entity.StoreCoupon.class))).willAnswer(inv -> {
+            com.desserting.backend.domain.store.entity.StoreCoupon c = inv.getArgument(0);
+            ReflectionTestUtils.setField(c, "id", 100L);
+            return c;
+        });
+
+        // when
+        com.desserting.backend.domain.store.dto.StoreCouponResponse response = adminStoreService.createCoupon(1L, request);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.couponId()).isEqualTo(100L);
+        assertThat(response.couponName()).isEqualTo("오픈기념 2천원 할인");
+        assertThat(response.discountAmount()).isEqualTo(2000);
+        assertThat(response.isActive()).isTrue();
     }
 }

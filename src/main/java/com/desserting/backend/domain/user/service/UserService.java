@@ -1,12 +1,16 @@
 package com.desserting.backend.domain.user.service;
 
 import com.desserting.backend.domain.user.dto.OtherUserProfileResponse;
+import com.desserting.backend.domain.user.dto.ProfileVisitorListResponse;
+import com.desserting.backend.domain.user.dto.ProfileVisitorResponse;
 import com.desserting.backend.domain.user.dto.UpdateLocationRequest;
 import com.desserting.backend.domain.user.dto.UpdateProfileRequest;
 import com.desserting.backend.domain.user.dto.UserProfileResponse;
 import com.desserting.backend.domain.user.entity.DessertType;
+import com.desserting.backend.domain.user.entity.ProfileVisit;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
+import com.desserting.backend.domain.user.repository.ProfileVisitRepository;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
@@ -27,6 +31,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserBlockRepository userBlockRepository;
+    private final ProfileVisitRepository profileVisitRepository;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(Long userId) {
@@ -75,11 +80,44 @@ public class UserService {
         return UserProfileResponse.from(user);
     }
 
-    @Transactional(readOnly = true)
-    public OtherUserProfileResponse getOtherUserProfile(Long targetUserId) {
+    @Transactional
+    public OtherUserProfileResponse getOtherUserProfile(Long viewerUserId, Long targetUserId) {
         User targetUser = userRepository.findByIdWithTags(targetUserId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "상대방 사용자를 찾을 수 없습니다: " + targetUserId));
+
+        if (viewerUserId != null && !viewerUserId.equals(targetUserId)) {
+            userRepository.findById(viewerUserId).ifPresent(viewer -> {
+                profileVisitRepository.findByVisitorIdAndVisitedUserId(viewerUserId, targetUserId)
+                        .ifPresentOrElse(
+                                ProfileVisit::updateVisitedAt,
+                                () -> profileVisitRepository.save(ProfileVisit.of(targetUser, viewer))
+                        );
+            });
+        }
+
         return OtherUserProfileResponse.from(targetUser);
+    }
+
+    @Transactional(readOnly = true)
+    public OtherUserProfileResponse getOtherUserProfile(Long targetUserId) {
+        return getOtherUserProfile(null, targetUserId);
+    }
+
+    @Transactional(readOnly = true)
+    public ProfileVisitorListResponse getProfileVisitors(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        if (!Boolean.TRUE.equals(user.getIsPremium())) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "프리미엄 회원만 프로필 방문자 목록을 확인할 수 있습니다.");
+        }
+
+        long totalCount = profileVisitRepository.countByVisitedUserId(userId);
+        List<ProfileVisitorResponse> visitors = profileVisitRepository.findRecentVisitors(userId).stream()
+                .map(ProfileVisitorResponse::from)
+                .toList();
+
+        return ProfileVisitorListResponse.of(totalCount, visitors);
     }
 
     @Transactional(readOnly = true)

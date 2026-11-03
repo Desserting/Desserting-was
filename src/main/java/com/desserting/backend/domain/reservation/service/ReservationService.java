@@ -11,7 +11,9 @@ import com.desserting.backend.domain.reservation.entity.ReservationStatus;
 import com.desserting.backend.domain.reservation.repository.ReservationSlotBookingRepository;
 import com.desserting.backend.domain.reservation.repository.UserReservationRepository;
 import com.desserting.backend.domain.store.entity.Store;
+import com.desserting.backend.domain.store.entity.StoreCoupon;
 import com.desserting.backend.domain.store.entity.StoreReservationSlot;
+import com.desserting.backend.domain.store.repository.StoreCouponRepository;
 import com.desserting.backend.domain.store.repository.StoreRepository;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.repository.UserRepository;
@@ -45,6 +47,7 @@ public class ReservationService {
     private final UserReservationRepository reservationRepository;
     private final ReservationSlotBookingRepository slotRepository;
     private final StoreRepository storeRepository;
+    private final StoreCouponRepository storeCouponRepository;
     private final UserRepository userRepository;
     private final Clock clock;
 
@@ -115,6 +118,17 @@ public class ReservationService {
             throw new CustomException(ErrorCode.RESERVATION_SLOT_FULL);
         }
 
+        StoreCoupon coupon = null;
+        int discount = 0;
+        if (request.couponId() != null) {
+            coupon = storeCouponRepository.findByIdAndStoreId(request.couponId(), store.getId())
+                    .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT_VALUE, "해당 매장의 유효한 쿠폰이 아닙니다."));
+            if (!coupon.isUsable(0)) {
+                throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "현재 사용할 수 없는 쿠폰입니다.");
+            }
+            discount = coupon.getDiscountAmount();
+        }
+
         Reservation reservation = reservationRepository.save(Reservation.builder()
                 .user(user)
                 .store(store)
@@ -122,10 +136,13 @@ public class ReservationService {
                 .reservationTime(slot.getSlotTime())
                 .guestCount(request.guestCount())
                 .specialRequest(request.specialRequest())
+                .coupon(coupon)
+                .discountAmount(discount)
+                .finalAmount(Math.max(0, 0 - discount))
                 .build());
 
-        log.info("예약 생성: reservationId={}, userId={}, storeId={}, {} {} ({}명)", reservation.getId(), userId,
-                store.getId(), slot.getSlotDate(), slot.getSlotTime(), request.guestCount());
+        log.info("예약 생성: reservationId={}, userId={}, storeId={}, {} {} ({}명, 할인={}원)", reservation.getId(), userId,
+                store.getId(), slot.getSlotDate(), slot.getSlotTime(), request.guestCount(), discount);
         return ReservationResponse.from(reservation);
     }
 

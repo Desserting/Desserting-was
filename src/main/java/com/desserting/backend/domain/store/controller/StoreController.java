@@ -1,6 +1,7 @@
 package com.desserting.backend.domain.store.controller;
 
 import com.desserting.backend.domain.store.dto.StoreCardResponse;
+import com.desserting.backend.domain.store.dto.StoreCouponResponse;
 import com.desserting.backend.domain.store.dto.StoreDetailResponse;
 import com.desserting.backend.domain.store.dto.StoreSearchCondition;
 import com.desserting.backend.domain.store.service.StoreQueryService;
@@ -68,5 +69,11 @@ public class StoreController {
     @GetMapping("/{storeId}")
     public ApiResponse<StoreDetailResponse> getStoreDetail(@PathVariable Long storeId) {
         return ApiResponse.success("매장 상세 조회에 성공하였습니다.", storeQueryService.getStoreDetail(storeId));
+    }
+
+    @Operation(summary = "매장 사용 가능 할인쿠폰 목록 (SHOP-03)", description = "해당 매장의 현재 사용 가능한 활성 할인쿠폰 목록을 조회합니다.")
+    @GetMapping("/{storeId}/coupons")
+    public ApiResponse<List<StoreCouponResponse>> getStoreAvailableCoupons(@PathVariable Long storeId) {
+        return ApiResponse.success("매장 할인쿠폰 목록 조회에 성공하였습니다.", storeQueryService.getAvailableCoupons(storeId));
     }
 }

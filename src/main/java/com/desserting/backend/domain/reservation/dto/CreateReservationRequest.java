@@ -20,6 +20,12 @@ public record CreateReservationRequest(
 
         @Schema(description = "요청 사항", example = "창가 자리 부탁드려요")
         @Size(max = 255, message = "요청 사항은 255자 이하로 입력해주세요.")
-        String specialRequest
+        String specialRequest,
+
+        @Schema(description = "적용할 매장 할인쿠폰 ID (선택)", example = "1")
+        Long couponId
 ) {
+    public CreateReservationRequest(Long slotId, Integer guestCount, String specialRequest) {
+        this(slotId, guestCount, specialRequest, null);
+    }
 }

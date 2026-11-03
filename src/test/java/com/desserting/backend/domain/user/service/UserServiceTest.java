@@ -4,9 +4,12 @@ import com.desserting.backend.domain.user.dto.OtherUserProfileResponse;
 import com.desserting.backend.domain.user.dto.UpdateLocationRequest;
 import com.desserting.backend.domain.user.dto.UpdateProfileRequest;
 import com.desserting.backend.domain.user.dto.UserProfileResponse;
+import com.desserting.backend.domain.user.dto.ProfileVisitorListResponse;
 import com.desserting.backend.domain.user.entity.DessertType;
+import com.desserting.backend.domain.user.entity.ProfileVisit;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
+import com.desserting.backend.domain.user.repository.ProfileVisitRepository;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
@@ -37,6 +40,9 @@ class UserServiceTest {
 
     @Mock
     private UserBlockRepository userBlockRepository;
+
+    @Mock
+    private ProfileVisitRepository profileVisitRepository;
 
     @InjectMocks
     private UserService userService;
@@ -215,5 +221,41 @@ class UserServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getUserId()).isEqualTo(2L);
         assertThat(result.get(0).getNickname()).isEqualTo("일반유저");
+    }
+
+    @Test
+    @DisplayName("프리미엄 회원은 내 프로필 방문자 목록과 총 방문자 수를 조회할 수 있다")
+    void getProfileVisitors_PremiumSuccess() {
+        // given
+        User premiumUser = User.builder().email("premium@desserting.com").nickname("프리미엄유저").isPremium(true).build();
+        User visitor = User.builder().email("visitor@desserting.com").nickname("방문자1").build();
+        ReflectionTestUtils.setField(visitor, "id", 10L);
+
+        ProfileVisit visit = ProfileVisit.of(premiumUser, visitor);
+
+        given(userRepository.findById(1L)).willReturn(Optional.of(premiumUser));
+        given(profileVisitRepository.countByVisitedUserId(1L)).willReturn(1L);
+        given(profileVisitRepository.findRecentVisitors(1L)).willReturn(List.of(visit));
+
+        // when
+        ProfileVisitorListResponse response = userService.getProfileVisitors(1L);
+
+        // then
+        assertThat(response.totalVisitorCount()).isEqualTo(1L);
+        assertThat(response.visitors()).hasSize(1);
+        assertThat(response.visitors().get(0).nickname()).isEqualTo("방문자1");
+    }
+
+    @Test
+    @DisplayName("일반 회원이 프로필 방문자 조회를 시도하면 ACCESS_DENIED 예외가 발생한다")
+    void getProfileVisitors_NormalUserThrowsAccessDenied() {
+        // given
+        User normalUser = User.builder().email("normal@desserting.com").nickname("일반유저").isPremium(false).build();
+        given(userRepository.findById(2L)).willReturn(Optional.of(normalUser));
+
+        // when & then
+        assertThatThrownBy(() -> userService.getProfileVisitors(2L))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
     }
 }

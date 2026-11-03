@@ -1,6 +1,7 @@
 package com.desserting.backend.domain.user.controller;
 
 import com.desserting.backend.domain.user.dto.OtherUserProfileResponse;
+import com.desserting.backend.domain.user.dto.ProfileVisitorListResponse;
 import com.desserting.backend.domain.user.dto.UpdateLocationRequest;
 import com.desserting.backend.domain.user.dto.UpdateProfileRequest;
 import com.desserting.backend.domain.user.dto.UserProfileResponse;
@@ -62,7 +63,16 @@ public class UserController {
     public ApiResponse<OtherUserProfileResponse> getOtherUserProfile(
             @Parameter(hidden = true) @CurrentUser Long currentUserId,
             @PathVariable Long userId) {
-        OtherUserProfileResponse response = userService.getOtherUserProfile(userId);
+        OtherUserProfileResponse response = userService.getOtherUserProfile(currentUserId, userId);
         return ApiResponse.success("상대방 프로필 조회에 성공하였습니다.", response);
+    }
+
+    @Operation(summary = "내 프로필 방문자 목록 조회 (프리미엄 전용, PRF-05)",
+            description = "나를 방문한 총 사용자 수와 최근 방문자 프로필 목록을 조회합니다. 일반 회원은 403 차단됩니다.")
+    @GetMapping("/me/visitors")
+    public ApiResponse<ProfileVisitorListResponse> getMyProfileVisitors(
+            @Parameter(hidden = true) @CurrentUser Long userId) {
+        ProfileVisitorListResponse response = userService.getProfileVisitors(userId);
+        return ApiResponse.success("프로필 방문자 목록 조회에 성공하였습니다.", response);
     }
 }

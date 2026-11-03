@@ -19,11 +19,18 @@ public record ReservationResponse(
         @Schema(example = "2") Integer guestCount,
         @Schema(example = "PENDING") ReservationStatus status,
         @Schema(example = "예약 대기") String statusDescription,
-        @Schema(description = "메뉴 선주문 합산 금액 (4-7 주문에서 갱신)", example = "0") Integer totalAmount,
+        @Schema(description = "메뉴 선주문 합산 금액 (4-7 주문에서 갱신)", example = "10000") Integer totalAmount,
+        @Schema(description = "쿠폰 할인 금액", example = "2000") Integer discountAmount,
+        @Schema(description = "할인 적용 후 실결제 금액", example = "8000") Integer finalAmount,
+        @Schema(description = "적용된 쿠폰명", example = "앞산 데이트 2,000원 할인") String couponName,
         String specialRequest,
         LocalDateTime createdAt
 ) {
     public static ReservationResponse from(Reservation r) {
+        String couponTitle = r.getCoupon() != null ? r.getCoupon().getCouponName() : null;
+        int safeDiscount = r.getDiscountAmount() != null ? r.getDiscountAmount() : 0;
+        int safeFinal = r.getFinalAmount() != null ? r.getFinalAmount() : (r.getTotalAmount() - safeDiscount);
+
         return new ReservationResponse(
                 r.getId(),
                 r.getStore().getId(),
@@ -35,6 +42,9 @@ public record ReservationResponse(
                 r.getStatus(),
                 r.getStatus().getDescription(),
                 r.getTotalAmount(),
+                safeDiscount,
+                safeFinal,
+                couponTitle,
                 r.getSpecialRequest(),
                 r.getCreatedAt());
     }

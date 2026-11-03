@@ -1,5 +1,6 @@
 package com.desserting.backend.domain.matching.controller;
 
+import com.desserting.backend.domain.matching.dto.MatchCandidateResponse;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse;
 import com.desserting.backend.domain.matching.entity.MatchType;
 import com.desserting.backend.domain.matching.service.MatchingService;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,10 +20,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+
 @Tag(name = "4-2. 랜덤 매칭 및 주변 탐색 API", description = "같은/다른 취향 랜덤 매칭 및 주변 사람 필터 API (4-2)")
 @RestController
 @RequestMapping("/api/v1/matches")
 @RequiredArgsConstructor
+@SecurityRequirement(name = "bearerAuth")
 public class MatchingController {
 
     private final MatchingService matchingService;
@@ -54,5 +59,22 @@ public class MatchingController {
             @Parameter(description = "지역명 접두어", example = "대구") @RequestParam(required = false) String region) {
         RandomMatchResponse response = matchingService.findRandomMatch(userId, matchType, radiusKm, region);
         return ApiResponse.success(response.isFound() ? "매칭 상대를 찾았습니다." : "조건에 맞는 상대가 없습니다.", response);
+    }
+
+    @Operation(summary = "이전 매칭 상대 목록 조회 (프리미엄 전용, MAT-04)",
+            description = "랜덤 매칭에서 지나친(스킵한) 상대방 목록을 최근 순으로 조회합니다. 일반 회원은 403 차단됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "A002 프리미엄 전용",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "A001 인증 실패",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @GetMapping("/history")
+    public ApiResponse<List<MatchCandidateResponse>> getSkippedMatchHistory(
+            @Parameter(hidden = true) @CurrentUser Long userId,
+            @Parameter(description = "조회 개수 (기본 20, 최대 50)", example = "20") @RequestParam(defaultValue = "20") int limit) {
+        List<MatchCandidateResponse> history = matchingService.getSkippedMatchHistory(userId, limit);
+        return ApiResponse.success("이전 매칭 상대 이력 조회에 성공하였습니다.", history);
     }
 }

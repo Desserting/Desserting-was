@@ -3,10 +3,12 @@ package com.desserting.backend.domain.store.service;
 import com.desserting.backend.domain.explore.error.ExploreErrorCode;
 import com.desserting.backend.domain.explore.error.ExploreException;
 import com.desserting.backend.domain.store.dto.StoreCardResponse;
+import com.desserting.backend.domain.store.dto.StoreCouponResponse;
 import com.desserting.backend.domain.store.dto.StoreDetailResponse;
 import com.desserting.backend.domain.store.dto.StoreSearchCondition;
 import com.desserting.backend.domain.store.entity.Store;
 import com.desserting.backend.domain.store.entity.StoreDessertTag;
+import com.desserting.backend.domain.store.repository.StoreCouponRepository;
 import com.desserting.backend.domain.store.repository.StoreDessertTagRepository;
 import com.desserting.backend.domain.store.repository.StoreExploreRepository;
 import com.desserting.backend.domain.store.repository.StoreRepository;
@@ -39,6 +41,7 @@ public class StoreQueryService {
     private final StoreRepository storeRepository;
     private final StoreDessertTagRepository dessertTagRepository;
     private final UserRepository userRepository;
+    private final StoreCouponRepository storeCouponRepository;
 
     public List<StoreCardResponse> searchStores(Long userId, StoreSearchCondition cond) {
         Specification<Store> spec = StoreSpecifications.isPartner();
@@ -110,5 +113,15 @@ public class StoreQueryService {
             return null;
         }
         return GeoUtils.round1(GeoUtils.distanceKm(origin[0], origin[1], store.getLatitude(), store.getLongitude()));
+    }
+
+    public List<StoreCouponResponse> getAvailableCoupons(Long storeId) {
+        if (!storeRepository.existsById(storeId)) {
+            throw new CustomException(ErrorCode.STORE_NOT_FOUND);
+        }
+        return storeCouponRepository.findAllByStoreIdAndIsActiveTrueOrderByIdDesc(storeId).stream()
+                .filter(c -> c.getExpiryDate() == null || !c.getExpiryDate().isBefore(java.time.LocalDate.now()))
+                .map(StoreCouponResponse::from)
+                .toList();
     }
 }

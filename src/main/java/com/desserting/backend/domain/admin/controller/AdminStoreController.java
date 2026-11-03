@@ -2,6 +2,7 @@ package com.desserting.backend.domain.admin.controller;
 
 import com.desserting.backend.domain.admin.dto.*;
 import com.desserting.backend.domain.admin.service.AdminStoreService;
+import com.desserting.backend.domain.store.dto.StoreCouponResponse;
 import com.desserting.backend.global.common.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -150,5 +151,35 @@ public class AdminStoreController {
     public ResponseEntity<ApiResponse<StoreSettlementResponse>> getSettlement(@PathVariable Long storeId) {
         StoreSettlementResponse response = adminStoreService.getSettlement(storeId);
         return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    // --- 자율 할인쿠폰 관리 ---
+
+    @Operation(summary = "매장 자율 할인쿠폰 등록 (점주/관리자, ADM-06)", description = "점주가 매장 데이트 예약 시 적용 가능한 할인쿠폰을 자율 등록합니다.")
+    @PostMapping("/{storeId}/coupons")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STORE_OWNER')")
+    public ResponseEntity<ApiResponse<StoreCouponResponse>> createCoupon(
+            @PathVariable Long storeId,
+            @Valid @RequestBody StoreCouponCreateRequest request) {
+        StoreCouponResponse response = adminStoreService.createCoupon(storeId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("할인쿠폰이 등록되었습니다.", response));
+    }
+
+    @Operation(summary = "매장 등록 할인쿠폰 목록 조회 (점주/관리자, ADM-06)", description = "매장에 등록된 전체 할인쿠폰 목록(활성/비활성 포함)을 조회합니다.")
+    @GetMapping("/{storeId}/coupons")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STORE_OWNER')")
+    public ResponseEntity<ApiResponse<List<StoreCouponResponse>>> getStoreCoupons(@PathVariable Long storeId) {
+        List<StoreCouponResponse> responses = adminStoreService.getStoreCoupons(storeId);
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    @Operation(summary = "매장 할인쿠폰 활성화/비활성화 토글 (점주/관리자, ADM-06)", description = "쿠폰의 사용 가능(isActive) 상태를 토글합니다.")
+    @PatchMapping("/{storeId}/coupons/{couponId}/toggle")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STORE_OWNER')")
+    public ResponseEntity<ApiResponse<StoreCouponResponse>> toggleCoupon(
+            @PathVariable Long storeId,
+            @PathVariable Long couponId) {
+        StoreCouponResponse response = adminStoreService.toggleCoupon(storeId, couponId);
+        return ResponseEntity.ok(ApiResponse.success("쿠폰 활성화 상태가 변경되었습니다.", response));
     }
 }

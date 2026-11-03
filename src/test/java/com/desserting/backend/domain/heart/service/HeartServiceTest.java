@@ -117,4 +117,25 @@ class HeartServiceTest {
         assertThat(user.getHeartCount()).isEqualTo(3);
         verify(heartHistoryRepository).save(any(HeartHistory.class));
     }
+
+    @Test
+    @DisplayName("프리미엄 회원은 대화 요청 거절/취소 시 하트가 추가되지 않는다 (하트 무한증식 방지)")
+    void refundHeart_PremiumUser_NoOp() {
+        // given
+        User premiumUser = User.builder()
+                .email("vip@desserting.com")
+                .nickname("VIP유저")
+                .heartCount(5)
+                .isPremium(true)
+                .build();
+        ReflectionTestUtils.setField(premiumUser, "id", 10L);
+
+        given(userRepository.findByIdWithLock(10L)).willReturn(Optional.of(premiumUser));
+
+        // when
+        heartService.refundHeart(10L, "요청 거절 환불");
+
+        // then
+        assertThat(premiumUser.getHeartCount()).isEqualTo(5);
+    }
 }

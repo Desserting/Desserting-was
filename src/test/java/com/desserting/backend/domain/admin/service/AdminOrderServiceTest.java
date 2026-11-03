@@ -117,4 +117,45 @@ class AdminOrderServiceTest {
         assertThat(slot.getCurrentReservedCount()).isEqualTo(3);
         assertThat(slot.getIsAvailable()).isTrue();
     }
+
+    @Test
+    @DisplayName("취소되었던 예약을 다시 확정(CONFIRMED)으로 복구할 때 슬롯의 정원이 다시 점유된다")
+    void updateReservationStatus_RestoreCancelled_IncreasesSlotReservation() {
+        // given
+        Long storeId = 1L;
+        Long reservationId = 100L;
+        LocalDate date = LocalDate.of(2026, 11, 10);
+        LocalTime time = LocalTime.of(14, 0);
+
+        Store store = Store.builder().name("카페 루시드").build();
+        ReflectionTestUtils.setField(store, "id", storeId);
+
+        User user = User.builder().nickname("딸기케이크").build();
+        ReflectionTestUtils.setField(user, "id", 10L);
+
+        Reservation reservation = Reservation.builder()
+                .store(store)
+                .user(user)
+                .reservationDate(date)
+                .reservationTime(time)
+                .status(ReservationStatus.CANCELLED)
+                .build();
+        ReflectionTestUtils.setField(reservation, "id", reservationId);
+
+        StoreReservationSlot slot = StoreReservationSlot.builder()
+                .maxCapacity(4)
+                .currentReservedCount(2)
+                .isAvailable(true)
+                .build();
+
+        given(reservationRepository.findById(reservationId)).willReturn(Optional.of(reservation));
+        given(slotRepository.findByStoreIdAndSlotDateAndSlotTime(storeId, date, time)).willReturn(Optional.of(slot));
+
+        // when
+        AdminReservationResponse response = adminOrderService.updateReservationStatus(storeId, reservationId, ReservationStatus.CONFIRMED);
+
+        // then
+        assertThat(response.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
+        assertThat(slot.getCurrentReservedCount()).isEqualTo(3);
+    }
 }

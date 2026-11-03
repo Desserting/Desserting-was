@@ -122,6 +122,35 @@ class ChatServiceTest {
     }
 
     @Test
+    @DisplayName("상대방과 차단 관계인 대화방에서 메시지 전송 시 ACCESS_DENIED 예외 발생")
+    void sendMessage_ThrowsException_WhenBlocked() {
+        // given
+        Long roomId = 10L;
+        Long senderId = 1L;
+        Long otherId = 2L;
+
+        User sender = User.builder().nickname("발신자").build();
+        ReflectionTestUtils.setField(sender, "id", senderId);
+        User other = User.builder().nickname("수신자").build();
+        ReflectionTestUtils.setField(other, "id", otherId);
+
+        ChatRoom chatRoom = ChatRoom.create();
+        ChatRoomMember member = ChatRoomMember.builder().chatRoom(chatRoom).user(sender).isLeft(false).build();
+        ChatRoomMember otherMember = ChatRoomMember.builder().chatRoom(chatRoom).user(other).isLeft(false).build();
+
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, senderId)).willReturn(Optional.of(member));
+        given(chatRoomMemberRepository.findOtherMember(roomId, senderId)).willReturn(Optional.of(otherMember));
+        given(userBlockRepository.isBlockedBetween(senderId, otherId)).willReturn(true);
+
+        ChatMessageRequest request = new ChatMessageRequest(roomId, "TEXT", "차단 후 메시지", null);
+
+        // when & then
+        assertThatThrownBy(() -> chatService.sendMessage(senderId, request))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+    }
+
+    @Test
     @DisplayName("이미 퇴장한 멤버가 메시지 전송 시 CHAT_MEMBER_NOT_ALLOWED 예외 발생")
     void sendMessage_LeftMember() {
         // given

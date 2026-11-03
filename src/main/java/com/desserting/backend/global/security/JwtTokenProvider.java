@@ -43,6 +43,7 @@ public class JwtTokenProvider {
                 .subject(String.valueOf(userId))
                 .claim("email", email)
                 .claim("role", role)
+                .claim("typ", "access")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey, Jwts.SIG.HS256)
@@ -55,6 +56,7 @@ public class JwtTokenProvider {
 
         return Jwts.builder()
                 .subject(String.valueOf(userId))
+                .claim("typ", "refresh")
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(secretKey, Jwts.SIG.HS256)
@@ -69,6 +71,22 @@ public class JwtTokenProvider {
     public String getEmailFromToken(String token) {
         Claims claims = getClaims(token);
         return claims.get("email", String.class);
+    }
+
+    public String getTokenType(String token) {
+        Claims claims = getClaims(token);
+        return claims.get("typ", String.class);
+    }
+
+    public boolean isAccessToken(String token) {
+        String typ = getTokenType(token);
+        // 하위 호환성을 위해 typ가 없으면 access로 간주하되, refresh는 명확히 배제
+        return !"refresh".equalsIgnoreCase(typ);
+    }
+
+    public boolean isRefreshToken(String token) {
+        String typ = getTokenType(token);
+        return "refresh".equalsIgnoreCase(typ);
     }
 
     public boolean validateToken(String token) {

@@ -48,6 +48,9 @@ public class ChatRequest extends BaseTimeEntity {
         if (this.status != RequestStatus.PENDING) {
             throw new IllegalStateException("대기 중인 요청만 수락할 수 있습니다.");
         }
+        if (isExpired()) {
+            throw new IllegalStateException("24시간이 경과하여 이미 만료된 대화 요청입니다.");
+        }
         this.status = RequestStatus.ACCEPTED;
     }
 
@@ -58,7 +61,14 @@ public class ChatRequest extends BaseTimeEntity {
         this.status = RequestStatus.REJECTED;
     }
 
+    public boolean isExpired() {
+        return this.expiredAt != null && LocalDateTime.now().isAfter(this.expiredAt);
+    }
+
     public void expire() {
+        if (this.status != RequestStatus.PENDING) {
+            throw new IllegalStateException("대기 중인 요청만 만료 처리할 수 있습니다.");
+        }
         this.status = RequestStatus.EXPIRED;
     }
 }

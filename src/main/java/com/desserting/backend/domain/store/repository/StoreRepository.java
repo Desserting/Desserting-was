@@ -14,6 +14,6 @@ public interface StoreRepository extends JpaRepository<Store, Long> {
 
     List<Store> findAllByThemeStreetIdAndIsPartnerTrue(Long themeStreetId);
 
-    @Query("SELECT s FROM Store s LEFT JOIN FETCH s.menus WHERE s.id = :id")
+    @Query("SELECT DISTINCT s FROM Store s LEFT JOIN FETCH s.menus WHERE s.id = :id")
     Optional<Store> findByIdWithMenus(@Param("id") Long id);
 }

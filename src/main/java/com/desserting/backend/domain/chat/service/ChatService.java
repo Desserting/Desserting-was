@@ -51,6 +51,15 @@ public class ChatService {
             throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED, "이미 퇴장한 채팅방입니다.");
         }
 
+        // 차단 관계 검증: 상대방과의 차단 상태 확인
+        Optional<ChatRoomMember> otherMemberOpt = chatRoomMemberRepository.findOtherMember(roomId, senderId);
+        if (otherMemberOpt.isPresent()) {
+            Long otherUserId = otherMemberOpt.get().getUser().getId();
+            if (userBlockRepository.isBlockedBetween(senderId, otherUserId)) {
+                throw new CustomException(ErrorCode.ACCESS_DENIED, "차단 관계인 사용자가 포함된 대화방에서는 메시지를 전송할 수 없습니다.");
+            }
+        }
+
         User sender = member.getUser();
         ChatRoom chatRoom = member.getChatRoom();
 

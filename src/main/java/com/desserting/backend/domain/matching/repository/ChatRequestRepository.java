@@ -6,15 +6,18 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> {
 
-    @Query("SELECT r FROM ChatRequest r " +
+    @Query("SELECT DISTINCT r FROM ChatRequest r " +
             "JOIN FETCH r.sender s " +
             "LEFT JOIN FETCH s.dessertTags " +
-            "WHERE r.receiver.id = :receiverId AND r.status = :status " +
+            "WHERE r.receiver.id = :receiverId " +
+            "AND r.status = :status " +
+            "AND r.expiredAt > CURRENT_TIMESTAMP " +
             "ORDER BY r.createdAt DESC")
     List<ChatRequest> findReceivedRequestsWithSender(
             @Param("receiverId") Long receiverId,
@@ -28,4 +31,10 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
     Optional<ChatRequest> findByIdWithUsers(@Param("id") Long id);
 
     boolean existsBySenderIdAndReceiverIdAndStatus(Long senderId, Long receiverId, RequestStatus status);
+
+    @Query("SELECT r FROM ChatRequest r WHERE r.status = :status AND r.expiredAt <= :now")
+    List<ChatRequest> findAllByStatusAndExpiredAtLessThanEqual(
+            @Param("status") RequestStatus status,
+            @Param("now") LocalDateTime now
+    );
 }

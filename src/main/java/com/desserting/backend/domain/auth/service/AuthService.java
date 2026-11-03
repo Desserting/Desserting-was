@@ -82,6 +82,10 @@ public class AuthService {
         String token = request.getRefreshToken();
         jwtTokenProvider.validateToken(token);
 
+        if (!jwtTokenProvider.isRefreshToken(token)) {
+            throw new CustomException(ErrorCode.INVALID_JWT_TOKEN, "유효한 Refresh Token이 아닙니다.");
+        }
+
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));

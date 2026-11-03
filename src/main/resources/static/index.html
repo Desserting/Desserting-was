@@ -1133,7 +1133,7 @@
             try {
                 await apiFetch('/api/v1/users/me/profile', {
                     method: 'PATCH',
-                    body: JSON.stringify({ bio, location, dessertTypes: desserts })
+                    body: JSON.stringify({ bio, region: location, dessertTypes: desserts })
                 });
                 showToast('프로필이 성공적으로 수정되었습니다!', 'success');
                 fetchMyProfile();
@@ -1401,22 +1401,35 @@
 
         async function fetchHeartHistory() {
             const list = document.getElementById('heart-history-list');
-            list.innerHTML = `
-                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                    <div>
-                        <div class="font-bold text-slate-800">회원가입 웰컴 하트 지급</div>
-                        <div class="text-[10px] text-slate-400">시스템 자동 적립</div>
-                    </div>
-                    <div class="font-black text-xs text-emerald-600">+10 ❤️</div>
-                </div>
-                <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
-                    <div>
-                        <div class="font-bold text-slate-800">대화 요청 전송 하트 차감</div>
-                        <div class="text-[10px] text-slate-400">일반 회원 차감</div>
-                    </div>
-                    <div class="font-black text-xs text-rose-600">-1 ❤️</div>
-                </div>
-            `;
+            if (!STATE.token) {
+                list.innerHTML = `<div class="p-3 text-center text-slate-400 text-xs">로그인 후 변동 내역을 확인할 수 있습니다.</div>`;
+                return;
+            }
+            try {
+                const res = await apiFetch('/api/v1/hearts/history');
+                const histories = res.data || [];
+                if (histories.length === 0) {
+                    list.innerHTML = `<div class="p-4 text-center text-slate-400 text-xs">아직 하트 변동 내역이 없습니다.</div>`;
+                    return;
+                }
+                list.innerHTML = histories.map(h => {
+                    const isPlus = h.amount > 0;
+                    const sign = isPlus ? `+${h.amount}` : `${h.amount}`;
+                    const color = isPlus ? 'text-emerald-600' : 'text-rose-600';
+                    const time = h.createdAt ? h.createdAt.slice(0, 16).replace('T', ' ') : '';
+                    return `
+                        <div class="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between">
+                            <div>
+                                <div class="font-bold text-slate-800 text-xs">${h.description || h.type}</div>
+                                <div class="text-[10px] text-slate-400">${time} · 잔여 ${h.balanceAfter}개</div>
+                            </div>
+                            <div class="font-black text-xs ${color}">${sign} ❤️</div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (err) {
+                console.warn('Heart history fetch failed:', err);
+            }
         }
 
         async function fetchReceivedChatRequests() {

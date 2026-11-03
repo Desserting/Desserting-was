@@ -201,6 +201,7 @@ class AuthServiceTest {
         ReflectionTestUtils.setField(user, "id", 3L);
 
         given(jwtTokenProvider.validateToken("validRefreshToken")).willReturn(true);
+        given(jwtTokenProvider.isRefreshToken("validRefreshToken")).willReturn(true);
         given(jwtTokenProvider.getUserIdFromToken("validRefreshToken")).willReturn(3L);
         given(userRepository.findById(3L)).willReturn(Optional.of(user));
         given(jwtTokenProvider.generateAccessToken(3L, "refresh@desserting.com", "ROLE_USER")).willReturn("newAccessToken");
@@ -213,5 +214,22 @@ class AuthServiceTest {
         // then
         assertThat(response.getAccessToken()).isEqualTo("newAccessToken");
         assertThat(response.getRefreshToken()).isEqualTo("newRefreshToken");
+    }
+
+    @Test
+    @DisplayName("Refresh Token 자리에 Access Token 전달 시 INVALID_JWT_TOKEN 예외 발생")
+    void refreshToken_ThrowsException_WhenNotRefreshToken() {
+        // given
+        RefreshTokenRequest request = RefreshTokenRequest.builder()
+                .refreshToken("accessTokenPassedAsRefreshToken")
+                .build();
+
+        given(jwtTokenProvider.validateToken("accessTokenPassedAsRefreshToken")).willReturn(true);
+        given(jwtTokenProvider.isRefreshToken("accessTokenPassedAsRefreshToken")).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> authService.refreshToken(request))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_JWT_TOKEN);
     }
 }

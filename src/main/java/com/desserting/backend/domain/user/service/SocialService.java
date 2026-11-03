@@ -35,6 +35,10 @@ public class SocialService {
             throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "본인에게는 좋아요를 누를 수 없습니다.");
         }
 
+        if (userBlockRepository.isBlockedBetween(senderId, receiverId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "차단 관계인 사용자에게는 좋아요를 누를 수 없습니다.");
+        }
+
         User sender = userRepository.findById(senderId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
         User receiver = userRepository.findById(receiverId)
@@ -64,6 +68,7 @@ public class SocialService {
 
         List<UserLike> likes = userLikeRepository.findLikesReceivedWithSender(userId);
         return likes.stream()
+                .filter(like -> !userBlockRepository.isBlockedBetween(userId, like.getSender().getId()))
                 .map(like -> OtherUserProfileResponse.from(like.getSender()))
                 .toList();
     }

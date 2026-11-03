@@ -94,6 +94,18 @@ class SocialServiceTest {
     }
 
     @Test
+    @DisplayName("차단 관계인 상대방에게 좋아요 시 ACCESS_DENIED 예외 발생")
+    void toggleLike_ThrowsException_WhenBlocked() {
+        // given
+        given(userBlockRepository.isBlockedBetween(1L, 2L)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> socialService.toggleLike(1L, 2L))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+    }
+
+    @Test
     @DisplayName("본인에게 좋아요 시 INVALID_INPUT_VALUE 예외 발생")
     void toggleLike_SelfLike() {
         // when & then

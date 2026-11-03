@@ -53,4 +53,19 @@ class JwtTokenProviderTest {
         assertThat(jwtTokenProvider.validateToken(refreshToken)).isTrue();
         assertThat(jwtTokenProvider.getUserIdFromToken(refreshToken)).isEqualTo(42L);
     }
+
+    @Test
+    @DisplayName("Access Token과 Refresh Token의 타입(typ)이 정확히 구분되어 상호 오용이 방지된다")
+    void tokenTypeDistinction() {
+        // given
+        String accessToken = jwtTokenProvider.generateAccessToken(1L, "user@desserting.com", "ROLE_USER");
+        String refreshToken = jwtTokenProvider.generateRefreshToken(1L);
+
+        // when & then
+        assertThat(jwtTokenProvider.isAccessToken(accessToken)).isTrue();
+        assertThat(jwtTokenProvider.isRefreshToken(accessToken)).isFalse();
+
+        assertThat(jwtTokenProvider.isAccessToken(refreshToken)).isFalse();
+        assertThat(jwtTokenProvider.isRefreshToken(refreshToken)).isTrue();
+    }
 }

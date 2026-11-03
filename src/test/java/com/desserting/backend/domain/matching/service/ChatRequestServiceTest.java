@@ -26,11 +26,13 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 
@@ -198,5 +200,51 @@ class ChatRequestServiceTest {
         // then
         assertThat(request.getStatus()).isEqualTo(RequestStatus.REJECTED);
         verify(heartService).refundHeart(1L, "상대방 대화 요청 거절 환불");
+    }
+
+    @Test
+    @DisplayName("24시간이 경과한 PENDING 대화 요청은 자동으로 EXPIRED 처리되고 하트가 100% 환불된다")
+    void expireStaleRequests_ExpiresAndRefunds() {
+        // given
+        User sender = User.builder().build();
+        ReflectionTestUtils.setField(sender, "id", 1L);
+        User receiver = User.builder().build();
+        ReflectionTestUtils.setField(receiver, "id", 2L);
+
+        ChatRequest staleRequest = ChatRequest.create(sender, receiver);
+        ReflectionTestUtils.setField(staleRequest, "id", 30L);
+        ReflectionTestUtils.setField(staleRequest, "expiredAt", LocalDateTime.now().minusHours(1));
+
+        given(chatRequestRepository.findAllByStatusAndExpiredAtLessThanEqual(eq(RequestStatus.PENDING), any(LocalDateTime.class)))
+                .willReturn(List.of(staleRequest));
+
+        // when
+        int count = chatRequestService.expireStaleRequests();
+
+        // then
+        assertThat(count).isEqualTo(1);
+        assertThat(staleRequest.getStatus()).isEqualTo(RequestStatus.EXPIRED);
+        verify(heartService).refundHeart(1L, "대화 요청 24시간 미응답 자동 만료 환불");
+    }
+
+    @Test
+    @DisplayName("만료된 대화 요청을 수락하려 할 때 IllegalStateException 예외 발생")
+    void acceptRequest_ThrowsException_WhenExpired() {
+        // given
+        User sender = User.builder().build();
+        ReflectionTestUtils.setField(sender, "id", 1L);
+        User receiver = User.builder().build();
+        ReflectionTestUtils.setField(receiver, "id", 2L);
+
+        ChatRequest expiredRequest = ChatRequest.create(sender, receiver);
+        ReflectionTestUtils.setField(expiredRequest, "id", 40L);
+        ReflectionTestUtils.setField(expiredRequest, "expiredAt", LocalDateTime.now().minusHours(2));
+
+        given(chatRequestRepository.findByIdWithUsers(40L)).willReturn(Optional.of(expiredRequest));
+
+        // when & then
+        assertThatThrownBy(() -> chatRequestService.acceptRequest(2L, 40L))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("만료된");
     }
 }

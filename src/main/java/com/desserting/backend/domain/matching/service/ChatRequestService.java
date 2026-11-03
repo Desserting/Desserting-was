@@ -125,4 +125,19 @@ public class ChatRequestService {
 
         log.info("대화 요청 거절 처리: requestId={}, 보낸사람에게 하트 환불 완료", requestId);
     }
+
+    @Transactional
+    public int expireStaleRequests() {
+        List<ChatRequest> staleRequests = chatRequestRepository.findAllByStatusAndExpiredAtLessThanEqual(
+                RequestStatus.PENDING, java.time.LocalDateTime.now()
+        );
+        for (ChatRequest req : staleRequests) {
+            req.expire();
+            heartService.refundHeart(req.getSender().getId(), "대화 요청 24시간 미응답 자동 만료 환불");
+        }
+        if (!staleRequests.isEmpty()) {
+            log.info("24시간 미응답 대화 요청 자동 만료 및 환불 완료: {}건", staleRequests.size());
+        }
+        return staleRequests.size();
+    }
 }

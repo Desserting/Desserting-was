@@ -62,6 +62,13 @@ public class AdminOrderService {
                 slot.decreaseReservation();
                 log.info("예약 취소로 인한 슬롯 복구: slotId={}, current={}/{}", slot.getId(), slot.getCurrentReservedCount(), slot.getMaxCapacity());
             });
+        } else if (oldStatus == ReservationStatus.CANCELLED && newStatus != ReservationStatus.CANCELLED) {
+            slotRepository.findByStoreIdAndSlotDateAndSlotTime(
+                    storeId, reservation.getReservationDate(), reservation.getReservationTime()
+            ).ifPresent(slot -> {
+                slot.increaseReservation();
+                log.info("취소 예약 재확정으로 인한 슬롯 정원 재반영: slotId={}, current={}/{}", slot.getId(), slot.getCurrentReservedCount(), slot.getMaxCapacity());
+            });
         }
 
         log.info("예약 상태 변경 완료: reservationId={}, {} -> {}", reservationId, oldStatus, newStatus);

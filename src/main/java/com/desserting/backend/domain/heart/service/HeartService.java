@@ -1,5 +1,6 @@
 package com.desserting.backend.domain.heart.service;
 
+import com.desserting.backend.domain.heart.dto.HeartHistoryResponse;
 import com.desserting.backend.domain.heart.entity.HeartHistory;
 import com.desserting.backend.domain.heart.entity.HeartHistoryType;
 import com.desserting.backend.domain.heart.repository.HeartHistoryRepository;
@@ -11,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
@@ -50,6 +53,11 @@ public class HeartService {
         User user = userRepository.findByIdWithLock(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
+        if (Boolean.TRUE.equals(user.getIsPremium())) {
+            log.info("프리미엄 회원 대화 요청 환불 제외 (원래 미차감): userId={}", userId);
+            return;
+        }
+
         user.addHeart(1);
         heartHistoryRepository.save(HeartHistory.of(
                 user,
@@ -66,5 +74,13 @@ public class HeartService {
         int updatedCount = userRepository.resetDailyHeartsForUsers();
         log.info("자정 무료 하트 충전 완료: {}명의 사용자에게 5개 하트 리셋", updatedCount);
         return updatedCount;
+    }
+
+    @Transactional(readOnly = true)
+    public List<HeartHistoryResponse> getMyHeartHistories(Long userId) {
+        List<HeartHistory> histories = heartHistoryRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
+        return histories.stream()
+                .map(HeartHistoryResponse::from)
+                .toList();
     }
 }

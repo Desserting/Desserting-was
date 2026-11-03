@@ -56,4 +56,28 @@ public class Store extends BaseTimeEntity {
     @OneToMany(mappedBy = "store", cascade = CascadeType.ALL, orphanRemoval = true)
     @Builder.Default
     private List<StoreMenu> menus = new ArrayList<>();
+
+    public void updateInfo(String name, String address, BigDecimal latitude, BigDecimal longitude,
+                           String businessHours, String contact, String coverImageUrl,
+                           ThemeStreet themeStreet, String partnerDiscountNotice) {
+        if (name != null && !name.isBlank()) this.name = name;
+        if (address != null && !address.isBlank()) this.address = address;
+        if (latitude != null) this.latitude = latitude;
+        if (longitude != null) this.longitude = longitude;
+        if (businessHours != null) this.businessHours = businessHours;
+        if (contact != null) this.contact = contact;
+        if (coverImageUrl != null) this.coverImageUrl = coverImageUrl;
+        if (themeStreet != null) this.themeStreet = themeStreet;
+        if (partnerDiscountNotice != null) this.partnerDiscountNotice = partnerDiscountNotice;
+    }
+
+    public void updatePartnership(Boolean isPartner) {
+        if (isPartner != null) {
+            this.isPartner = isPartner;
+        }
+    }
+
+    public void updateDiscountNotice(String partnerDiscountNotice) {
+        this.partnerDiscountNotice = partnerDiscountNotice;
+    }
 }

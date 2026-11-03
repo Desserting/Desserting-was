@@ -37,7 +37,10 @@ public enum ErrorCode {
     THEME_STREET_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "테마거리를 찾을 수 없습니다."),
     STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "매장을 찾을 수 없습니다."),
     STORE_MENU_NOT_FOUND(HttpStatus.NOT_FOUND, "S002", "메뉴를 찾을 수 없습니다."),
-    RESERVATION_SLOT_FULL(HttpStatus.CONFLICT, "R001", "선택하신 시간대의 예약 정원이 마감되었습니다.");
+    DUPLICATE_RESERVATION_SLOT(HttpStatus.CONFLICT, "S003", "해당 일시의 예약 슬롯이 이미 존재합니다."),
+    RESERVATION_SLOT_FULL(HttpStatus.CONFLICT, "R001", "선택하신 시간대의 예약 정원이 마감되었습니다."),
+    RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "R002", "예약 내역을 찾을 수 없습니다."),
+    RESERVATION_SLOT_NOT_FOUND(HttpStatus.NOT_FOUND, "R003", "예약 슬롯을 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

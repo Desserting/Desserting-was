@@ -50,4 +50,10 @@ public class Reservation extends BaseTimeEntity {
 
     @Column(length = 255)
     private String specialRequest;
+
+    public void updateStatus(ReservationStatus status) {
+        if (status != null) {
+            this.status = status;
+        }
+    }
 }

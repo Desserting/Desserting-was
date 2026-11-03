@@ -39,4 +39,20 @@ public class ThemeStreet extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private Boolean isActive = true;
+
+    public void updateTheme(String name, String description, String boundaryPolygonJson,
+                            BigDecimal centerLatitude, BigDecimal centerLongitude,
+                            String coverImageUrl, Boolean isActive) {
+        if (name != null && !name.isBlank()) this.name = name;
+        if (description != null) this.description = description;
+        if (boundaryPolygonJson != null) this.boundaryPolygonJson = boundaryPolygonJson;
+        if (centerLatitude != null) this.centerLatitude = centerLatitude;
+        if (centerLongitude != null) this.centerLongitude = centerLongitude;
+        if (coverImageUrl != null) this.coverImageUrl = coverImageUrl;
+        if (isActive != null) this.isActive = isActive;
+    }
+
+    public void setActive(boolean isActive) {
+        this.isActive = isActive;
+    }
 }

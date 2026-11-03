@@ -47,4 +47,4 @@ desserting:
       enabled: true
       base-url: ${OLLAMA_BASE_URL:http://localhost:11434}
       model: ${OLLAMA_MODEL:qwen2.5:3b}
-      timeout-seconds: 5
+      timeout-seconds: 15

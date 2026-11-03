@@ -30,7 +30,7 @@ public class OllamaClient {
     public OllamaClient(
             @Value("${desserting.ai.ollama.base-url:http://localhost:11434}") String baseUrl,
             @Value("${desserting.ai.ollama.model:qwen2.5:3b}") String model,
-            @Value("${desserting.ai.ollama.timeout-seconds:5}") int timeoutSeconds,
+            @Value("${desserting.ai.ollama.timeout-seconds:15}") int timeoutSeconds,
             @Value("${desserting.ai.ollama.enabled:true}") boolean enabled,
             ObjectMapper objectMapper) {
         this.model = model;
@@ -38,7 +38,7 @@ public class OllamaClient {
         this.objectMapper = objectMapper;
 
         SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout((int) Duration.ofSeconds(2).toMillis());
+        requestFactory.setConnectTimeout((int) Duration.ofSeconds(3).toMillis());
         requestFactory.setReadTimeout((int) Duration.ofSeconds(timeoutSeconds).toMillis());
 
         this.restClient = RestClient.builder()
@@ -62,16 +62,19 @@ public class OllamaClient {
                     "format", "json"
             );
 
-            String rawResponse = restClient.post()
+            byte[] responseBytes = restClient.post()
                     .uri("/api/generate")
                     .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.APPLICATION_JSON, MediaType.ALL)
                     .body(body)
                     .retrieve()
-                    .body(String.class);
+                    .body(byte[].class);
 
-            if (rawResponse == null || rawResponse.isBlank()) {
+            if (responseBytes == null || responseBytes.length == 0) {
                 return Optional.empty();
             }
+
+            String rawResponse = new String(responseBytes, java.nio.charset.StandardCharsets.UTF_8);
 
             JsonNode rootNode = objectMapper.readTree(rawResponse);
             JsonNode responseField = rootNode.get("response");

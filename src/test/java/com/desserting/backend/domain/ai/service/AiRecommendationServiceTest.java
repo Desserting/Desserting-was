@@ -10,6 +10,7 @@ import com.desserting.backend.domain.store.entity.Store;
 import com.desserting.backend.domain.store.entity.StoreMenu;
 import com.desserting.backend.domain.store.repository.StoreMenuRepository;
 import com.desserting.backend.domain.store.repository.StoreRepository;
+import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -42,6 +43,8 @@ class AiRecommendationServiceTest {
     @Mock
     private StoreMenuRepository storeMenuRepository;
     @Mock
+    private UserRepository userRepository;
+    @Mock
     private ChatService chatService;
     @Mock
     private OllamaClient ollamaClient;
@@ -57,6 +60,7 @@ class AiRecommendationServiceTest {
                 chatMessageRepository,
                 storeRepository,
                 storeMenuRepository,
+                userRepository,
                 chatService,
                 ollamaClient,
                 new ObjectMapper()

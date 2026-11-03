@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
-@Tag(name = "07. Reservation (매장 예약)", description = "예약 가능 날짜·시간 조회, 예약 생성·조회·취소 API (4-6)")
+@Tag(name = "4-6. 매장 예약 API", description = "예약 가능 날짜·시간 조회, 예약 생성·조회·취소 API (4-6)")
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor

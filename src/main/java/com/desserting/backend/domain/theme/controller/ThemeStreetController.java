@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.math.BigDecimal;
 import java.util.List;
 
-@Tag(name = "05. Theme Street (테마거리 지도)", description = "대구·경북 테마거리 점선 구역 및 구역 내 제휴매장 API (4-5)")
+@Tag(name = "4-5. 테마거리 지도 API", description = "대구·경북 테마거리 점선 구역 및 구역 내 제휴매장 API (4-5)")
 @RestController
 @RequestMapping("/api/v1/themes")
 @RequiredArgsConstructor

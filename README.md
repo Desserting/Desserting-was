@@ -30,36 +30,44 @@
 
 ## 🚀 서버 구동 방법 (Quick Start)
 
-### 1단계: 환경 변수 설정
-프로젝트 루트 디렉토리에서 환경 변수 예시 파일을 복사하여 `.env` 파일을 생성합니다.
-
+### 사전 준비: 환경 변수 파일 생성
 ```bash
 cp .env.example .env
 ```
 
-### 2단계: 3종 DB 컨테이너 실행 (Docker)
-PostgreSQL(5432), MongoDB(27017), Redis(6379)를 백그라운드 컨테이너로 일괄 실행합니다.
+---
+
+### 방법 A. Docker로 전체 서버 및 DB 일괄 실행 (추천 / 원클릭 실행)
+Spring Boot 백엔드 서버와 3종 DB(PostgreSQL, MongoDB, Redis)를 모두 Docker 컨테이너로 빌드 및 실행합니다.
 
 ```bash
-docker compose up -d
+# 전체 서비스 빌드 및 백그라운드 구동
+docker compose up --build -d
+
+# 구동 상태 확인 (4개 컨테이너가 Up 상태인지 확인)
+docker compose ps
+
+# 백엔드 서버 실시간 로그 확인
+docker compose logs -f backend
 ```
 
-> 컨테이너가 정상 실행되었는지 확인합니다:
-> ```bash
-> docker compose ps
-> ```
+---
 
-### 3단계: 백엔드 애플리케이션 빌드 및 실행
+### 방법 B. DB만 Docker로 띄우고 백엔드는 로컬에서 실행 (개발/디버깅 모드)
+코드 수정이 잦거나 IntelliJ 브레이크포인트 디버깅을 사용할 때 권장합니다.
 
-**터미널에서 실행할 경우:**
 ```bash
+# 1. 3종 DB 컨테이너만 실행
+docker compose up -d postgres mongodb redis
+
+# 2. 백엔드 로컬 실행
 ./gradlew bootRun
+# 또는 IntelliJ에서 DessertingApplication.java Run
 ```
 
-**IntelliJ IDEA에서 실행할 경우:**
-- `src/main/java/com/desserting/backend/DessertingApplication.java` 파일을 열고 **Run (Ctrl + R / Shift + F10)** 실행
+---
 
-### 4단계: 서버 정상 구동 확인
+### 서버 정상 구동 확인
 브라우저 또는 터미널(curl)에서 헬스 체크 엔드포인트를 호출합니다:
 - **URL**: `http://localhost:8080/api/v1/health`
 - **응답 예시**:

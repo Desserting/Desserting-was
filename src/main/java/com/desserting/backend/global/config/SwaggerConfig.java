@@ -22,12 +22,20 @@ public class SwaggerConfig {
 
     @Bean
     public OpenAPI openAPI() {
-        String jwtSchemeName = "BearerAuthentication";
-        SecurityRequirement securityRequirement = new SecurityRequirement().addList(jwtSchemeName);
+        String jwtSchemeName = "bearerAuth";
+        SecurityRequirement securityRequirement = new SecurityRequirement()
+                .addList(jwtSchemeName)
+                .addList("BearerAuthentication");
 
         Components components = new Components()
                 .addSecuritySchemes(jwtSchemeName, new SecurityScheme()
                         .name(jwtSchemeName)
+                        .type(SecurityScheme.Type.HTTP)
+                        .scheme("bearer")
+                        .bearerFormat("JWT")
+                        .description("JWT Access Token을 입력해주세요 (접두사 'Bearer ' 제외)"))
+                .addSecuritySchemes("BearerAuthentication", new SecurityScheme()
+                        .name("BearerAuthentication")
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
                         .bearerFormat("JWT")

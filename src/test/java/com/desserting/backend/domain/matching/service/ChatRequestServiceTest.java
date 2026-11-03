@@ -70,7 +70,7 @@ class ChatRequestServiceTest {
         User receiver = User.builder().email("receiver@desserting.com").nickname("받는사람").dessertTags(new ArrayList<>()).build();
         ReflectionTestUtils.setField(receiver, "id", 2L);
 
-        given(userRepository.findById(1L)).willReturn(Optional.of(sender));
+        given(heartService.deductHeartForRequest(1L)).willReturn(sender);
         given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
         given(chatRoomMemberRepository.existsActiveRoomBetween(1L, 2L)).willReturn(false);
         given(chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(1L, 2L, RequestStatus.PENDING)).willReturn(false);
@@ -117,13 +117,6 @@ class ChatRequestServiceTest {
     @DisplayName("이미 대기 중인 요청이 존재할 때 중복 요청 시 DUPLICATE_CHAT_REQUEST 예외 발생")
     void sendRequest_DuplicatePending() {
         // given
-        User sender = User.builder().build();
-        ReflectionTestUtils.setField(sender, "id", 1L);
-        User receiver = User.builder().build();
-        ReflectionTestUtils.setField(receiver, "id", 2L);
-
-        given(userRepository.findById(1L)).willReturn(Optional.of(sender));
-        given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
         given(chatRoomMemberRepository.existsActiveRoomBetween(1L, 2L)).willReturn(false);
         given(chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(1L, 2L, RequestStatus.PENDING)).willReturn(true);
 

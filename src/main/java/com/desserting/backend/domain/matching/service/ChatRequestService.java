@@ -47,11 +47,6 @@ public class ChatRequestService {
             throw new CustomException(ErrorCode.ACCESS_DENIED, "차단 관계인 사용자에게는 대화 요청을 보낼 수 없습니다.");
         }
 
-        User sender = userRepository.findById(senderId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
-        User receiver = userRepository.findById(receiverId)
-                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "대화 요청 대상 사용자를 찾을 수 없습니다: " + receiverId));
-
         if (chatRoomMemberRepository.existsActiveRoomBetween(senderId, receiverId)) {
             throw new CustomException(ErrorCode.DUPLICATE_CHAT_REQUEST, "이미 활성 채팅방이 존재하는 상대입니다.");
         }
@@ -60,8 +55,10 @@ public class ChatRequestService {
             throw new CustomException(ErrorCode.DUPLICATE_CHAT_REQUEST, "이미 해당 상대에게 보낸 대기 중인 요청이 존재합니다.");
         }
 
-        // HRT-02: 하트 1개 차감 (프리미엄 회원은 자동 면제)
-        heartService.deductHeartForRequest(senderId);
+        // HRT-02: 하트 1개 차감 (동시성 lost update 방지를 위해 비관적 락으로 먼저 차감 및 최신 sender 획득)
+        User sender = heartService.deductHeartForRequest(senderId);
+        User receiver = userRepository.findById(receiverId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "대화 요청 대상 사용자를 찾을 수 없습니다: " + receiverId));
 
         ChatRequest chatRequest = ChatRequest.create(sender, receiver);
         ChatRequest savedRequest = chatRequestRepository.save(chatRequest);

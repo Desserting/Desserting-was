@@ -24,13 +24,13 @@ public class HeartService {
     private final HeartHistoryRepository heartHistoryRepository;
 
     @Transactional
-    public void deductHeartForRequest(Long userId) {
+    public User deductHeartForRequest(Long userId) {
         User user = userRepository.findByIdWithLock(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         if (Boolean.TRUE.equals(user.getIsPremium())) {
             log.info("프리미엄 회원 대화 요청: userId={}, 하트 차감 면제", userId);
-            return;
+            return user;
         }
 
         if (user.getHeartCount() < 1) {
@@ -46,6 +46,7 @@ public class HeartService {
                 "대화 요청 전송 하트 1개 차감"
         ));
         log.info("하트 차감 완료: userId={}, 잔여 하트={}", userId, user.getHeartCount());
+        return user;
     }
 
     @Transactional

@@ -490,10 +490,13 @@
                             <div class="w-9 h-9 rounded-full bg-dessert-200 text-dessert-800 flex items-center justify-center font-bold text-sm" id="chat-header-avatar">💬</div>
                             <div>
                                 <h3 class="font-bold text-sm text-slate-900" id="chat-header-title">채팅방을 선택하세요</h3>
-                                <p class="text-[11px] text-slate-500 flex items-center gap-1.5" id="chat-header-subtitle">
-                                    <span class="w-2 h-2 rounded-full bg-slate-300" id="stomp-status-dot"></span>
-                                    <span id="stomp-status-text">STOMP 대기 중</span>
-                                </p>
+                                <div class="flex items-center gap-2 mt-0.5">
+                                    <span class="text-[10px] font-semibold text-dessert-800 bg-dessert-100 px-2 py-0.5 rounded-full border border-dessert-200" id="chat-room-badge">방 미선택</span>
+                                    <span class="text-[11px] text-slate-500 flex items-center gap-1.5">
+                                        <span class="w-2 h-2 rounded-full bg-slate-300" id="stomp-status-dot"></span>
+                                        <span id="stomp-status-text" class="font-medium">STOMP 대기 중</span>
+                                    </span>
+                                </div>
                             </div>
                         </div>
                         <div class="flex items-center gap-2" id="chat-actions-container">
@@ -1299,7 +1302,8 @@
             // Update UI Header
             document.getElementById('chat-header-title').innerText = otherNickname;
             document.getElementById('chat-header-avatar').innerText = otherNickname.charAt(0);
-            document.getElementById('chat-header-subtitle').innerText = `채팅방 #${roomId} · 실시간 연결 준비`;
+            const badge = document.getElementById('chat-room-badge');
+            if (badge) badge.innerText = `채팅방 #${roomId}`;
 
             document.getElementById('btn-propose-place').disabled = false;
             document.getElementById('btn-leave-room').disabled = false;
@@ -1410,13 +1414,14 @@
                 return;
             }
 
-            statusDot.className = 'w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse';
-            statusText.innerText = 'STOMP 연결 중...';
+            if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-amber-500 inline-block animate-pulse';
+            if (statusText) statusText.innerText = 'STOMP 연결 중...';
 
             const wsUrl = `${STATE.apiBaseUrl}/ws`;
+            console.log('[STOMP] Connecting to:', wsUrl);
             const socket = new SockJS(wsUrl);
             STATE.stompClient = Stomp.over(socket);
-            STATE.stompClient.debug = null; // silence verbose console logs
+            STATE.stompClient.debug = (str) => console.log('[STOMP DEBUG]', str);
 
             const headers = {
                 Authorization: `Bearer ${STATE.token}`,
@@ -1424,34 +1429,42 @@
             };
 
             STATE.stompClient.connect(headers, (frame) => {
-                statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block';
-                statusText.innerText = `STOMP 연결됨 (Room #${roomId} 실시간 구독)`;
+                console.log('[STOMP] Connected successfully:', frame);
+                if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block';
+                if (statusText) statusText.innerText = `Room #${roomId} 실시간 연결됨 (LIVE)`;
                 showToast(`실시간 웹소켓이 연결되었습니다 (Room #${roomId})`, 'success');
 
                 subscribeToRoom(roomId);
             }, (err) => {
-                console.error('STOMP Error:', err);
-                statusDot.className = 'w-2 h-2 rounded-full bg-rose-500 inline-block';
-                statusText.innerText = 'STOMP 연결 실패';
+                console.error('[STOMP] Error connecting:', err);
+                if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-rose-500 inline-block';
+                if (statusText) statusText.innerText = 'STOMP 연결 실패';
                 showToast(`웹소켓 연결 실패: ${err}`, 'error');
             });
         }
 
         function subscribeToRoom(roomId) {
             if (STATE.stompSubscription) {
-                STATE.stompSubscription.unsubscribe();
+                try { STATE.stompSubscription.unsubscribe(); } catch(e){}
             }
 
             const topic = `/sub/chat/room/${roomId}`;
+            console.log('[STOMP] Subscribing to:', topic);
             STATE.stompSubscription = STATE.stompClient.subscribe(topic, (message) => {
                 try {
                     const msgDto = JSON.parse(message.body);
+                    console.log('[STOMP] Received message:', msgDto);
                     appendMessageBubble(msgDto);
                     scrollChatToBottom();
                 } catch (e) {
                     console.error('Failed to parse incoming STOMP message:', e);
                 }
             });
+
+            const statusDot = document.getElementById('stomp-status-dot');
+            const statusText = document.getElementById('stomp-status-text');
+            if (statusDot) statusDot.className = 'w-2 h-2 rounded-full bg-emerald-500 inline-block';
+            if (statusText) statusText.innerText = `Room #${roomId} 실시간 구독 중 (LIVE)`;
         }
 
         function disconnectStomp() {
@@ -1539,6 +1552,8 @@
                 disconnectStomp();
                 STATE.currentRoomId = null;
                 document.getElementById('chat-header-title').innerText = '채팅방을 선택하세요';
+                const badge = document.getElementById('chat-room-badge');
+                if (badge) badge.innerText = '방 미선택';
                 document.getElementById('chat-messages-container').innerHTML = '';
                 fetchChatRooms();
             } catch (err) {

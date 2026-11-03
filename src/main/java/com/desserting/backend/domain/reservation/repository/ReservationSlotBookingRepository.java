@@ -30,21 +30,24 @@ public interface ReservationSlotBookingRepository extends Repository<StoreReserv
     /**
      * 예약 1건(1팀)을 원자적으로 추가한다. 마감·판매중지 슬롯이면 0 반환.
      * 동시 요청에서도 정원을 넘지 않도록 조건부 UPDATE 한 번으로 처리한다.
+     * 슬롯의 @Version 도 함께 올려, 같은 슬롯을 엔티티로 수정하는 점주 쪽 변경(낙관적 락)이 이 변경을 덮어쓰지 못하게 한다.
      */
     @Modifying(flushAutomatically = true)
     @Query("""
             UPDATE StoreReservationSlot s
             SET s.currentReservedCount = s.currentReservedCount + 1,
-                s.isAvailable = CASE WHEN s.currentReservedCount + 1 >= s.maxCapacity THEN false ELSE true END
+                s.isAvailable = CASE WHEN s.currentReservedCount + 1 >= s.maxCapacity THEN false ELSE true END,
+                s.version = COALESCE(s.version, 0) + 1
             WHERE s.id = :id AND s.isAvailable = true AND s.currentReservedCount < s.maxCapacity
             """)
     int tryReserve(@Param("id") Long id);
 
-    /** 예약 1건 취소 시 자리 반환 (StoreReservationSlot.decreaseReservation 과 같은 규칙) */
+    /** 예약 1건 취소 시 자리 반환 (StoreReservationSlot.decreaseReservation 과 같은 규칙, @Version 증가) */
     @Modifying(flushAutomatically = true)
     @Query("""
             UPDATE StoreReservationSlot s
-            SET s.currentReservedCount = s.currentReservedCount - 1, s.isAvailable = true
+            SET s.currentReservedCount = s.currentReservedCount - 1, s.isAvailable = true,
+                s.version = COALESCE(s.version, 0) + 1
             WHERE s.id = :id AND s.currentReservedCount > 0
             """)
     int release(@Param("id") Long id);

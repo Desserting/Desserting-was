@@ -43,6 +43,9 @@ public class StoreReservationSlot extends BaseTimeEntity {
     @Builder.Default
     private Boolean isAvailable = true; // 예약 가능 여부 (정원 도달 시 false)
 
+    @Version
+    private Long version;
+
     public void updateCapacity(Integer maxCapacity) {
         if (maxCapacity != null && maxCapacity > 0) {
             this.maxCapacity = maxCapacity;

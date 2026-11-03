@@ -10,7 +10,8 @@ public enum HeartHistoryType {
     REQUEST_DEDUCT("대화 요청 전송 차감"),
     REQUEST_REFUND("대화 요청 거절 환불"),
     PURCHASE("하트 추가 구매 충전"),
-    ADMIN_GRANT("관리자 지급");
+    ADMIN_GRANT("관리자 지급"),
+    WELCOME_BONUS("신규 회원가입 웰컴 무료 하트");
 
     private final String description;
 }

@@ -36,17 +36,17 @@ public class StompHandler implements ChannelInterceptor {
             return message;
         }
 
-        // 1. WebSocket 핸드셰이크 후 STOMP CONNECT 시 JWT 인증 처리
+        // 1. WebSocket 핸드셰이크 후 STOMP CONNECT 시 JWT 인증 처리 (Access Token 전용)
         if (StompCommand.CONNECT.equals(accessor.getCommand())) {
             String token = resolveToken(accessor);
-            if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token)) {
+            if (StringUtils.hasText(token) && jwtTokenProvider.validateToken(token) && jwtTokenProvider.isAccessToken(token)) {
                 Long userId = jwtTokenProvider.getUserIdFromToken(token);
                 UserDetails userDetails = userDetailsService.loadUserById(userId);
                 Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 accessor.setUser(auth);
                 log.info("STOMP CONNECT 성공: userId={}", userId);
             } else {
-                log.warn("STOMP CONNECT 실패: 유효하지 않은 JWT 토큰");
+                log.warn("STOMP CONNECT 실패: 유효하지 않은 JWT 토큰 또는 Access Token이 아님");
                 throw new CustomException(ErrorCode.UNAUTHORIZED, "웹소켓 연결 인증에 실패하였습니다.");
             }
         }
@@ -55,20 +55,27 @@ public class StompHandler implements ChannelInterceptor {
         if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             String destination = accessor.getDestination();
             if (destination != null && destination.startsWith("/sub/chat/room/")) {
-                try {
-                    Long roomId = Long.parseLong(destination.substring("/sub/chat/room/".length()));
-                    Authentication auth = (Authentication) accessor.getUser();
-                    if (auth != null && auth.getPrincipal() instanceof CustomUserDetails userDetails) {
-                        Long userId = userDetails.getUserId();
-                        boolean isMember = chatRoomMemberRepository.existsByChatRoomIdAndUserIdAndIsLeftFalse(roomId, userId);
-                        if (!isMember) {
-                            log.warn("STOMP SUBSCRIBE 거부: userId={}는 roomId={}의 참여자가 아닙니다.", userId, roomId);
-                            throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED, "채팅방 참여자만 구독할 수 있습니다.");
-                        }
-                        log.info("STOMP SUBSCRIBE 인가 성공: userId={}, roomId={}", userId, roomId);
-                    }
-                } catch (NumberFormatException ignored) {
+                Authentication auth = (Authentication) accessor.getUser();
+                if (auth == null || !(auth.getPrincipal() instanceof CustomUserDetails userDetails)) {
+                    log.warn("STOMP SUBSCRIBE 거부: 미인증 세션의 구독 시도 destination={}", destination);
+                    throw new CustomException(ErrorCode.UNAUTHORIZED, "인증된 사용자만 채팅방을 구독할 수 있습니다.");
                 }
+
+                Long roomId;
+                try {
+                    roomId = Long.parseLong(destination.substring("/sub/chat/room/".length()));
+                } catch (NumberFormatException e) {
+                    log.warn("STOMP SUBSCRIBE 거부: 유효하지 않은 방 번호 destination={}", destination);
+                    throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "유효하지 않은 채팅방 경로입니다.");
+                }
+
+                Long userId = userDetails.getUserId();
+                boolean isMember = chatRoomMemberRepository.existsByChatRoomIdAndUserIdAndIsLeftFalse(roomId, userId);
+                if (!isMember) {
+                    log.warn("STOMP SUBSCRIBE 거부: userId={}는 roomId={}의 참여자가 아닙니다.", userId, roomId);
+                    throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED, "채팅방 참여자만 구독할 수 있습니다.");
+                }
+                log.info("STOMP SUBSCRIBE 인가 성공: userId={}, roomId={}", userId, roomId);
             }
         }
 

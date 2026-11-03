@@ -1,6 +1,8 @@
 package com.desserting.backend.domain.admin.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import lombok.*;
 
 import java.math.BigDecimal;
@@ -22,9 +24,13 @@ public class StoreUpdateRequest {
     private String address;
 
     @Schema(description = "위도 (Latitude)", example = "35.8687000")
+    @DecimalMin(value = "33.0", message = "위도는 33.0도 이상이어야 합니다.")
+    @DecimalMax(value = "43.0", message = "위도는 43.0도 이하여야 합니다.")
     private BigDecimal latitude;
 
     @Schema(description = "경도 (Longitude)", example = "128.5982000")
+    @DecimalMin(value = "124.0", message = "경도는 124.0도 이상이어야 합니다.")
+    @DecimalMax(value = "132.0", message = "경도는 132.0도 이하여야 합니다.")
     private BigDecimal longitude;
 
     @Schema(description = "영업 시간 안내", example = "매일 12:00 - 22:00")

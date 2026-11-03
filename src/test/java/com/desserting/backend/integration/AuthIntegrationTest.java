@@ -85,6 +85,14 @@ class AuthIntegrationTest {
                 .andExpect(jsonPath("$.data.nickname").value(testNickname))
                 .andExpect(jsonPath("$.data.heartCount").value(5)) // 신규 가입 무료 하트 5개 기본 지급
                 .andExpect(jsonPath("$.data.dessertTags").isArray());
+
+        // 4. 신규 가입 웰컴 하트 내역 조회 (GET /api/v1/hearts/history)
+        mockMvc.perform(get("/api/v1/hearts/history")
+                        .header("Authorization", "Bearer " + accessToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[0].type").value("WELCOME_BONUS"))
+                .andExpect(jsonPath("$.data[0].amount").value(5))
+                .andExpect(jsonPath("$.data[0].balanceAfter").value(5));
     }
 
     @Test

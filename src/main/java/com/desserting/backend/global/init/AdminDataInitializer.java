@@ -27,6 +27,8 @@ import com.desserting.backend.domain.user.entity.UserLike;
 import com.desserting.backend.domain.user.entity.UserRole;
 import com.desserting.backend.domain.user.repository.UserLikeRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -60,9 +62,18 @@ public class AdminDataInitializer implements CommandLineRunner {
     private final ReservationRepository reservationRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @PersistenceContext
+    private EntityManager entityManager;
+
     @Override
     @Transactional
     public void run(String... args) {
+        try {
+            entityManager.createNativeQuery("ALTER TABLE heart_histories DROP CONSTRAINT IF EXISTS heart_histories_type_check").executeUpdate();
+        } catch (Exception e) {
+            log.debug("heart_histories_type_check 제약조건 해제 생략: {}", e.getMessage());
+        }
+
         if (userRepository.existsByEmail("minjung@desserting.com")) {
             log.info("종합 목업 데이터가 이미 존재합니다. 시딩을 건너뜁니다.");
             return;

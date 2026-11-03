@@ -4,6 +4,9 @@ import com.desserting.backend.domain.auth.dto.LoginRequest;
 import com.desserting.backend.domain.auth.dto.RefreshTokenRequest;
 import com.desserting.backend.domain.auth.dto.SignUpRequest;
 import com.desserting.backend.domain.auth.dto.TokenResponse;
+import com.desserting.backend.domain.heart.entity.HeartHistory;
+import com.desserting.backend.domain.heart.entity.HeartHistoryType;
+import com.desserting.backend.domain.heart.repository.HeartHistoryRepository;
 import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
@@ -24,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final HeartHistoryRepository heartHistoryRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
 
@@ -59,6 +63,16 @@ public class AuthService {
         }
 
         User savedUser = userRepository.save(user);
+
+        // HRT-01: 신규 가입 웰컴 무료 하트 5개 지급 이력 저장
+        heartHistoryRepository.save(HeartHistory.of(
+                savedUser,
+                5,
+                5,
+                HeartHistoryType.WELCOME_BONUS,
+                "신규 회원가입 웰컴 무료 하트 5개 지급"
+        ));
+
         log.info("신규 회원가입 완료: userId={}, email={}, nickname={}", savedUser.getId(), savedUser.getEmail(), savedUser.getNickname());
 
         return createTokenResponse(savedUser);

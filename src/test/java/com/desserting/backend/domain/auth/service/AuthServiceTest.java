@@ -4,6 +4,8 @@ import com.desserting.backend.domain.auth.dto.LoginRequest;
 import com.desserting.backend.domain.auth.dto.RefreshTokenRequest;
 import com.desserting.backend.domain.auth.dto.SignUpRequest;
 import com.desserting.backend.domain.auth.dto.TokenResponse;
+import com.desserting.backend.domain.heart.entity.HeartHistory;
+import com.desserting.backend.domain.heart.repository.HeartHistoryRepository;
 import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserRole;
@@ -27,12 +29,16 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 @ExtendWith(MockitoExtension.class)
 class AuthServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private HeartHistoryRepository heartHistoryRepository;
 
     @Mock
     private PasswordEncoder passwordEncoder;
@@ -81,6 +87,7 @@ class AuthServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getAccessToken()).isEqualTo("mockAccessToken");
         assertThat(response.getRefreshToken()).isEqualTo("mockRefreshToken");
+        verify(heartHistoryRepository).save(any(HeartHistory.class));
     }
 
     @Test

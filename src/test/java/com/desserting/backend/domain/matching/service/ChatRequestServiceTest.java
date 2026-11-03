@@ -12,6 +12,7 @@ import com.desserting.backend.domain.matching.entity.ChatRequest;
 import com.desserting.backend.domain.matching.entity.RequestStatus;
 import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
 import com.desserting.backend.domain.user.entity.User;
+import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -50,6 +51,9 @@ class ChatRequestServiceTest {
 
     @Mock
     private HeartService heartService;
+
+    @Mock
+    private UserBlockRepository userBlockRepository;
 
     @InjectMocks
     private ChatRequestService chatRequestService;
@@ -93,6 +97,18 @@ class ChatRequestServiceTest {
         assertThatThrownBy(() -> chatRequestService.sendRequest(1L, new ChatRequestCreateRequest(1L)))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CANNOT_REQUEST_SELF);
+    }
+
+    @Test
+    @DisplayName("차단 관계인 상대방에게 대화 요청 발송 시 ACCESS_DENIED 예외 발생")
+    void sendRequest_BlockedUser() {
+        // given
+        given(userBlockRepository.isBlockedBetween(1L, 2L)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> chatRequestService.sendRequest(1L, new ChatRequestCreateRequest(2L)))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
     }
 
     @Test

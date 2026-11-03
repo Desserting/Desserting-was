@@ -14,7 +14,7 @@ public interface UserLikeRepository extends JpaRepository<UserLike, Long> {
 
     Optional<UserLike> findBySenderIdAndReceiverId(Long senderId, Long receiverId);
 
-    @Query("SELECT ul FROM UserLike ul " +
+    @Query("SELECT DISTINCT ul FROM UserLike ul " +
             "JOIN FETCH ul.sender s " +
             "LEFT JOIN FETCH s.dessertTags " +
             "WHERE ul.receiver.id = :receiverId ORDER BY ul.createdAt DESC")

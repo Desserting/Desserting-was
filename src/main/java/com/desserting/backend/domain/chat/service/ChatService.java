@@ -11,6 +11,7 @@ import com.desserting.backend.domain.chat.repository.ChatMessageRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomRepository;
 import com.desserting.backend.domain.user.entity.User;
+import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -37,6 +38,7 @@ public class ChatService {
     private final ChatMessageRepository chatMessageRepository;
     private final UserRepository userRepository;
     private final RedisPublisher redisPublisher;
+    private final UserBlockRepository userBlockRepository;
 
     @Transactional
     public ChatMessageDto sendMessage(Long senderId, ChatMessageRequest request) {
@@ -162,6 +164,10 @@ public class ChatService {
     public ChatRoomResponse getOrCreateDirectRoom(Long currentUserId, Long targetUserId) {
         if (currentUserId.equals(targetUserId)) {
             throw new CustomException(ErrorCode.CANNOT_REQUEST_SELF, "자기 자신과는 대화할 수 없습니다.");
+        }
+
+        if (userBlockRepository.isBlockedBetween(currentUserId, targetUserId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "차단 관계인 사용자와는 대화방을 개설할 수 없습니다.");
         }
 
         User currentUser = userRepository.findById(currentUserId)

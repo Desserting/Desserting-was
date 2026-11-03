@@ -36,14 +36,16 @@ public class StoreSettlementResponse {
     private String monthlySubscriptionStatus;
 
     public static StoreSettlementResponse of(Long storeId, String storeName, Long completedCount, Long totalAmount) {
-        long fee = Math.round(totalAmount * 0.07);
-        long settlement = totalAmount - fee;
+        long safeCount = (completedCount != null) ? completedCount : 0L;
+        long safeTotal = (totalAmount != null) ? totalAmount : 0L;
+        long fee = Math.round(safeTotal * 0.07);
+        long settlement = safeTotal - fee;
 
         return StoreSettlementResponse.builder()
                 .storeId(storeId)
                 .storeName(storeName)
-                .completedOrderCount(completedCount != null ? completedCount : 0L)
-                .totalOrderAmount(totalAmount != null ? totalAmount : 0L)
+                .completedOrderCount(safeCount)
+                .totalOrderAmount(safeTotal)
                 .platformFeeRate(7.0)
                 .platformFeeAmount(fee)
                 .settlementAmount(settlement)

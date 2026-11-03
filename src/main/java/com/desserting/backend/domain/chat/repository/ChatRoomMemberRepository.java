@@ -20,7 +20,7 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
             "ORDER BY r.lastMessageAt DESC NULLS LAST")
     List<ChatRoomMember> findAllMyActiveMemberships(@Param("userId") Long userId);
 
-    @Query("SELECT m FROM ChatRoomMember m " +
+    @Query("SELECT DISTINCT m FROM ChatRoomMember m " +
             "JOIN FETCH m.user u " +
             "LEFT JOIN FETCH u.dessertTags " +
             "WHERE m.chatRoom.id = :chatRoomId AND m.user.id <> :excludeUserId")

@@ -130,13 +130,14 @@ public class AdminStoreController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("예약 슬롯이 성공적으로 개설되었습니다.", response));
     }
 
-    @Operation(summary = "특정 일자 예약 슬롯 조회 (관리자/점주)", description = "지정된 날짜의 예약 가능 슬롯 및 잔여 현황을 확인합니다.")
+    @Operation(summary = "특정 일자 예약 슬롯 조회 (관리자/점주)", description = "지정된 날짜의 예약 가능 슬롯 및 잔여 현황을 확인합니다. 미지정 시 당일 기준 조회.")
     @GetMapping("/{storeId}/slots")
     @PreAuthorize("hasAnyRole('ADMIN', 'STORE_OWNER')")
     public ResponseEntity<ApiResponse<List<ReservationSlotResponse>>> getReservationSlots(
             @PathVariable Long storeId,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate slotDate) {
-        List<ReservationSlotResponse> responses = adminStoreService.getReservationSlots(storeId, slotDate);
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate slotDate) {
+        LocalDate targetDate = (slotDate != null) ? slotDate : LocalDate.now();
+        List<ReservationSlotResponse> responses = adminStoreService.getReservationSlots(storeId, targetDate);
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
 

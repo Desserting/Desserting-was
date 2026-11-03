@@ -199,4 +199,27 @@ class AdminStoreServiceTest {
         assertThat(response.getPlatformFeeAmount()).isEqualTo(7_000L); // 100,000 * 0.07 = 7,000원
         assertThat(response.getSettlementAmount()).isEqualTo(93_000L);   // 100,000 - 7,000 = 93,000원
     }
+
+    @Test
+    @DisplayName("방문 완료 주문이 없는 매장(0건, null 금액)의 경우 정산금이 0원으로 안전하게 계산된다")
+    void getSettlement_ZeroOrNullCompletedOrders() {
+        // given
+        Store store = Store.builder().name("신규 디저트 매장").build();
+        ReflectionTestUtils.setField(store, "id", 20L);
+
+        given(storeRepository.findById(20L)).willReturn(Optional.of(store));
+        given(reservationRepository.countByStoreIdAndStatus(20L, ReservationStatus.COMPLETED)).willReturn(0L);
+        given(reservationRepository.sumTotalAmountByStoreIdAndStatus(20L, ReservationStatus.COMPLETED)).willReturn(null);
+
+        // when
+        StoreSettlementResponse response = adminStoreService.getSettlement(20L);
+
+        // then
+        assertThat(response).isNotNull();
+        assertThat(response.getStoreId()).isEqualTo(20L);
+        assertThat(response.getCompletedOrderCount()).isEqualTo(0L);
+        assertThat(response.getTotalOrderAmount()).isEqualTo(0L);
+        assertThat(response.getPlatformFeeAmount()).isEqualTo(0L);
+        assertThat(response.getSettlementAmount()).isEqualTo(0L);
+    }
 }

@@ -9,7 +9,7 @@ import java.time.LocalTime;
 
 @Entity
 @Table(name = "store_reservation_slots", uniqueConstraints = {
-        @UniqueConstraint(name = "uk_store_slot_date_time", columnNames = {"store_id", "slotDate", "slotTime"})
+        @UniqueConstraint(name = "uk_store_slot_date_time", columnNames = {"store_id", "slot_date", "slot_time"})
 })
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)

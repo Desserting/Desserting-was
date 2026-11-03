@@ -207,20 +207,23 @@
     <!-- 3. NAVIGATION TAB BAR -->
     <nav class="bg-white border-b border-slate-200 px-4">
         <div class="max-w-7xl mx-auto flex gap-1 overflow-x-auto custom-scrollbar">
+            <button onclick="switchTab('mates')" id="tab-btn-mates" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
+                <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i> 1. 디저트 메이트 (유저 목록 & 빠른 대화)
+            </button>
             <button onclick="switchTab('auth')" id="tab-btn-auth" class="tab-button active-tab flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-dessert-600 border-dessert-500">
-                <i data-lucide="shield-check" class="w-4 h-4"></i> 1. 계정 및 프로필 (4-1)
+                <i data-lucide="shield-check" class="w-4 h-4"></i> 2. 회원가입 & 내 프로필 (4-1)
             </button>
             <button onclick="switchTab('hearts')" id="tab-btn-hearts" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
-                <i data-lucide="heart" class="w-4 h-4"></i> 2. 하트 지갑 & 소셜 매칭 (4-3)
+                <i data-lucide="heart" class="w-4 h-4"></i> 3. 하트 지갑 & 소셜 매칭 (4-3)
             </button>
             <button onclick="switchTab('chat')" id="tab-btn-chat" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
-                <i data-lucide="message-square" class="w-4 h-4"></i> 3. 실시간 STOMP 채팅 (4-4)
+                <i data-lucide="message-square" class="w-4 h-4"></i> 4. 실시간 STOMP 채팅 (4-4)
             </button>
             <button onclick="switchTab('stores')" id="tab-btn-stores" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
-                <i data-lucide="coffee" class="w-4 h-4"></i> 4. 카페 & 테마 골목 (4-8)
+                <i data-lucide="coffee" class="w-4 h-4"></i> 5. 카페 & 테마 골목 (4-8)
             </button>
             <button onclick="switchTab('settlement')" id="tab-btn-settlement" class="tab-button flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-slate-500 hover:text-slate-800 border-transparent">
-                <i data-lucide="calculator" class="w-4 h-4"></i> 5. 7% 정산 대시보드 (SELL-08)
+                <i data-lucide="calculator" class="w-4 h-4"></i> 6. 7% 정산 대시보드 (SELL-08)
             </button>
         </div>
     </nav>
@@ -228,7 +231,36 @@
     <!-- 4. MAIN CONTENT PANELS -->
     <main class="max-w-7xl mx-auto p-4 flex-1 w-full space-y-6">
 
-        <!-- ==================== TAB 1: AUTH & PROFILE ==================== -->
+        <!-- ==================== TAB 1: DESSERT MATES DISCOVERY ==================== -->
+        <div id="tab-content-mates" class="tab-panel hidden space-y-6">
+            <!-- Header Hero Card -->
+            <div class="bg-gradient-to-r from-dessert-500 via-amber-500 to-orange-500 rounded-2xl p-6 text-white shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                    <div class="flex items-center gap-2 mb-1">
+                        <span class="px-2.5 py-0.5 rounded-full bg-white/20 text-white font-bold text-xs backdrop-blur-sm">⚡ 1-Click 즉시 대화 기능</span>
+                        <span class="text-xs text-amber-100 font-medium">랜덤 매칭 대기 없이 바로 채팅방 개설</span>
+                    </div>
+                    <h2 class="text-xl font-extrabold tracking-tight">🍰 디저트 취향 메이트 목록</h2>
+                    <p class="text-xs text-white/90 mt-1">상대방의 디저트 취향 태그와 지역을 확인하고 <b>[1:1 대화 시작]</b>을 누르면 즉시 실시간 채팅방이 열립니다.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="fetchUserList()" class="px-4 py-2 bg-white text-slate-900 hover:bg-slate-100 font-bold text-xs rounded-xl shadow-sm transition-colors flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 메이트 새로고침
+                    </button>
+                    <span id="mates-count-badge" class="px-3 py-2 bg-black/20 text-white font-mono text-xs rounded-xl backdrop-blur-sm">0명 메이트</span>
+                </div>
+            </div>
+
+            <!-- User Cards Grid -->
+            <div id="user-discovery-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div class="col-span-full p-12 text-center bg-white rounded-2xl border border-slate-200">
+                    <div class="text-3xl mb-2">🍰</div>
+                    <div class="font-bold text-slate-800 text-sm">메이트 목록을 불러오는 중...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== TAB 2: AUTH & PROFILE ==================== -->
         <div id="tab-content-auth" class="tab-panel space-y-6">
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Current Profile Card -->
@@ -279,12 +311,62 @@
                         <i data-lucide="user-plus" class="w-4 h-4 text-dessert-500"></i> 직접 회원가입 / 로그인 테스트
                     </h2>
                     <div class="flex gap-2 border-b border-slate-100 pb-2">
-                        <button onclick="toggleAuthForm('login')" id="btn-show-login" class="px-3 py-1 text-xs font-bold bg-slate-100 rounded-md">로그인</button>
-                        <button onclick="toggleAuthForm('signup')" id="btn-show-signup" class="px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 rounded-md">신규 회원가입</button>
+                        <button onclick="toggleAuthForm('signup')" id="btn-show-signup" class="px-3 py-1 text-xs font-bold bg-slate-100 rounded-md">신규 회원가입</button>
+                        <button onclick="toggleAuthForm('login')" id="btn-show-login" class="px-3 py-1 text-xs font-medium text-slate-500 hover:text-slate-800 rounded-md">기존 계정 로그인</button>
                     </div>
 
+                    <!-- Manual Signup Form (Default open for testing from signup) -->
+                    <form id="form-manual-signup" onsubmit="handleManualSignup(event)" class="space-y-2.5 text-xs">
+                        <div>
+                            <label class="block text-slate-600 font-medium mb-1">이메일</label>
+                            <input id="signup-email" type="email" placeholder="newmate@desserting.com" required class="w-full p-2 border border-slate-200 rounded-lg">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-600 font-medium mb-1">비밀번호 (6자 이상)</label>
+                                <input id="signup-password" type="password" value="test1234!" required class="w-full p-2 border border-slate-200 rounded-lg">
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-medium mb-1">닉네임</label>
+                                <input id="signup-nickname" type="text" placeholder="달콤슈크림" required class="w-full p-2 border border-slate-200 rounded-lg">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="block text-slate-600 font-medium mb-1">성별</label>
+                                <select id="signup-gender" class="w-full p-2 border border-slate-200 rounded-lg bg-white">
+                                    <option value="FEMALE">여성 (FEMALE)</option>
+                                    <option value="MALE">남성 (MALE)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-slate-600 font-medium mb-1">나이 (만 19세 이상)</label>
+                                <input id="signup-age" type="number" min="19" max="99" value="25" required class="w-full p-2 border border-slate-200 rounded-lg">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-medium mb-1">활동 지역 (대구/경북 등)</label>
+                            <input id="signup-region" type="text" value="대구 중구 동성로" required class="w-full p-2 border border-slate-200 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-slate-600 font-medium mb-1">선호 디저트 취향 선택</label>
+                            <div class="grid grid-cols-2 gap-1.5 p-2 bg-slate-50 rounded-lg border border-slate-200 text-[11px]" id="signup-tags-container">
+                                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" name="signup-dessert" value="CAKE" checked class="rounded text-dessert-500"> 🍰 케이크</label>
+                                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" name="signup-dessert" value="BAKERY" checked class="rounded text-dessert-500"> 🥐 베이커리</label>
+                                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" name="signup-dessert" value="COOKIE_FINANCIER" class="rounded text-dessert-500"> 🍪 휘낭시에</label>
+                                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" name="signup-dessert" value="ICE_CREAM_BINGSU" class="rounded text-dessert-500"> 🍨 빙수/아이스</label>
+                                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" name="signup-dessert" value="COFFEE" checked class="rounded text-dessert-500"> ☕ 핸드드립</label>
+                                <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" name="signup-dessert" value="TART_PIE" class="rounded text-dessert-500"> 🥧 타르트</label>
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full py-2.5 bg-berry-600 hover:bg-berry-500 text-white font-bold rounded-lg transition-colors mt-2 shadow-sm flex items-center justify-center gap-1.5">
+                            <span>🎉</span>
+                            <span>신규 회원가입 및 즉시 로그인</span>
+                        </button>
+                    </form>
+
                     <!-- Manual Login Form -->
-                    <form id="form-manual-login" onsubmit="handleManualLogin(event)" class="space-y-3 text-xs">
+                    <form id="form-manual-login" onsubmit="handleManualLogin(event)" class="hidden space-y-3 text-xs">
                         <div>
                             <label class="block text-slate-600 font-medium mb-1">이메일</label>
                             <input id="manual-email" type="email" value="minjung@desserting.com" required class="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500">
@@ -293,42 +375,8 @@
                             <label class="block text-slate-600 font-medium mb-1">비밀번호</label>
                             <input id="manual-password" type="password" value="test1234!" required class="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500">
                         </div>
-                        <button type="submit" class="w-full py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition-colors">
+                        <button type="submit" class="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-lg transition-colors">
                             로그인
-                        </button>
-                    </form>
-
-                    <!-- Manual Signup Form -->
-                    <form id="form-manual-signup" onsubmit="handleManualSignup(event)" class="hidden space-y-2 text-xs">
-                        <div>
-                            <label class="block text-slate-600 font-medium mb-1">이메일</label>
-                            <input id="signup-email" type="email" placeholder="tester@desserting.com" required class="w-full p-1.5 border border-slate-200 rounded-lg">
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-slate-600 font-medium mb-1">비밀번호</label>
-                                <input id="signup-password" type="password" placeholder="test1234!" required class="w-full p-1.5 border border-slate-200 rounded-lg">
-                            </div>
-                            <div>
-                                <label class="block text-slate-600 font-medium mb-1">닉네임</label>
-                                <input id="signup-nickname" type="text" placeholder="달콤디저트" required class="w-full p-1.5 border border-slate-200 rounded-lg">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <div>
-                                <label class="block text-slate-600 font-medium mb-1">성별</label>
-                                <select id="signup-gender" class="w-full p-1.5 border border-slate-200 rounded-lg">
-                                    <option value="FEMALE">여성 (FEMALE)</option>
-                                    <option value="MALE">남성 (MALE)</option>
-                                </select>
-                            </div>
-                            <div>
-                                <label class="block text-slate-600 font-medium mb-1">생년월일</label>
-                                <input id="signup-birth" type="text" value="2000-01-01" class="w-full p-1.5 border border-slate-200 rounded-lg">
-                            </div>
-                        </div>
-                        <button type="submit" class="w-full py-2 bg-berry-600 hover:bg-berry-500 text-white font-bold rounded-lg transition-colors mt-2">
-                            신규 계정 생성 및 자동 로그인
                         </button>
                     </form>
                 </div>
@@ -362,9 +410,11 @@
                         <form onsubmit="handleSendChatRequest(event)" class="space-y-2 text-xs">
                             <div class="grid grid-cols-3 gap-2">
                                 <div class="col-span-1">
-                                    <label class="block text-slate-600 font-medium mb-1">상대 User ID</label>
-                                    <input id="chat-req-target-id" type="number" min="1" max="15" value="6" required
-                                           class="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500 font-bold">
+                                    <label class="block text-slate-600 font-medium mb-1">상대 메이트 선택</label>
+                                    <select id="chat-req-target-select" required
+                                            class="w-full p-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-dessert-500 font-medium bg-white text-xs">
+                                        <option value="">메이트 로딩 중...</option>
+                                    </select>
                                 </div>
                                 <div class="col-span-2">
                                     <label class="block text-slate-600 font-medium mb-1">대화 신청 첫인사 메시지</label>
@@ -423,8 +473,10 @@
                         </div>
                         <p class="text-slate-500 text-[11px]">상대방에게 호감 표시를 남깁니다.</p>
                         <div class="flex gap-2">
-                            <input id="social-like-target-id" type="number" min="1" max="15" placeholder="상대 ID" class="w-20 p-1.5 border border-pink-200 rounded-lg">
-                            <button onclick="handleSendLike()" class="flex-1 py-1.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg transition-colors">좋아요</button>
+                            <select id="social-like-target-select" class="flex-1 p-1.5 border border-pink-200 rounded-lg text-xs bg-white">
+                                <option value="">선택...</option>
+                            </select>
+                            <button onclick="handleSendLike()" class="px-3 py-1.5 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-lg transition-colors whitespace-nowrap">좋아요</button>
                         </div>
                     </div>
                     <!-- My Received Likes (Premium only) -->
@@ -442,8 +494,10 @@
                         </div>
                         <p class="text-slate-500 text-[11px]">추천 및 채팅에서 영구 제외됩니다.</p>
                         <div class="flex gap-2">
-                            <input id="social-block-target-id" type="number" min="1" max="15" placeholder="상대 ID" class="w-20 p-1.5 border border-slate-200 rounded-lg">
-                            <button onclick="handleBlockUser()" class="flex-1 py-1.5 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors">차단하기</button>
+                            <select id="social-block-target-select" class="flex-1 p-1.5 border border-slate-200 rounded-lg text-xs bg-white">
+                                <option value="">선택...</option>
+                            </select>
+                            <button onclick="handleBlockUser()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors whitespace-nowrap">차단하기</button>
                         </div>
                     </div>
                     <!-- Report User -->
@@ -453,8 +507,10 @@
                         </div>
                         <p class="text-slate-500 text-[11px]">부적절한 언행 또는 프로필 신고 접수.</p>
                         <div class="flex gap-2">
-                            <input id="social-report-target-id" type="number" min="1" max="15" placeholder="상대 ID" class="w-20 p-1.5 border border-amber-200 rounded-lg">
-                            <button onclick="handleReportUser()" class="flex-1 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition-colors">신고 접수</button>
+                            <select id="social-report-target-select" class="flex-1 p-1.5 border border-amber-200 rounded-lg text-xs bg-white">
+                                <option value="">선택...</option>
+                            </select>
+                            <button onclick="handleReportUser()" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-lg transition-colors whitespace-nowrap">신고 접수</button>
                         </div>
                     </div>
                 </div>
@@ -830,11 +886,14 @@
             checkHealth();
             setDefaultDateTime();
 
+            fetchUserList();
+
             if (STATE.token) {
                 fetchMyProfile();
+                switchTab('mates');
             } else {
-                // Auto login as minjung (초코크로와상) for instant zero-friction testing
-                loginPresetUser('minjung@desserting.com', 'test1234!');
+                updateGuestNav();
+                switchTab('auth');
             }
         });
 
@@ -928,6 +987,7 @@
                 localStorage.setItem('desserting_jwt_token', STATE.token);
 
                 await fetchMyProfile();
+                await fetchUserList();
                 showToast(`${email} 로그인 성공!`, 'success');
 
                 // If currently on chat tab, refresh rooms
@@ -969,19 +1029,40 @@
             document.getElementById('nav-user-avatar').innerText = user.nickname.charAt(0);
 
             document.getElementById('btn-logout').onclick = () => {
-                STATE.token = null;
-                STATE.currentUser = null;
-                localStorage.removeItem('desserting_jwt_token');
-                disconnectStomp();
+                updateGuestNav();
+                showToast('로그아웃되었습니다.', 'info');
+                fetchUserList();
+            };
+        }
+
+        function updateGuestNav() {
+            STATE.token = null;
+            STATE.currentUser = null;
+            localStorage.removeItem('desserting_jwt_token');
+            disconnectStomp();
+
+            const badge = document.getElementById('active-user-badge');
+            if (badge) {
                 badge.classList.add('hidden');
                 badge.classList.remove('flex');
-                document.getElementById('guest-badge').classList.remove('hidden');
-                document.getElementById('profile-card-content').innerHTML = `
-                    <div class="p-4 bg-slate-50 rounded-xl text-center text-slate-400">
-                        로그아웃되었습니다. 사용자를 다시 선택해주세요.
+            }
+            const guestBadge = document.getElementById('guest-badge');
+            if (guestBadge) guestBadge.classList.remove('hidden');
+
+            const card = document.getElementById('profile-card-content');
+            if (card) {
+                card.innerHTML = `
+                    <div class="p-6 bg-slate-50 rounded-xl text-center space-y-2">
+                        <div class="text-3xl">👋</div>
+                        <div class="font-bold text-slate-800 text-sm">현재 게스트 상태입니다</div>
+                        <p class="text-xs text-slate-500">우측 폼에서 신규 회원가입을 하거나 기존 계정으로 로그인해주세요.</p>
+                        <div class="pt-2">
+                            <button onclick="toggleAuthForm('signup')" class="px-3 py-1.5 bg-berry-600 hover:bg-berry-500 text-white font-bold rounded-lg text-xs transition-colors">
+                                신규 회원가입 폼 열기
+                            </button>
+                        </div>
                     </div>`;
-                showToast('로그아웃되었습니다.', 'info');
-            };
+            }
         }
 
         function renderProfileCard(user) {
@@ -1067,9 +1148,18 @@
             const password = document.getElementById('signup-password').value;
             const nickname = document.getElementById('signup-nickname').value;
             const gender = document.getElementById('signup-gender').value;
-            const birthDate = document.getElementById('signup-birth').value;
+            const age = document.getElementById('signup-age').value;
+            const region = document.getElementById('signup-region').value;
+
+            // Collect selected dessert checkboxes
+            const checkboxes = document.querySelectorAll('input[name="signup-dessert"]:checked');
+            const dessertTypes = Array.from(checkboxes).map(cb => cb.value);
+            if (dessertTypes.length === 0) {
+                dessertTypes.push('CAKE', 'BAKERY', 'COFFEE');
+            }
 
             try {
+                showToast('회원가입 요청 중...', 'info');
                 const res = await apiFetch('/api/v1/auth/signup', {
                     method: 'POST',
                     body: JSON.stringify({
@@ -1077,18 +1167,191 @@
                         password,
                         nickname,
                         gender,
-                        birthDate,
+                        age: Number(age),
+                        region,
                         agreeToTerms: true,
-                        dessertTypes: ['BAKERY', 'CAKE']
+                        dessertTypes
                     })
                 });
 
                 STATE.token = res.data.accessToken;
                 localStorage.setItem('desserting_jwt_token', STATE.token);
-                showToast('신규 회원가입 및 자동 로그인 성공!', 'success');
-                fetchMyProfile();
+                showToast(`환영합니다, ${nickname}님! 신규 계정 생성 및 자동 로그인 완료!`, 'success');
+                await fetchMyProfile();
+                await fetchUserList();
+                switchTab('mates');
             } catch (err) {
                 showToast(`회원가입 실패: ${err.message}`, 'error');
+            }
+        }
+
+        // ==================== TAB 1: DESSERT MATES DISCOVERY & DIRECT CHAT ====================
+        function escapeJs(str) {
+            if (!str) return '';
+            return str.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
+
+        async function fetchUserList() {
+            try {
+                const res = await apiFetch('/api/v1/users');
+                const users = res.data || [];
+                renderUserList(users);
+                populateUserDropdowns(users);
+            } catch (err) {
+                console.warn('User list fetch failed:', err);
+            }
+        }
+
+        function renderUserList(users) {
+            const container = document.getElementById('user-discovery-grid');
+            const badge = document.getElementById('mates-count-badge');
+            if (badge) badge.innerText = `${users.length}명 메이트`;
+
+            if (!container) return;
+            if (users.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full p-12 text-center bg-white rounded-2xl border border-slate-200">
+                        <div class="text-4xl mb-2">🍰</div>
+                        <div class="font-bold text-slate-800 text-sm">표시할 디저트 메이트가 없습니다.</div>
+                        <p class="text-xs text-slate-500 mt-1">새 회원을 가입시키거나 상단 모의 계정으로 로그인해보세요.</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = users.map(u => {
+                const tags = (u.dessertTags || []).map(t =>
+                    `<span class="px-2 py-0.5 bg-dessert-50 text-dessert-800 border border-dessert-200 rounded-md text-[10px] font-semibold">${t}</span>`
+                ).join(' ');
+
+                const avatarInitial = u.nickname ? u.nickname.charAt(0) : '?';
+                const genderText = u.gender === 'MALE' ? '남성' : (u.gender === 'FEMALE' ? '여성' : '기타');
+                const genderColor = u.gender === 'MALE' ? 'text-sky-600 bg-sky-50 border-sky-200' : 'text-pink-600 bg-pink-50 border-pink-200';
+
+                return `
+                    <div class="bg-white rounded-2xl border border-slate-200/90 hover:border-dessert-400 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 group">
+                        <div>
+                            <!-- Header -->
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-dessert-400 to-amber-300 text-white font-black text-lg flex items-center justify-center shadow-sm">
+                                        ${avatarInitial}
+                                    </div>
+                                    <div>
+                                        <div class="flex items-center gap-1.5">
+                                            <h3 class="font-bold text-slate-900 text-sm group-hover:text-dessert-600 transition-colors">${u.nickname}</h3>
+                                            ${u.isPremium ? '<span class="px-1.5 py-0.2 bg-purple-100 text-purple-700 font-bold text-[9px] rounded">VIP</span>' : ''}
+                                        </div>
+                                        <div class="flex items-center gap-1 text-[11px] text-slate-500 mt-0.5">
+                                            <span class="px-1.5 py-0.2 rounded border font-medium ${genderColor}">${genderText}</span>
+                                            <span>·</span>
+                                            <span>${u.age ? u.age + '세' : '성인'}</span>
+                                            <span>·</span>
+                                            <span class="truncate max-w-[100px]">${u.region || '지역 미지정'}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span class="text-[11px] font-mono text-slate-400">#${u.userId}</span>
+                            </div>
+
+                            <!-- Bio -->
+                            <div class="mt-3 p-2.5 bg-slate-50 rounded-xl text-slate-700 text-xs italic leading-relaxed min-h-[44px]">
+                                "${u.bio || '디저트와 커피를 함께 즐길 메이트를 찾고 있어요!'}"
+                            </div>
+
+                            <!-- Dessert Tags -->
+                            <div class="mt-3 flex flex-wrap gap-1">
+                                ${tags || '<span class="text-[10px] text-slate-400">등록된 디저트 태그 없음</span>'}
+                            </div>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="pt-2 border-t border-slate-100 flex items-center gap-2">
+                            <button onclick="startDirectChat(${u.userId}, '${escapeJs(u.nickname)}', '${u.dessertAvatarUrl || ''}')"
+                                    class="flex-1 py-2 px-3 bg-dessert-500 hover:bg-dessert-600 active:scale-95 text-white font-bold text-xs rounded-xl shadow-sm shadow-dessert-500/20 transition-all flex items-center justify-center gap-1.5">
+                                <i data-lucide="message-circle" class="w-4 h-4"></i>
+                                <span>1:1 대화 시작</span>
+                            </button>
+                            <button onclick="quickSelectUserForRequest(${u.userId})"
+                                    title="대화 요청함으로 이동"
+                                    class="p-2 border border-slate-200 hover:border-pink-300 hover:bg-pink-50 text-slate-600 hover:text-pink-600 rounded-xl text-xs transition-colors">
+                                💌
+                            </button>
+                            <button onclick="sendDirectLike(${u.userId})"
+                                    title="좋아요 전송"
+                                    class="p-2 border border-slate-200 hover:border-rose-300 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-xl text-xs transition-colors">
+                                ❤️
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        function populateUserDropdowns(users) {
+            const dropdownIds = [
+                'chat-req-target-select',
+                'social-like-target-select',
+                'social-block-target-select',
+                'social-report-target-select'
+            ];
+            dropdownIds.forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                const currentVal = el.value;
+                el.innerHTML = '<option value="">메이트를 선택하세요...</option>' + users.map(u =>
+                    `<option value="${u.userId}">#${u.userId} ${u.nickname} (${u.gender === 'MALE' ? '남' : '여'}, ${u.age || '?'}세, ${u.region || '지역 미지정'})</option>`
+                ).join('');
+                if (currentVal && users.some(u => String(u.userId) === String(currentVal))) {
+                    el.value = currentVal;
+                } else if (users.length > 0 && id === 'chat-req-target-select') {
+                    el.value = users[0].userId;
+                }
+            });
+        }
+
+        async function startDirectChat(targetUserId, targetNickname, targetAvatarUrl) {
+            if (!STATE.token) {
+                showToast('대화를 시작하려면 먼저 로그인이 필요합니다. 회원가입 또는 로그인을 완료해주세요.', 'error');
+                switchTab('auth');
+                return;
+            }
+            try {
+                showToast(`${targetNickname}님과의 1:1 대화방을 준비 중입니다...`, 'info');
+                const res = await apiFetch(`/api/v1/chats/rooms/direct?targetUserId=${targetUserId}`, {
+                    method: 'POST'
+                });
+                const room = res.data;
+                showToast(`${room.otherUserNickname || targetNickname}님과의 대화방에 입장했습니다!`, 'success');
+                switchTab('chat');
+                await fetchChatRooms();
+                await selectChatRoom(room.roomId, room.otherUserNickname || targetNickname, room.otherUserAvatarUrl || targetAvatarUrl);
+            } catch (err) {
+                showToast(`대화방 연결 실패: ${err.message}`, 'error');
+            }
+        }
+
+        function quickSelectUserForRequest(targetUserId) {
+            switchTab('hearts');
+            const select = document.getElementById('chat-req-target-select');
+            if (select) {
+                select.value = targetUserId;
+                select.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        async function sendDirectLike(targetUserId) {
+            if (!STATE.token) {
+                showToast('로그인이 필요합니다. 회원가입 또는 로그인을 먼저 진행해주세요.', 'error');
+                switchTab('auth');
+                return;
+            }
+            try {
+                await apiFetch(`/api/v1/users/${targetUserId}/like`, { method: 'POST' });
+                showToast(`User #${targetUserId}에게 좋아요를 보냈습니다! ❤️`, 'success');
+            } catch (err) {
+                showToast(`좋아요 전송 실패: ${err.message}`, 'error');
             }
         }
 
@@ -1165,7 +1428,12 @@
 
         async function handleSendChatRequest(e) {
             e.preventDefault();
-            const targetUserId = document.getElementById('chat-req-target-id').value;
+            const select = document.getElementById('chat-req-target-select');
+            const targetUserId = select ? select.value : null;
+            if (!targetUserId) {
+                showToast('대화 요청을 보낼 대상을 선택해주세요.', 'error');
+                return;
+            }
 
             try {
                 await apiFetch('/api/v1/matches/requests', {
@@ -1202,8 +1470,9 @@
         }
 
         async function handleSendLike() {
-            const targetId = document.getElementById('social-like-target-id').value;
-            if (!targetId) return showToast('대상 User ID를 입력하세요.', 'error');
+            const select = document.getElementById('social-like-target-select');
+            const targetId = select ? select.value : null;
+            if (!targetId) return showToast('좋아요를 보낼 대상 사용자를 선택하세요.', 'error');
             try {
                 await apiFetch(`/api/v1/users/${targetId}/like`, { method: 'POST' });
                 showToast(`User #${targetId}에게 좋아요를 보냈습니다! ❤️`, 'success');
@@ -1224,8 +1493,9 @@
         }
 
         async function handleBlockUser() {
-            const targetId = document.getElementById('social-block-target-id').value;
-            if (!targetId) return showToast('대상 User ID를 입력하세요.', 'error');
+            const select = document.getElementById('social-block-target-select');
+            const targetId = select ? select.value : null;
+            if (!targetId) return showToast('차단할 대상 사용자를 선택하세요.', 'error');
             try {
                 await apiFetch(`/api/v1/users/${targetId}/block`, { method: 'POST' });
                 showToast(`User #${targetId}을 차단하였습니다.`, 'info');
@@ -1235,8 +1505,9 @@
         }
 
         async function handleReportUser() {
-            const targetId = document.getElementById('social-report-target-id').value;
-            if (!targetId) return showToast('대상 User ID를 입력하세요.', 'error');
+            const select = document.getElementById('social-report-target-select');
+            const targetId = select ? select.value : null;
+            if (!targetId) return showToast('신고할 대상 사용자를 선택하세요.', 'error');
             try {
                 await apiFetch(`/api/v1/users/${targetId}/report`, {
                     method: 'POST',
@@ -1828,10 +2099,15 @@
             if (activeBtn) activeBtn.className = 'tab-button active-tab flex items-center gap-2 py-3 px-4 border-b-2 font-semibold text-xs transition-colors whitespace-nowrap text-dessert-600 border-dessert-500';
 
             // Lazy fetch on tab switch
-            if (tabName === 'hearts') {
+            if (tabName === 'mates') {
+                fetchUserList();
+            } else if (tabName === 'auth') {
+                if (STATE.token) fetchMyProfile();
+            } else if (tabName === 'hearts') {
                 fetchHeartBalance();
                 fetchHeartHistory();
                 fetchReceivedChatRequests();
+                fetchUserList();
             } else if (tabName === 'chat') {
                 fetchChatRooms();
             } else if (tabName === 'stores') {

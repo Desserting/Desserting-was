@@ -75,4 +75,13 @@ public class UserService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "상대방 사용자를 찾을 수 없습니다: " + targetUserId));
         return OtherUserProfileResponse.from(targetUser);
     }
+
+    @Transactional(readOnly = true)
+    public java.util.List<OtherUserProfileResponse> getAllOtherUsers(Long currentUserId) {
+        java.util.List<User> users = userRepository.findAllWithTags();
+        return users.stream()
+                .filter(u -> currentUserId == null || !u.getId().equals(currentUserId))
+                .map(OtherUserProfileResponse::from)
+                .toList();
+    }
 }

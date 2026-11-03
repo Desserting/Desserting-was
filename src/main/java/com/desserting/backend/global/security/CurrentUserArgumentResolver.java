@@ -25,8 +25,14 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
     @Override
     public Object resolveArgument(MethodParameter parameter, ModelAndViewContainer mavContainer,
                                   NativeWebRequest webRequest, WebDataBinderFactory binderFactory) {
+        CurrentUser currentUser = parameter.getParameterAnnotation(CurrentUser.class);
+        boolean required = currentUser == null || currentUser.required();
+
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated() || !(authentication.getPrincipal() instanceof CustomUserDetails userDetails)) {
+            if (!required) {
+                return null;
+            }
             throw new CustomException(ErrorCode.UNAUTHORIZED, "로그인이 필요한 서비스입니다.");
         }
 

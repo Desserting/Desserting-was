@@ -18,6 +18,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     boolean existsByNickname(String nickname);
 
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.dessertTags ORDER BY u.id ASC")
+    java.util.List<User> findAllWithTags();
+
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.dessertTags WHERE u.id = :id")
     Optional<User> findByIdWithTags(@Param("id") Long id);
 

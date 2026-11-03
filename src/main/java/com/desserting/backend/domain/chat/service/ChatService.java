@@ -157,4 +157,52 @@ public class ChatService {
         chatRoomMemberRepository.save(member);
         log.info("채팅방 퇴장 완료: userId={}, roomId={}", userId, roomId);
     }
+
+    @Transactional
+    public ChatRoomResponse getOrCreateDirectRoom(Long currentUserId, Long targetUserId) {
+        if (currentUserId.equals(targetUserId)) {
+            throw new CustomException(ErrorCode.CANNOT_REQUEST_SELF, "자기 자신과는 대화할 수 없습니다.");
+        }
+
+        User currentUser = userRepository.findById(currentUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "현재 사용자를 찾을 수 없습니다."));
+        User targetUser = userRepository.findById(targetUserId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "대상 사용자를 찾을 수 없습니다."));
+
+        List<ChatRoomMember> existingMembers = chatRoomMemberRepository.findActiveRoomsBetween(currentUserId, targetUserId);
+        if (!existingMembers.isEmpty()) {
+            ChatRoomMember member = existingMembers.get(0);
+            ChatRoom room = member.getChatRoom();
+            return ChatRoomResponse.builder()
+                    .roomId(room.getId())
+                    .roomUuid(room.getRoomUuid())
+                    .otherUserId(targetUser.getId())
+                    .otherUserNickname(targetUser.getNickname())
+                    .otherUserAvatarUrl(targetUser.getDessertAvatarUrl())
+                    .lastMessagePreview(room.getLastMessagePreview())
+                    .lastMessageAt(room.getLastMessageAt())
+                    .unreadCount(0L)
+                    .build();
+        }
+
+        ChatRoom chatRoom = ChatRoom.create();
+        ChatRoom savedRoom = chatRoomRepository.save(chatRoom);
+
+        chatRoomMemberRepository.save(ChatRoomMember.of(savedRoom, currentUser));
+        chatRoomMemberRepository.save(ChatRoomMember.of(savedRoom, targetUser));
+
+        log.info("1:1 직통 채팅방 개설 완료: roomId={}, userA={}, userB={}",
+                savedRoom.getId(), currentUserId, targetUserId);
+
+        return ChatRoomResponse.builder()
+                .roomId(savedRoom.getId())
+                .roomUuid(savedRoom.getRoomUuid())
+                .otherUserId(targetUser.getId())
+                .otherUserNickname(targetUser.getNickname())
+                .otherUserAvatarUrl(targetUser.getDessertAvatarUrl())
+                .lastMessagePreview(savedRoom.getLastMessagePreview())
+                .lastMessageAt(savedRoom.getLastMessageAt())
+                .unreadCount(0L)
+                .build();
+    }
 }

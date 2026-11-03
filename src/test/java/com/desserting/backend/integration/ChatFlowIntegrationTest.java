@@ -91,4 +91,43 @@ class ChatFlowIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isArray());
     }
+
+    @Test
+    @DisplayName("[통합 E2E] 유저 목록 탐색 API 조회 검증 (게스트 및 인증 유저)")
+    void getAllUsers_Success() throws Exception {
+        // 1. 게스트 조회 (인증 헤더 없음)
+        mockMvc.perform(get("/api/v1/users"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray());
+
+        // 2. 로그인 유저 조회 (본인 제외)
+        mockMvc.perform(get("/api/v1/users")
+                        .header("Authorization", "Bearer " + userToken))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data").isArray());
+    }
+
+    @Test
+    @DisplayName("[통합 E2E] 1:1 직통 채팅방 개설 및 재진입 조회 검증 (POST /api/v1/chats/rooms/direct)")
+    void getOrCreateDirectRoom_Success() throws Exception {
+        // 1. 대상 유저 2번(디저팅운영자)과의 1:1 대화방 개설
+        MvcResult firstResult = mockMvc.perform(post("/api/v1/chats/rooms/direct")
+                        .header("Authorization", "Bearer " + userToken)
+                        .param("targetUserId", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roomId").isNumber())
+                .andExpect(jsonPath("$.data.otherUserNickname").value("디저팅운영자"))
+                .andReturn();
+
+        JsonNode jsonNode = objectMapper.readTree(firstResult.getResponse().getContentAsString());
+        Long roomId = jsonNode.get("data").get("roomId").asLong();
+
+        // 2. 동일 대상 유저와 다시 호출 시 기존 방 반환
+        mockMvc.perform(post("/api/v1/chats/rooms/direct")
+                        .header("Authorization", "Bearer " + userToken)
+                        .param("targetUserId", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.roomId").value(roomId))
+                .andExpect(jsonPath("$.data.otherUserNickname").value("디저팅운영자"));
+    }
 }

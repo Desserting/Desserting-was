@@ -14,6 +14,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Tag(name = "02. User (회원 및 프로필)", description = "내 프로필 조회/수정, 위치 갱신, 상대방 프로필 열람 API")
 @RestController
 @RequestMapping("/api/v1/users")
@@ -21,6 +23,14 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+
+    @Operation(summary = "전체 디저트 메이트 목록 조회 (탐색용)", description = "등록된 디저트 메이트 사용자 목록을 조회합니다. (로그인 시 본인 제외)")
+    @GetMapping
+    public ApiResponse<List<OtherUserProfileResponse>> getAllUsers(
+            @Parameter(hidden = true) @CurrentUser(required = false) Long currentUserId) {
+        List<OtherUserProfileResponse> responses = userService.getAllOtherUsers(currentUserId);
+        return ApiResponse.success("디저트 메이트 목록 조회에 성공하였습니다.", responses);
+    }
 
     @Operation(summary = "내 프로필 상세 조회", description = "로그인된 사용자의 프로필, 잔여 하트 수, 선호 디저트 태그 목록을 조회합니다.")
     @GetMapping("/me")

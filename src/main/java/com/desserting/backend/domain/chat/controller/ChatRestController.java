@@ -30,6 +30,16 @@ public class ChatRestController {
         return ApiResponse.success("채팅방 목록 조회에 성공하였습니다.", responses);
     }
 
+    @Operation(summary = "상대방과 1:1 직접 대화방 조회 또는 생성 (테스트베드 및 빠른 대화)",
+            description = "상대 유저 ID로 기존 활성 1:1 채팅방이 있으면 반환하고, 없으면 새로 개설합니다.")
+    @PostMapping("/rooms/direct")
+    public ApiResponse<ChatRoomResponse> getOrCreateDirectRoom(
+            @Parameter(hidden = true) @CurrentUser Long userId,
+            @Parameter(description = "대화할 상대 유저 ID") @RequestParam Long targetUserId) {
+        ChatRoomResponse response = chatService.getOrCreateDirectRoom(userId, targetUserId);
+        return ApiResponse.success("1:1 대화방이 준비되었습니다.", response);
+    }
+
     @Operation(summary = "채팅방 메시지 이력 페이징 조회 (CHT-02)",
             description = "MongoDB에 저장된 채팅 메시지를 커서 기반(무한 스크롤)으로 최신순 페이징 조회합니다.")
     @GetMapping("/rooms/{roomId}/messages")

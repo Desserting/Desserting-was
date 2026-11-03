@@ -38,4 +38,14 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
             @Param("userAId") Long userAId,
             @Param("userBId") Long userBId
     );
+
+    @Query("SELECT m1 FROM ChatRoomMember m1, ChatRoomMember m2 " +
+            "WHERE m1.chatRoom.id = m2.chatRoom.id " +
+            "AND m1.user.id = :userAId AND m2.user.id = :userBId " +
+            "AND m1.isLeft = false AND m2.isLeft = false " +
+            "ORDER BY m1.chatRoom.id DESC")
+    List<ChatRoomMember> findActiveRoomsBetween(
+            @Param("userAId") Long userAId,
+            @Param("userBId") Long userBId
+    );
 }

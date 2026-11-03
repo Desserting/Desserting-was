@@ -3,7 +3,7 @@
 > **문서 버전**: v1.0  
 > **최종 갱신일**: 2026-11-03  
 > **기준 기획서**:
-> - [`docs/백엔드_구현_기획서.md`](file:///Users/minjung/Dev/desserting-backend/docs/백엔드_구현_기획서.md)
+> - [`docs/backend_implementation_plan.md`](file:///Users/minjung/Dev/desserting-backend/docs/backend_implementation_plan.md)
 > - `docs/notion/단디톤(원투쓰리)/` 내 서비스 기획안, 개발 플로우 및 시연영상 기획안  
 > - Pull Request #2 (`feat/heart-purchase-slot-version`) 반영 내역 포함  
 

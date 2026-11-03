@@ -15,7 +15,10 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleCustomException(CustomException e) {
         log.warn("CustomException occurred: code={}, message={}", e.getErrorCode().getCode(), e.getMessage());
         ErrorCode errorCode = e.getErrorCode();
-        ErrorResponse response = ErrorResponse.of(errorCode);
+        String message = (e.getMessage() != null && !e.getMessage().equals(errorCode.getMessage())) 
+                ? e.getMessage() 
+                : errorCode.getMessage();
+        ErrorResponse response = ErrorResponse.of(errorCode, message);
         return new ResponseEntity<>(response, errorCode.getHttpStatus());
     }
 

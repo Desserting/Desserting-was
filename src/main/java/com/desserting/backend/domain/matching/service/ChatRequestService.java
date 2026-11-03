@@ -12,6 +12,7 @@ import com.desserting.backend.domain.matching.entity.ChatRequest;
 import com.desserting.backend.domain.matching.entity.RequestStatus;
 import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
 import com.desserting.backend.domain.user.entity.User;
+import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -32,6 +33,7 @@ public class ChatRequestService {
     private final ChatRoomRepository chatRoomRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final HeartService heartService;
+    private final UserBlockRepository userBlockRepository;
 
     @Transactional
     public ChatRequestResponse sendRequest(Long senderId, ChatRequestCreateRequest request) {
@@ -39,6 +41,10 @@ public class ChatRequestService {
 
         if (senderId.equals(receiverId)) {
             throw new CustomException(ErrorCode.CANNOT_REQUEST_SELF);
+        }
+
+        if (userBlockRepository.isBlockedBetween(senderId, receiverId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "차단 관계인 사용자에게는 대화 요청을 보낼 수 없습니다.");
         }
 
         User sender = userRepository.findById(senderId)

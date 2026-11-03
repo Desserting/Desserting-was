@@ -37,6 +37,13 @@ public class ErrorResponse {
         this.timestamp = LocalDateTime.now();
     }
 
+    private ErrorResponse(ErrorCode errorCode, String customMessage) {
+        this.code = errorCode.getCode();
+        this.message = (customMessage != null && !customMessage.isBlank()) ? customMessage : errorCode.getMessage();
+        this.errors = new ArrayList<>();
+        this.timestamp = LocalDateTime.now();
+    }
+
     private ErrorResponse(ErrorCode errorCode, List<FieldError> errors) {
         this.code = errorCode.getCode();
         this.message = errorCode.getMessage();
@@ -46,6 +53,10 @@ public class ErrorResponse {
 
     public static ErrorResponse of(ErrorCode errorCode) {
         return new ErrorResponse(errorCode);
+    }
+
+    public static ErrorResponse of(ErrorCode errorCode, String customMessage) {
+        return new ErrorResponse(errorCode, customMessage);
     }
 
     public static ErrorResponse of(ErrorCode errorCode, BindingResult bindingResult) {

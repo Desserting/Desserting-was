@@ -7,6 +7,7 @@ import com.desserting.backend.domain.user.dto.UserProfileResponse;
 import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
+import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -15,12 +16,17 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserService {
 
     private final UserRepository userRepository;
+    private final UserBlockRepository userBlockRepository;
 
     @Transactional(readOnly = true)
     public UserProfileResponse getMyProfile(Long userId) {
@@ -77,10 +83,21 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public java.util.List<OtherUserProfileResponse> getAllOtherUsers(Long currentUserId) {
-        java.util.List<User> users = userRepository.findAllWithTags();
+    public List<OtherUserProfileResponse> getAllOtherUsers(Long currentUserId) {
+        List<User> users = userRepository.findAllWithTags();
+        if (currentUserId == null) {
+            return users.stream()
+                    .map(OtherUserProfileResponse::from)
+                    .toList();
+        }
+
+        Set<Long> excludedUserIds = new HashSet<>();
+        excludedUserIds.add(currentUserId);
+        excludedUserIds.addAll(userBlockRepository.findBlockedUserIdsByUserId(currentUserId));
+        excludedUserIds.addAll(userBlockRepository.findBlockerUserIdsByUserId(currentUserId));
+
         return users.stream()
-                .filter(u -> currentUserId == null || !u.getId().equals(currentUserId))
+                .filter(u -> !excludedUserIds.contains(u.getId()))
                 .map(OtherUserProfileResponse::from)
                 .toList();
     }

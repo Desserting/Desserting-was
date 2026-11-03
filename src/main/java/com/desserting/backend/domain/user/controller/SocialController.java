@@ -1,12 +1,14 @@
 package com.desserting.backend.domain.user.controller;
 
 import com.desserting.backend.domain.user.dto.OtherUserProfileResponse;
+import com.desserting.backend.domain.user.dto.UserReportRequest;
 import com.desserting.backend.domain.user.service.SocialService;
 import com.desserting.backend.global.common.ApiResponse;
 import com.desserting.backend.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -53,9 +55,8 @@ public class SocialController {
     public ApiResponse<Void> reportUser(
             @Parameter(hidden = true) @CurrentUser Long currentUserId,
             @PathVariable Long userId,
-            @RequestParam String reason,
-            @RequestParam(required = false) String description) {
-        socialService.reportUser(currentUserId, userId, reason, description);
+            @Valid @RequestBody UserReportRequest request) {
+        socialService.reportUser(currentUserId, userId, request.getReason(), request.getDescription());
         return ApiResponse.success("신고가 성공적으로 접수되었습니다.", null);
     }
 }

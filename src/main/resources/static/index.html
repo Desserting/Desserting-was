@@ -423,7 +423,7 @@
                                 </div>
                             </div>
                             <button type="submit" class="w-full py-2 bg-berry-600 hover:bg-berry-500 text-white font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
-                                <span>💌</span> 하트 3개 사용하고 대화 요청 전송
+                                <span>💌</span> 하트 1개 사용하고 대화 요청 전송
                             </button>
                         </form>
                     </div>
@@ -1544,7 +1544,7 @@
             try {
                 await apiFetch(`/api/v1/users/${targetId}/report`, {
                     method: 'POST',
-                    body: JSON.stringify({ reason: 'SPAM', details: '테스트 신고 사유 접수' })
+                    body: JSON.stringify({ reason: 'SPAM', description: '테스트 신고 사유 접수' })
                 });
                 showToast(`User #${targetId} 신고가 접수되었습니다.`, 'info');
             } catch (err) {
@@ -2098,7 +2098,8 @@
 
         async function fetchStoreSlots(storeId) {
             try {
-                const res = await apiFetch(`/api/v1/admin/stores/${storeId}/slots`);
+                const today = new Date().toISOString().slice(0, 10);
+                const res = await apiFetch(`/api/v1/admin/stores/${storeId}/slots?slotDate=${today}`);
                 const list = document.getElementById('store-slots-list');
                 const slots = res.data || [];
 
@@ -2111,7 +2112,7 @@
                     <div class="p-2.5 bg-slate-50 rounded-lg border border-slate-200 text-center space-y-1">
                         <div class="font-bold text-xs text-slate-800">${slot.slotDate}</div>
                         <div class="font-mono text-[11px] text-slate-600">${slot.slotTime.slice(0, 5)}</div>
-                        <div class="text-[10px] text-slate-400">잔여: ${slot.currentCapacity}/${slot.maxCapacity}석</div>
+                        <div class="text-[10px] text-slate-500">잔여: <b class="text-rose-600">${slot.maxCapacity - (slot.currentReservedCount || 0)}</b>/${slot.maxCapacity}팀</div>
                     </div>
                 `).join('');
             } catch (err) {

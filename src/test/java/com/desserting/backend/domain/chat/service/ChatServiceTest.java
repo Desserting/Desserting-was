@@ -11,6 +11,7 @@ import com.desserting.backend.domain.chat.repository.ChatMessageRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomRepository;
 import com.desserting.backend.domain.user.entity.User;
+import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -53,6 +54,9 @@ class ChatServiceTest {
 
     @Mock
     private RedisPublisher redisPublisher;
+
+    @Mock
+    private UserBlockRepository userBlockRepository;
 
     @InjectMocks
     private ChatService chatService;
@@ -239,5 +243,17 @@ class ChatServiceTest {
 
         // then
         verify(chatRoomMemberRepository).save(any(ChatRoomMember.class));
+    }
+
+    @Test
+    @DisplayName("차단 관계인 사용자와 1:1 채팅방 개설 시 ACCESS_DENIED 예외 발생")
+    void getOrCreateDirectRoom_BlockedUser() {
+        // given
+        given(userBlockRepository.isBlockedBetween(1L, 2L)).willReturn(true);
+
+        // when & then
+        assertThatThrownBy(() -> chatService.getOrCreateDirectRoom(1L, 2L))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
     }
 }

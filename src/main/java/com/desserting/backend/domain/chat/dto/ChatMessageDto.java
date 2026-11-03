@@ -1,6 +1,7 @@
 package com.desserting.backend.domain.chat.dto;
 
 import com.desserting.backend.domain.chat.document.ChatMessageDocument;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
@@ -12,6 +13,7 @@ import java.util.Map;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor
 @Builder
+@JsonIgnoreProperties(ignoreUnknown = true)
 @Schema(description = "채팅 메시지 DTO")
 public class ChatMessageDto implements Serializable {
 

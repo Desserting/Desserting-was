@@ -7,6 +7,7 @@ import com.desserting.backend.domain.user.dto.UserProfileResponse;
 import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
+import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -33,6 +34,9 @@ class UserServiceTest {
 
     @Mock
     private UserRepository userRepository;
+
+    @Mock
+    private UserBlockRepository userBlockRepository;
 
     @InjectMocks
     private UserService userService;
@@ -182,5 +186,34 @@ class UserServiceTest {
         assertThat(response.getNickname()).isEqualTo("초코크로플");
         assertThat(response.getIsPremium()).isTrue();
         assertThat(response.getDessertTags()).containsExactly(DessertType.BAKERY);
+    }
+
+    @Test
+    @DisplayName("전체 사용자 목록 조회 시 자신과 차단/피차단 사용자는 제외된다")
+    void getAllOtherUsers_ExcludesBlockedUsers() {
+        // given
+        User me = User.builder().nickname("나").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(me, "id", 1L);
+
+        User normalUser = User.builder().nickname("일반유저").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(normalUser, "id", 2L);
+
+        User blockedUser = User.builder().nickname("내가차단한유저").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(blockedUser, "id", 3L);
+
+        User blockerUser = User.builder().nickname("나를차단한유저").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(blockerUser, "id", 4L);
+
+        given(userRepository.findAllWithTags()).willReturn(List.of(me, normalUser, blockedUser, blockerUser));
+        given(userBlockRepository.findBlockedUserIdsByUserId(1L)).willReturn(List.of(3L));
+        given(userBlockRepository.findBlockerUserIdsByUserId(1L)).willReturn(List.of(4L));
+
+        // when
+        List<OtherUserProfileResponse> result = userService.getAllOtherUsers(1L);
+
+        // then
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getUserId()).isEqualTo(2L);
+        assertThat(result.get(0).getNickname()).isEqualTo("일반유저");
     }
 }

@@ -1,6 +1,5 @@
 package com.desserting.backend.domain.store.entity;
 
-import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -30,10 +29,6 @@ public class StoreMenu extends BaseTimeEntity {
     @Column(length = 255)
     private String description;
 
-    @Enumerated(EnumType.STRING)
-    @Column(length = 50)
-    private DessertType dessertType; // 디저트 종류 (지도·매장 디저트 필터 MAP-06, SHOP-01)
-
     @Column(length = 500)
     private String imageUrl;
 
@@ -44,4 +39,21 @@ public class StoreMenu extends BaseTimeEntity {
     @Column(nullable = false)
     @Builder.Default
     private Boolean isSoldOut = false;
+
+    public void updateMenu(String name, Integer price, String description, String imageUrl, Boolean isRepresentative) {
+        if (name != null && !name.isBlank()) this.name = name;
+        if (price != null && price >= 0) this.price = price;
+        if (description != null) this.description = description;
+        if (imageUrl != null) this.imageUrl = imageUrl;
+        if (isRepresentative != null) this.isRepresentative = isRepresentative;
+    }
+
+    public boolean toggleSoldOut() {
+        this.isSoldOut = !Boolean.TRUE.equals(this.isSoldOut);
+        return this.isSoldOut;
+    }
+
+    public void setSoldOut(boolean isSoldOut) {
+        this.isSoldOut = isSoldOut;
+    }
 }

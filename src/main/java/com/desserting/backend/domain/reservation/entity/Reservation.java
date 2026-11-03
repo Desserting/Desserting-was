@@ -29,10 +29,6 @@ public class Reservation extends BaseTimeEntity {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "slot_id")
-    private ReservationSlot slot; // 예약한 시간대 (정원 차감 대상)
-
     @Column(nullable = false)
     private LocalDate reservationDate;
 
@@ -55,11 +51,9 @@ public class Reservation extends BaseTimeEntity {
     @Column(length = 255)
     private String specialRequest;
 
-    public boolean isCancellable() {
-        return status == ReservationStatus.PENDING || status == ReservationStatus.CONFIRMED;
-    }
-
-    public void cancel() {
-        this.status = ReservationStatus.CANCELLED;
+    public void updateStatus(ReservationStatus status) {
+        if (status != null) {
+            this.status = status;
+        }
     }
 }

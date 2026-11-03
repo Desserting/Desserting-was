@@ -7,11 +7,12 @@ import org.springframework.test.context.ActiveProfiles;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@ActiveProfiles("test")
+@SpringBootTest
+@ActiveProfiles("local")
 class DessertingApplicationTests {
 
     @Test
-    @DisplayName("기본 애플리케이션 환경 로드 검증")
+    @DisplayName("스프링 부트 애플리케이션 및 멀티DB 컨텍스트 정상 로딩 검증")
     void contextLoads() {
         assertThat(true).isTrue();
     }

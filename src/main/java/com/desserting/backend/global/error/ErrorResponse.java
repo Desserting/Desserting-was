@@ -37,11 +37,6 @@ public class ErrorResponse {
         this.timestamp = LocalDateTime.now();
     }
 
-    private ErrorResponse(ErrorCode errorCode, String message) {
-        this(errorCode);
-        this.message = message;
-    }
-
     private ErrorResponse(ErrorCode errorCode, List<FieldError> errors) {
         this.code = errorCode.getCode();
         this.message = errorCode.getMessage();
@@ -51,10 +46,6 @@ public class ErrorResponse {
 
     public static ErrorResponse of(ErrorCode errorCode) {
         return new ErrorResponse(errorCode);
-    }
-
-    public static ErrorResponse of(ErrorCode errorCode, String message) {
-        return new ErrorResponse(errorCode, message == null || message.isBlank() ? errorCode.getMessage() : message);
     }
 
     public static ErrorResponse of(ErrorCode errorCode, BindingResult bindingResult) {

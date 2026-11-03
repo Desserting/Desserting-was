@@ -40,10 +40,13 @@ public class StoreDetailResponse {
     private Long themeStreetId;
     private String themeStreetName;
 
+    @Schema(description = "판매 디저트 종류", example = "[\"CAKE\", \"COFFEE\"]")
+    private List<DessertType> dessertTypes;
+
     @Schema(description = "메뉴 목록 (대표 메뉴 우선)")
     private List<MenuResponse> menus;
 
-    public static StoreDetailResponse from(Store store) {
+    public static StoreDetailResponse of(Store store, List<DessertType> dessertTypes) {
         return StoreDetailResponse.builder()
                 .storeId(store.getId())
                 .name(store.getName())
@@ -56,6 +59,7 @@ public class StoreDetailResponse {
                 .partnerDiscountNotice(store.getPartnerDiscountNotice())
                 .themeStreetId(store.getThemeStreet() != null ? store.getThemeStreet().getId() : null)
                 .themeStreetName(store.getThemeStreet() != null ? store.getThemeStreet().getName() : null)
+                .dessertTypes(dessertTypes)
                 .menus(store.getMenus().stream()
                         .sorted(Comparator.comparing((StoreMenu m) -> !Boolean.TRUE.equals(m.getIsRepresentative()))
                                 .thenComparing(StoreMenu::getId, Comparator.nullsLast(Comparator.naturalOrder())))
@@ -71,13 +75,12 @@ public class StoreDetailResponse {
             @Schema(example = "7500") Integer price,
             String description,
             String imageUrl,
-            DessertType dessertType,
             boolean representative,
             boolean soldOut
     ) {
         static MenuResponse from(StoreMenu m) {
             return new MenuResponse(m.getId(), m.getName(), m.getPrice(), m.getDescription(), m.getImageUrl(),
-                    m.getDessertType(), Boolean.TRUE.equals(m.getIsRepresentative()), Boolean.TRUE.equals(m.getIsSoldOut()));
+                    Boolean.TRUE.equals(m.getIsRepresentative()), Boolean.TRUE.equals(m.getIsSoldOut()));
         }
     }
 }

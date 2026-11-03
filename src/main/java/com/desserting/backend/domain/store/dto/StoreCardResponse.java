@@ -11,7 +11,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.util.List;
-import java.util.Objects;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -56,7 +55,7 @@ public class StoreCardResponse {
     @Schema(description = "기준 위치로부터의 거리(km, 소수 첫째 자리). 기준 위치가 없으면 null", example = "0.8")
     private Double distanceKm;
 
-    public static StoreCardResponse of(Store store, Double distanceKm) {
+    public static StoreCardResponse of(Store store, List<DessertType> dessertTypes, Double distanceKm) {
         List<StoreMenu> menus = store.getMenus();
         return StoreCardResponse.builder()
                 .storeId(store.getId())
@@ -67,7 +66,7 @@ public class StoreCardResponse {
                 .themeStreetId(store.getThemeStreet() != null ? store.getThemeStreet().getId() : null)
                 .themeStreetName(store.getThemeStreet() != null ? store.getThemeStreet().getName() : null)
                 .coverImageUrl(store.getCoverImageUrl())
-                .dessertTypes(menus.stream().map(StoreMenu::getDessertType).filter(Objects::nonNull).distinct().toList())
+                .dessertTypes(dessertTypes)
                 .representativeMenuName(menus.stream()
                         .filter(m -> Boolean.TRUE.equals(m.getIsRepresentative()))
                         .map(StoreMenu::getName)

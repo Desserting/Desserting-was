@@ -1,7 +1,7 @@
 package com.desserting.backend.domain.store.repository;
 
 import com.desserting.backend.domain.store.entity.Store;
-import com.desserting.backend.domain.store.entity.StoreMenu;
+import com.desserting.backend.domain.store.entity.StoreDessertTag;
 import com.desserting.backend.domain.user.entity.DessertType;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
@@ -26,14 +26,14 @@ public final class StoreSpecifications {
         return (root, query, cb) -> cb.equal(root.get("themeStreet").get("id"), themeStreetId);
     }
 
-    /** 해당 디저트 종류 메뉴를 판매하는 매장 */
+    /** 해당 디저트 종류 태그가 달린 매장 */
     public static Specification<Store> sellsDessert(DessertType dessertType) {
         return (root, query, cb) -> {
             Subquery<Long> sub = query.subquery(Long.class);
-            Root<StoreMenu> menu = sub.from(StoreMenu.class);
-            sub.select(menu.get("id"))
-                    .where(cb.equal(menu.get("store"), root),
-                            cb.equal(menu.get("dessertType"), dessertType));
+            Root<StoreDessertTag> tag = sub.from(StoreDessertTag.class);
+            sub.select(tag.get("id"))
+                    .where(cb.equal(tag.get("store"), root),
+                            cb.equal(tag.get("dessertType"), dessertType));
             return cb.exists(sub);
         };
     }

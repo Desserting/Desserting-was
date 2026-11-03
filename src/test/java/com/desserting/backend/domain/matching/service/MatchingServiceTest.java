@@ -1,5 +1,7 @@
 package com.desserting.backend.domain.matching.service;
 
+import com.desserting.backend.domain.explore.error.ExploreErrorCode;
+import com.desserting.backend.domain.explore.error.ExploreException;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse.AppliedFilter;
 import com.desserting.backend.domain.matching.entity.MatchType;
@@ -9,8 +11,6 @@ import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
 import com.desserting.backend.domain.user.repository.UserRepository;
-import com.desserting.backend.global.error.CustomException;
-import com.desserting.backend.global.error.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -200,11 +200,28 @@ class MatchingServiceTest {
     }
 
     @Test
+    @DisplayName("차단 관계인 상대는 후보에서 제외한다 (SEC-01)")
+    void excludesBlockedUsers() {
+        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
+        User blocked = user(2L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+        User ok = user(3L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
+        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(blocked, ok));
+        given(matchCandidateRepository.findBlockRelatedUserIds(1L)).willReturn(List.of(2L));
+        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
+
+        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, null);
+
+        assertThat(response.getCandidate().getUserId()).isEqualTo(3L);
+    }
+
+    @Test
     @DisplayName("반경이 허용 범위를 벗어나면 INVALID_MATCH_FILTER")
     void invalidRadius_throws() {
         assertThatThrownBy(() -> matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, 500.0, null))
-                .isInstanceOf(CustomException.class)
-                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_MATCH_FILTER);
+                .isInstanceOf(ExploreException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ExploreErrorCode.INVALID_MATCH_FILTER);
     }
 
     private static User user(Long id, String gender, String region, Double lat, Double lng, DessertType... tags) {

@@ -1,11 +1,17 @@
 package com.desserting.backend.domain.store.service;
 
+import com.desserting.backend.domain.explore.error.ExploreErrorCode;
+import com.desserting.backend.domain.explore.error.ExploreException;
 import com.desserting.backend.domain.store.dto.StoreCardResponse;
 import com.desserting.backend.domain.store.dto.StoreDetailResponse;
 import com.desserting.backend.domain.store.dto.StoreSearchCondition;
 import com.desserting.backend.domain.store.entity.Store;
+import com.desserting.backend.domain.store.entity.StoreDessertTag;
+import com.desserting.backend.domain.store.repository.StoreDessertTagRepository;
+import com.desserting.backend.domain.store.repository.StoreExploreRepository;
 import com.desserting.backend.domain.store.repository.StoreRepository;
 import com.desserting.backend.domain.store.repository.StoreSpecifications;
+import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -18,6 +24,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 4-5 지도 마커·목록 / 4-6 매장 탐색 조회 (MAP-03~06, MAP-08, SHOP-01~03)
@@ -27,7 +35,9 @@ import java.util.List;
 @Transactional(readOnly = true)
 public class StoreQueryService {
 
+    private final StoreExploreRepository storeExploreRepository;
     private final StoreRepository storeRepository;
+    private final StoreDessertTagRepository dessertTagRepository;
     private final UserRepository userRepository;
 
     public List<StoreCardResponse> searchStores(Long userId, StoreSearchCondition cond) {
@@ -46,28 +56,39 @@ public class StoreQueryService {
             if (!cond.hasAllBounds()
                     || cond.swLat().compareTo(cond.neLat()) > 0
                     || cond.swLng().compareTo(cond.neLng()) > 0) {
-                throw new CustomException(ErrorCode.INVALID_INPUT_VALUE,
-                        "지도 영역은 swLat ≤ neLat, swLng ≤ neLng 인 네 값을 모두 보내야 합니다.");
+                throw new ExploreException(ExploreErrorCode.INVALID_MAP_BOUNDS);
             }
             spec = spec.and(StoreSpecifications.withinBounds(cond.swLat(), cond.swLng(), cond.neLat(), cond.neLng()));
         }
 
+        List<Store> stores = storeExploreRepository.findAll(spec);
+        Map<Long, List<DessertType>> tags = dessertTypesByStore(stores.stream().map(Store::getId).toList());
         BigDecimal[] origin = resolveOrigin(userId, cond.lat(), cond.lng());
-        List<StoreCardResponse> cards = storeRepository.findAll(spec).stream()
-                .map(store -> StoreCardResponse.of(store, distanceFrom(origin, store)))
-                .toList();
 
         Comparator<StoreCardResponse> order = origin != null
                 ? Comparator.comparing(StoreCardResponse::getDistanceKm)
                 : Comparator.comparing(StoreCardResponse::getName);
-        return cards.stream().sorted(order).toList();
+        return stores.stream()
+                .map(store -> StoreCardResponse.of(store, tags.getOrDefault(store.getId(), List.of()),
+                        distanceFrom(origin, store)))
+                .sorted(order)
+                .toList();
     }
 
     public StoreDetailResponse getStoreDetail(Long storeId) {
         Store store = storeRepository.findByIdWithMenus(storeId)
                 .filter(s -> Boolean.TRUE.equals(s.getIsPartner()))
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
-        return StoreDetailResponse.from(store);
+        return StoreDetailResponse.of(store, dessertTypesByStore(List.of(storeId)).getOrDefault(storeId, List.of()));
+    }
+
+    private Map<Long, List<DessertType>> dessertTypesByStore(List<Long> storeIds) {
+        if (storeIds.isEmpty()) {
+            return Map.of();
+        }
+        return dessertTagRepository.findAllByStoreIds(storeIds).stream()
+                .collect(Collectors.groupingBy(t -> t.getStore().getId(),
+                        Collectors.mapping(StoreDessertTag::getDessertType, Collectors.toList())));
     }
 
     /** 거리 기준점: 요청 좌표 → 내 저장 위치 → 없음 */

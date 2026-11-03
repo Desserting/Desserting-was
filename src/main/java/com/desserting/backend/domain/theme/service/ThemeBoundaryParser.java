@@ -39,21 +39,4 @@ public class ThemeBoundaryParser {
             return List.of();
         }
     }
-
-    /** [{lat, lng}] → GeoJSON Polygon 문자열 (시드 데이터·관리자 등록용). 닫힌 고리가 아니면 첫 점을 끝에 덧붙인다. */
-    public String toGeoJson(List<Coordinate> boundary) {
-        List<double[]> ring = new ArrayList<>();
-        for (Coordinate c : boundary) {
-            ring.add(new double[]{c.lng(), c.lat()});
-        }
-        if (!boundary.isEmpty() && !boundary.get(0).equals(boundary.get(boundary.size() - 1))) {
-            ring.add(new double[]{boundary.get(0).lng(), boundary.get(0).lat()});
-        }
-        try {
-            return objectMapper.writeValueAsString(
-                    java.util.Map.of("type", "Polygon", "coordinates", List.of(ring)));
-        } catch (Exception e) {
-            throw new IllegalStateException("GeoJSON 직렬화 실패", e);
-        }
-    }
 }

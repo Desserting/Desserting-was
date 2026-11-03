@@ -37,18 +37,10 @@ public enum ErrorCode {
     THEME_STREET_NOT_FOUND(HttpStatus.NOT_FOUND, "T001", "테마거리를 찾을 수 없습니다."),
     STORE_NOT_FOUND(HttpStatus.NOT_FOUND, "S001", "매장을 찾을 수 없습니다."),
     STORE_MENU_NOT_FOUND(HttpStatus.NOT_FOUND, "S002", "메뉴를 찾을 수 없습니다."),
-
-    // Matching
-    INVALID_MATCH_FILTER(HttpStatus.BAD_REQUEST, "M001", "매칭 필터 조건이 올바르지 않습니다."),
-
-    // Reservation
+    DUPLICATE_RESERVATION_SLOT(HttpStatus.CONFLICT, "S003", "해당 일시의 예약 슬롯이 이미 존재합니다."),
     RESERVATION_SLOT_FULL(HttpStatus.CONFLICT, "R001", "선택하신 시간대의 예약 정원이 마감되었습니다."),
-    RESERVATION_SLOT_NOT_FOUND(HttpStatus.NOT_FOUND, "R002", "예약 가능한 시간대를 찾을 수 없습니다."),
-    RESERVATION_SLOT_PASSED(HttpStatus.BAD_REQUEST, "R003", "이미 지난 시간대는 예약할 수 없습니다."),
-    DUPLICATE_RESERVATION(HttpStatus.CONFLICT, "R004", "이미 같은 시간대에 예약이 존재합니다."),
-    RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "R005", "예약을 찾을 수 없습니다."),
-    RESERVATION_NOT_CANCELLABLE(HttpStatus.BAD_REQUEST, "R006", "취소할 수 없는 예약 상태입니다."),
-    INVALID_DATE_RANGE(HttpStatus.BAD_REQUEST, "R007", "조회 기간이 올바르지 않습니다.");
+    RESERVATION_NOT_FOUND(HttpStatus.NOT_FOUND, "R002", "예약 내역을 찾을 수 없습니다."),
+    RESERVATION_SLOT_NOT_FOUND(HttpStatus.NOT_FOUND, "R003", "예약 슬롯을 찾을 수 없습니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

@@ -40,4 +40,12 @@ public interface MatchCandidateRepository extends Repository<User, Long> {
     List<User> findCandidatesInBox(@Param("me") Long me,
                                    @Param("minLat") BigDecimal minLat, @Param("maxLat") BigDecimal maxLat,
                                    @Param("minLng") BigDecimal minLng, @Param("maxLng") BigDecimal maxLng);
+
+    /** 차단 관계(내가 차단 + 나를 차단)인 상대방 ID 목록 */
+    @Query("""
+            SELECT CASE WHEN b.blocker.id = :me THEN b.blocked.id ELSE b.blocker.id END
+            FROM UserBlock b
+            WHERE b.blocker.id = :me OR b.blocked.id = :me
+            """)
+    List<Long> findBlockRelatedUserIds(@Param("me") Long me);
 }

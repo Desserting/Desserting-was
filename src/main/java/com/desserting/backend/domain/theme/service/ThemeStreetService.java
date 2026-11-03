@@ -2,7 +2,7 @@ package com.desserting.backend.domain.theme.service;
 
 import com.desserting.backend.domain.store.dto.StoreCardResponse;
 import com.desserting.backend.domain.store.dto.StoreSearchCondition;
-import com.desserting.backend.domain.store.repository.StoreRepository;
+import com.desserting.backend.domain.store.repository.StoreExploreRepository;
 import com.desserting.backend.domain.store.service.StoreQueryService;
 import com.desserting.backend.domain.theme.dto.Coordinate;
 import com.desserting.backend.domain.theme.dto.ThemeStreetDetailResponse;
@@ -30,15 +30,13 @@ import java.util.stream.Collectors;
 public class ThemeStreetService {
 
     private final ThemeStreetRepository themeStreetRepository;
-    private final StoreRepository storeRepository;
+    private final StoreExploreRepository storeExploreRepository;
     private final StoreQueryService storeQueryService;
     private final ThemeBoundaryParser boundaryParser;
 
     /** 지도 첫 화면: 활성 테마거리 전체의 점선 경계 + 매장 수 */
     public List<ThemeStreetResponse> getThemeStreets() {
-        Map<Long, Long> storeCounts = storeRepository.countPartnerStoresByThemeStreet().stream()
-                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
-
+        Map<Long, Long> storeCounts = partnerStoreCounts();
         return themeStreetRepository.findAllByIsActiveTrue().stream()
                 .map(t -> toResponse(t, storeCounts.getOrDefault(t.getId(), 0L)))
                 .toList();
@@ -55,8 +53,13 @@ public class ThemeStreetService {
                 StoreSearchCondition.ofThemeStreet(themeStreetId, dessertType, lat, lng));
 
         long totalCount = dessertType == null ? stores.size()
-                : storeRepository.countByThemeStreetIdAndIsPartnerTrue(themeStreetId);
+                : partnerStoreCounts().getOrDefault(themeStreetId, 0L);
         return new ThemeStreetDetailResponse(toResponse(themeStreet, totalCount), stores);
+    }
+
+    private Map<Long, Long> partnerStoreCounts() {
+        return storeExploreRepository.countPartnerStoresByThemeStreet().stream()
+                .collect(Collectors.toMap(row -> (Long) row[0], row -> (Long) row[1]));
     }
 
     private ThemeStreetResponse toResponse(ThemeStreet t, long storeCount) {

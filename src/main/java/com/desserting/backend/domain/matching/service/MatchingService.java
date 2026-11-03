@@ -1,5 +1,7 @@
 package com.desserting.backend.domain.matching.service;
 
+import com.desserting.backend.domain.explore.error.ExploreErrorCode;
+import com.desserting.backend.domain.explore.error.ExploreException;
 import com.desserting.backend.domain.matching.dto.MatchCandidateResponse;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse.AppliedFilter;
@@ -19,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
@@ -51,10 +54,10 @@ public class MatchingService {
     @Transactional(readOnly = true)
     public RandomMatchResponse findRandomMatch(Long userId, MatchType matchType, Double radiusKm, String region) {
         if (matchType == null) {
-            throw new CustomException(ErrorCode.INVALID_MATCH_FILTER, "매칭 타입(matchType)은 필수입니다.");
+            throw new ExploreException(ExploreErrorCode.INVALID_MATCH_FILTER, "매칭 타입(matchType)은 필수입니다.");
         }
         if (radiusKm != null && (radiusKm < MIN_RADIUS_KM || radiusKm > MAX_RADIUS_KM)) {
-            throw new CustomException(ErrorCode.INVALID_MATCH_FILTER,
+            throw new ExploreException(ExploreErrorCode.INVALID_MATCH_FILTER,
                     "거리는 " + (int) MIN_RADIUS_KM + "~" + (int) MAX_RADIUS_KM + "km 범위여야 합니다.");
         }
 
@@ -90,7 +93,10 @@ public class MatchingService {
             pool = matchCandidateRepository.findAllCandidates(userId);
         }
 
+        // 내가 차단했거나 나를 차단한 사용자는 제외 (SEC-01)
+        Set<Long> blocked = new HashSet<>(matchCandidateRepository.findBlockRelatedUserIds(userId));
         List<User> candidates = pool.stream()
+                .filter(c -> !blocked.contains(c.getId()))
                 .filter(c -> isOppositeGender(me, c))
                 .filter(c -> matchesTaste(matchType, myTags, tagsOf(c)))
                 .toList();

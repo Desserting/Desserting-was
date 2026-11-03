@@ -7,21 +7,14 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface ReservationRepository extends JpaRepository<Reservation, Long> {
     List<Reservation> findAllByUserIdOrderByReservationDateDesc(Long userId);
     List<Reservation> findAllByStoreIdOrderByReservationDateDesc(Long storeId);
+    List<Reservation> findAllByStoreIdAndStatus(Long storeId, ReservationStatus status);
 
-    @Query("""
-            SELECT r FROM Reservation r JOIN FETCH r.store
-            WHERE r.user.id = :userId
-            ORDER BY r.reservationDate DESC, r.reservationTime DESC
-            """)
-    List<Reservation> findMyReservations(@Param("userId") Long userId);
+    long countByStoreIdAndStatus(Long storeId, ReservationStatus status);
 
-    @Query("SELECT r FROM Reservation r JOIN FETCH r.store WHERE r.id = :id")
-    Optional<Reservation> findByIdWithStore(@Param("id") Long id);
-
-    boolean existsByUserIdAndSlotIdAndStatusNot(Long userId, Long slotId, ReservationStatus status);
+    @Query("SELECT COALESCE(SUM(r.totalAmount), 0) FROM Reservation r WHERE r.store.id = :storeId AND r.status = :status")
+    Long sumTotalAmountByStoreIdAndStatus(@Param("storeId") Long storeId, @Param("status") ReservationStatus status);
 }

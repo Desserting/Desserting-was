@@ -37,17 +37,16 @@ public class ReservationController {
                 reservationService.getAvailableDates(storeId, from, to));
     }
 
-    @Operation(summary = "예약 가능 시간대 (RSV-02)", description = "해당 날짜의 시간대별 정원·잔여 인원. guestCount 기준으로 available을 계산합니다.")
+    @Operation(summary = "예약 가능 시간대 (RSV-02)", description = "해당 날짜의 시간대별 정원·잔여 팀 수. 예약 1건이 1팀을 차지합니다.")
     @GetMapping("/stores/{storeId}/reservation-slots")
     public ApiResponse<List<ReservationSlotResponse>> getSlots(
             @PathVariable Long storeId,
-            @Parameter(example = "2026-11-15") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
-            @Parameter(description = "인원 (기본 1)", example = "2") @RequestParam(required = false) Integer guestCount) {
+            @Parameter(example = "2026-11-15") @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
         return ApiResponse.success("예약 시간대 조회에 성공하였습니다.",
-                reservationService.getSlots(storeId, date, guestCount));
+                reservationService.getSlots(storeId, date));
     }
 
-    @Operation(summary = "예약 생성 (RSV-03)", description = "선택한 시간대의 정원을 차감하고 PENDING(결제 대기) 상태로 예약을 만듭니다.")
+    @Operation(summary = "예약 생성 (RSV-03)", description = "선택한 시간대의 정원 1팀을 차감하고 PENDING(예약 대기) 상태로 예약을 만듭니다.")
     @PostMapping("/reservations")
     @ResponseStatus(HttpStatus.CREATED)
     public ApiResponse<ReservationResponse> createReservation(
@@ -70,7 +69,7 @@ public class ReservationController {
         return ApiResponse.success("예약 조회에 성공하였습니다.", reservationService.getMyReservation(userId, reservationId));
     }
 
-    @Operation(summary = "예약 취소 (RSV-04)", description = "PENDING/CONFIRMED 예약만 취소할 수 있으며 좌석이 반환됩니다.")
+    @Operation(summary = "예약 취소 (RSV-04)", description = "PENDING/CONFIRMED 예약만 취소할 수 있으며 시간대 자리가 반환됩니다.")
     @PatchMapping("/reservations/{reservationId}/cancel")
     public ApiResponse<ReservationResponse> cancelReservation(
             @Parameter(hidden = true) @CurrentUser Long userId,

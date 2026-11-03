@@ -1,5 +1,6 @@
 package com.desserting.backend.domain.store.entity;
 
+import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.global.entity.BaseTimeEntity;
 import jakarta.persistence.*;
 import lombok.*;
@@ -28,6 +29,10 @@ public class StoreMenu extends BaseTimeEntity {
 
     @Column(length = 255)
     private String description;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 50)
+    private DessertType dessertType; // 디저트 종류 (지도·매장 디저트 필터 MAP-06, SHOP-01)
 
     @Column(length = 500)
     private String imageUrl;

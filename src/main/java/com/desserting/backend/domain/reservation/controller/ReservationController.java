@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.LocalDate;
 import java.util.List;
 
-@Tag(name = "4-6. 매장 예약 API", description = "예약 가능 날짜·시간 조회, 예약 생성·조회·취소 API (4-6)")
+@Tag(name = "4-6. 매장 테이블 예약 API", description = "예약 가능 날짜·시간 조회, 예약 생성·조회·취소 API (4-6)")
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
@@ -103,7 +103,7 @@ public class ReservationController {
         return ApiResponse.success("예약 내역 조회에 성공하였습니다.", reservationService.getMyReservations(userId));
     }
 
-    @Operation(summary = "예약 상세", description = "본인 예약만 조회할 수 있습니다.")
+    @Operation(summary = "예약 상세 조회 (RSV-03)", description = "본인 예약만 조회할 수 있습니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "A001 인증 실패",

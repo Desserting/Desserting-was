@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.LocalDateTime;
 import java.util.Map;
 
-@Tag(name = "00. Health Check", description = "서버 상태 점검 API")
+@Tag(name = "00. 헬스 체크 API", description = "서버 구동 상태 및 가용성 점검 API")
 @RestController
 @RequestMapping("/api/v1/health")
 public class HealthController {

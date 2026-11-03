@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Tag(name = "02. Hearts (하트 재화 관리)", description = "하트 변동 내역 조회 및 잔여 하트 관리 API")
+@Tag(name = "4-3. 하트 경제 및 충전 API", description = "하트 변동 내역 조회 및 잔여 하트 관리 API (4-3)")
 @RestController
 @RequestMapping("/api/v1/hearts")
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class HeartController {
 
     private final HeartService heartService;
 
-    @Operation(summary = "내 하트 변동 내역 조회", description = "로그인된 사용자의 하트 충전, 대화 요청 차감, 환불 등 변동 이력을 최신순으로 조회합니다.")
+    @Operation(summary = "내 하트 변동 내역 및 잔여량 조회 (HRT-01)", description = "로그인된 사용자의 하트 충전, 대화 요청 차감, 환불 등 변동 이력을 최신순으로 조회합니다.")
     @GetMapping("/history")
     public ApiResponse<List<HeartHistoryResponse>> getMyHeartHistories(
             @Parameter(hidden = true) @CurrentUser Long userId) {

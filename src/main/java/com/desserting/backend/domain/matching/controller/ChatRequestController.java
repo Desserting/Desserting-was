@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "03. Chat Request (하트 & 대화 요청)", description = "대화 요청 발송(하트 1개 차감), 받은 요청함 조회, 수락/거절 API")
+@Tag(name = "4-3. 대화 요청 관리 API", description = "대화 요청 발송(하트 1개 차감), 받은 요청함 조회, 수락/거절 API (4-3)")
 @RestController
 @RequestMapping("/api/v1/matches/requests")
 @RequiredArgsConstructor

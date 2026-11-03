@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "05. Social & Safety (좋아요 & 차단/신고)", description = "상대방 좋아요(LIKE), 나를 좋아요한 사람 목록(프리미엄), 차단 및 신고 API")
+@Tag(name = "4-4. 소셜 인터랙션 및 안전 API", description = "상대방 좋아요(LIKE), 나를 좋아요한 사람 목록(프리미엄), 차단 및 신고 API (4-4)")
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor

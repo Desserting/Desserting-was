@@ -13,7 +13,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "01. Auth (인증/인가)", description = "회원가입, 로그인, JWT 토큰 발급 및 갱신 API")
+@Tag(name = "4-1. 계정 인증 및 토큰 API", description = "회원가입, 로그인, JWT Access/Refresh 토큰 발급 및 갱신 API (4-1)")
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -37,7 +37,7 @@ public class AuthController {
         return ApiResponse.success("로그인에 성공하였습니다.", response);
     }
 
-    @Operation(summary = "토큰 재발급", description = "만료된 Access Token을 Refresh Token을 통해 재발급받습니다.")
+    @Operation(summary = "토큰 재발급 (ACC-03)", description = "만료된 Access Token을 Refresh Token을 통해 재발급받습니다.")
     @PostMapping("/refresh")
     public ApiResponse<TokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         TokenResponse response = authService.refreshToken(request);

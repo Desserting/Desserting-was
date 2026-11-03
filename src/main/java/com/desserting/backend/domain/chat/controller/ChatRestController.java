@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "04. Real-time Chat (실시간 채팅)", description = "채팅방 목록 조회, 이전 메시지 커서 페이징 조회 및 퇴장 API")
+@Tag(name = "4-4. 실시간 대화 및 채팅방 API", description = "채팅방 목록 조회, 이전 메시지 커서 페이징 조회 및 퇴장 API (4-4)")
 @RestController
 @RequestMapping("/api/v1/chats")
 @RequiredArgsConstructor
@@ -30,7 +30,7 @@ public class ChatRestController {
         return ApiResponse.success("채팅방 목록 조회에 성공하였습니다.", responses);
     }
 
-    @Operation(summary = "상대방과 1:1 직접 대화방 조회 또는 생성 (테스트베드 및 빠른 대화)",
+    @Operation(summary = "상대방과 1:1 직접 대화방 조회 또는 생성 (CHT-01)",
             description = "상대 유저 ID로 기존 활성 1:1 채팅방이 있으면 반환하고, 없으면 새로 개설합니다.")
     @PostMapping("/rooms/direct")
     public ApiResponse<ChatRoomResponse> getOrCreateDirectRoom(
@@ -52,7 +52,7 @@ public class ChatRestController {
         return ApiResponse.success("채팅 메시지 내역 조회에 성공하였습니다.", messages);
     }
 
-    @Operation(summary = "채팅방 나가기", description = "해당 채팅방에서 퇴장(Soft Delete)합니다.")
+    @Operation(summary = "채팅방 나가기 (CHT-03)", description = "해당 채팅방에서 퇴장(Soft Delete)합니다.")
     @PostMapping("/rooms/{roomId}/leave")
     public ApiResponse<Void> leaveChatRoom(
             @Parameter(hidden = true) @CurrentUser Long userId,

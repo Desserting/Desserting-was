@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "02. User (회원 및 프로필)", description = "내 프로필 조회/수정, 위치 갱신, 상대방 프로필 열람 API")
+@Tag(name = "4-1. 사용자 및 디저트 프로필 API", description = "내 프로필 조회/수정, 위치 갱신, 메이트 목록, 상대방 프로필 열람 API (4-1)")
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
@@ -24,7 +24,7 @@ public class UserController {
 
     private final UserService userService;
 
-    @Operation(summary = "전체 디저트 메이트 목록 조회 (탐색용)", description = "등록된 디저트 메이트 사용자 목록을 조회합니다. (로그인 시 본인 제외)")
+    @Operation(summary = "전체 디저트 메이트 목록 조회 (탐색용, PRF-04)", description = "등록된 디저트 메이트 사용자 목록을 조회합니다. (로그인 시 본인 제외)")
     @GetMapping
     public ApiResponse<List<OtherUserProfileResponse>> getAllUsers(
             @Parameter(hidden = true) @CurrentUser(required = false) Long currentUserId) {
@@ -32,7 +32,7 @@ public class UserController {
         return ApiResponse.success("디저트 메이트 목록 조회에 성공하였습니다.", responses);
     }
 
-    @Operation(summary = "내 프로필 상세 조회", description = "로그인된 사용자의 프로필, 잔여 하트 수, 선호 디저트 태그 목록을 조회합니다.")
+    @Operation(summary = "내 프로필 상세 조회 (PRF-01)", description = "로그인된 사용자의 프로필, 잔여 하트 수, 선호 디저트 태그 목록을 조회합니다.")
     @GetMapping("/me")
     public ApiResponse<UserProfileResponse> getMyProfile(@Parameter(hidden = true) @CurrentUser Long userId) {
         UserProfileResponse response = userService.getMyProfile(userId);

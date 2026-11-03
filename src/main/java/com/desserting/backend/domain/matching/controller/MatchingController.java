@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-@Tag(name = "4-2. 랜덤 매칭 & 주변 사람 필터 API", description = "같은/다른 취향 랜덤 매칭 및 주변 사람 필터 API (4-2)")
+@Tag(name = "4-2. 랜덤 매칭 및 주변 탐색 API", description = "같은/다른 취향 랜덤 매칭 및 주변 사람 필터 API (4-2)")
 @RestController
 @RequestMapping("/api/v1/matches")
 @RequiredArgsConstructor

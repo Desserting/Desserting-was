@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-@Tag(name = "4-6. 제휴매장 탐색 API", description = "제휴매장 지도 마커·목록 검색 및 매장 상세 API (4-5, 4-6)")
+@Tag(name = "4-6. 제휴매장 검색 및 상세 API", description = "제휴매장 지도 마커·목록 검색 및 매장 상세 API (4-5, 4-6)")
 @RestController
 @RequestMapping("/api/v1/stores")
 @RequiredArgsConstructor

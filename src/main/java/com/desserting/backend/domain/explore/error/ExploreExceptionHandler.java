@@ -1,6 +1,8 @@
 package com.desserting.backend.domain.explore.error;
 
 import com.desserting.backend.domain.matching.controller.MatchingController;
+import com.desserting.backend.domain.order.controller.AdminStoreOrderController;
+import com.desserting.backend.domain.order.controller.ReservationOrderController;
 import com.desserting.backend.domain.reservation.controller.ReservationController;
 import com.desserting.backend.domain.store.controller.StoreController;
 import com.desserting.backend.domain.theme.controller.ThemeStreetController;
@@ -22,7 +24,8 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Slf4j
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(assignableTypes = {
-        MatchingController.class, ThemeStreetController.class, StoreController.class, ReservationController.class})
+        MatchingController.class, ThemeStreetController.class, StoreController.class, ReservationController.class,
+        ReservationOrderController.class, AdminStoreOrderController.class})
 public class ExploreExceptionHandler {
 
     @ExceptionHandler(ExploreException.class)

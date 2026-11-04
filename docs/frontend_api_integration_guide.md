@@ -5,7 +5,7 @@
 >
 > - Swagger UI: `{BASE_URL}/swagger-ui.html`
 > - OpenAPI JSON: `{BASE_URL}/v3/api-docs`
-> - 기준 코드: `main` `4d2b7ba`(PR #3 머지, 쿠폰·방문자·MAT-04·AI 추천 반영) — 2026-11-04
+> - 기준 코드: `main` `4d2b7ba` + 4-7 메뉴 주문·모의 결제(`feat/order-mock-payment`) — 2026-11-04
 
 ---
 
@@ -195,10 +195,40 @@ api.interceptors.response.use(undefined, async (error) => {
 | 예약 취소 | 취소 (대기·확정 상태만) | `PATCH /reservations/{reservationId}/cancel` |
 
 - 정원은 **팀 수** 기준입니다 (예약 1건 = 1팀, `guestCount`는 기록용).
-- 예약 생성 요청에는 메뉴 선주문 필드가 없습니다 (`orderMenus` 등을 보내도 무시됨).
-- `couponId`를 보내면 응답에 `couponName`, `discountAmount`가 채워집니다. 단, **현재 `totalAmount`가 0으로 생성되므로 `finalAmount`는 항상 0**이며, **최소 주문 금액(`minOrderAmount`)이 0보다 큰 쿠폰은 `C001`("현재 사용할 수 없는 쿠폰입니다.")로 거절**됩니다. 금액 표시는 백엔드 수정 전까지 참고용으로만 사용하세요.
+- 메뉴는 예약 생성 때가 아니라 **예약 후 ⑧-1 메뉴 주문**에서 고릅니다 (`orderMenus` 같은 필드는 없음).
+- `couponId`는 예약에 **기억만** 합니다. 응답의 `couponName`은 채워지지만 `totalAmount`·`discountAmount`·`finalAmount`는 **주문 결제 전까지 0**입니다. 최소 주문 금액 확인과 할인은 주문 때 합니다.
+- 다른 매장·사용 중지·만료된 쿠폰이면 `EX305`.
 - 지난 시간대는 `available: false`이며 예약 시 `EX302`.
 - 예약 상태(`PREPARING`, `COMPLETED` 등)는 점주가 바꿉니다. 사용자 화면은 `GET /reservations/me`를 다시 불러 반영합니다.
+- 결제된 예약을 사용자가 취소하면 주문도 모의 환불(`orderStatus: REFUNDED`)됩니다.
+
+### ⑧-1 메뉴 주문·모의 결제 (D-06 ~ D-09, 4-7)
+흐름: 예약 생성 → **메뉴 선택** → **주문 확인(미리보기)** → **모의 결제** → 점주가 준비 상태 변경
+
+| 화면 | 동작 | API |
+|---|---|---|
+| 6-4 메뉴 선택 | 매장 메뉴 (품절 `isSoldOut`) | `GET /stores/{storeId}` 의 `menus` |
+| 7-1 주문 확인 | 금액 계산만 (저장 안 함) | `POST /reservations/{reservationId}/order/preview` `{items: [{menuId, quantity(1~20)}], couponId?}` |
+| 7-2 모의 결제 | 결제 승인 + 주문 생성 | `POST /reservations/{reservationId}/order` `{items, couponId?, paymentMethod: CARD\|EASY_PAY, paymentType: COMBINED\|SPLIT}` → 201 |
+| 결제 완료·영수증 | 예약의 주문 | `GET /reservations/{reservationId}/order` |
+| 마이페이지 주문 내역 | 내 주문 (환불 포함) | `GET /orders/me` |
+| 점주 주문 화면 (4-8) | 매장 주문 메뉴 내역 (점주·관리자) | `GET /admin/stores/{storeId}/orders` |
+
+```jsonc
+// POST /reservations/10/order  { "items": [{"menuId":1,"quantity":2},{"menuId":2,"quantity":1}], "paymentMethod":"CARD", "paymentType":"SPLIT" }
+{ "orderId": 1, "reservationId": 10, "items": [ {"menuId":1,"menuName":"바스크 치즈케이크","unitPrice":8000,"quantity":2,"lineAmount":16000}, ... ],
+  "totalAmount": 22800, "couponName": "디저팅 첫 데이트 2,000원 할인", "discountAmount": 2000, "finalAmount": 20800,
+  "paymentType": "SPLIT", "shareAmounts": [10400, 10400], "paymentMethod": "CARD", "paymentKey": "MOCK-ORD-...",
+  "orderStatus": "PAID", "reservationStatus": "PENDING", "paidAt": "2026-11-04T10:48:41", "refundedAt": null }
+```
+- 예약 **대기·확정** 상태에서만, 예약 1건당 **1번** 주문할 수 있습니다 (다시 결제하면 `EX402`).
+- 같은 `menuId`를 여러 줄로 보내면 수량이 합쳐집니다. 메뉴명·단가는 주문 시점 값으로 저장됩니다.
+- `couponId`를 생략하면 **예약할 때 고른 쿠폰**을 씁니다. 다른 쿠폰 ID를 보내면 그 쿠폰으로 바뀝니다.
+- 할인액이 메뉴 합계보다 크면 합계까지만 할인합니다 (`finalAmount`는 0 미만이 되지 않음).
+- `SPLIT`(개별 결제)은 예약 인원(`guestCount`, 2명 이상)으로 나누며 1원 단위 나머지는 앞사람이 냅니다 → `shareAmounts`. `COMBINED`는 1명이 전액.
+- 결제 후 예약의 `totalAmount`·`discountAmount`·`finalAmount`가 함께 갱신되어 예약 내역·점주 화면에 보입니다.
+- 매장 준비 단계(접수 → 준비 중 → 방문 완료)는 주문이 아닌 **예약 상태(`reservationStatus`)**를 보면 됩니다.
+- 로컬 시드: 제휴매장마다 쿠폰 2종 (`2,000원 할인 / 1만원 이상`, `3,000원 할인 / 2만원 이상`).
 
 ### ⑨ 하트 구매·마이페이지 및 프리미엄 전용 기능 (E-01 ~ E-07)
 | 화면 | 동작 | API |
@@ -338,7 +368,7 @@ client.publish({
 | `CH001` | 404 | 채팅방 없음 | 채팅 |
 | `CH002` | 403 | 채팅방 참여자가 아님 | 채팅 메시지 조회·구독 |
 
-### 6.3 지도·매장·예약 (4-2, 4-5, 4-6)
+### 6.3 지도·매장·예약·주문 (4-2, 4-5, 4-6, 4-7)
 | code | HTTP | 의미 | 발생 API |
 |---|---|---|---|
 | `EX001` | 400 | 쿼리 파라미터·요청 본문 형식 오류 (예: `matchType=X`, `date` 누락) | 매칭·지도·매장·예약 |
@@ -348,6 +378,13 @@ client.publish({
 | `EX302` | 400 | 이미 지난 시간대 | 예약 생성 |
 | `EX303` | 409 | 같은 시간대에 이미 예약함 | 예약 생성 |
 | `EX304` | 400 | 취소할 수 없는 상태 (준비 중·완료·이미 취소) | 예약 취소 |
+| `EX305` | 400 | 쓸 수 없는 쿠폰 (다른 매장·사용 중지·만료·최소 주문 금액 미달) | 예약 생성, 주문 미리보기·결제 |
+| `EX401` | 400 | 주문할 수 없는 예약 상태 (준비 중·완료·취소) | 주문 미리보기·결제 |
+| `EX402` | 409 | 이미 결제한 예약 | 주문 결제 |
+| `EX403` | 400 | 예약한 매장의 메뉴가 아님 | 주문 미리보기·결제 |
+| `EX404` | 409 | 품절 메뉴 포함 → **메뉴 다시 불러오기** | 주문 미리보기·결제 |
+| `EX405` | 404 | 주문 없음 (아직 결제 전이거나 본인 주문 아님) | 주문 조회 |
+| `EX406` | 400 | 1인 예약은 개별 결제(`SPLIT`) 불가 | 주문 결제 |
 | `T001` | 404 | 테마거리 없음 | 테마거리 선택 |
 | `S001` | 404 | 매장 없음 또는 제휴 해지 | 매장 상세·예약 |
 | `R001` | 409 | 시간대 마감 | 예약 생성 → **시간 목록 새로고침** |
@@ -359,8 +396,8 @@ client.publish({
 ## 7. 아직 없는 기능 / 확인 필요 (최신 상태)
 | 항목 | 상태 | 비고 |
 |---|:---:|---|
-| 4-7 메뉴 주문·모의 결제 (D-06 ~ D-09) | ⚠️ 사용자 API 없음 | 사용자용 메뉴 주문·결제 API가 없습니다. `POST /reservations`는 `couponId`만 받으며 `orderMenus`는 지원하지 않습니다 |
-| 쿠폰 할인 금액 계산 (RSV-04) | ⚠️ 확인 필요 | `finalAmount`가 항상 0, 최소 주문 금액 있는 쿠폰은 거절 (백엔드 수정 예정) |
+| 4-7 메뉴 주문·모의 결제 (D-06 ~ D-09) | ✅ 구현 완료 | ⑧-1 참고. 미리보기·결제·영수증·점주 주문 내역, 합산/개별 결제, 쿠폰 할인 |
+| 점주 정산 금액 (4-8) | ⚠️ 확인 필요 | 정산이 할인 전 `totalAmount` 기준으로 집계됨 (4-8 담당 확인 중) |
 | 4-1 방문자 확인 (PRF-05) & 4-2 스킵 상대 (MAT-04) | ✅ 구현 완료 | 프리미엄 전용 `GET /users/me/visitors`, `GET /matches/history` 제공 |
 | 4-5 로컬 AI 데이트 추천 (AI-01) | ✅ 구현 완료 | `POST /chats/rooms/{roomId}/ai-recommendation` (Qwen 2.5 3B 연동) |
 | 시연 서버(ngrok) 주소 | ✅ 연동 완료 | `https://acetone-suffocate-uncombed.ngrok-free.dev` |

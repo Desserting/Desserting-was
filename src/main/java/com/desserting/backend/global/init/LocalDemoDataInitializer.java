@@ -1,8 +1,10 @@
 package com.desserting.backend.global.init;
 
 import com.desserting.backend.domain.store.entity.Store;
+import com.desserting.backend.domain.store.entity.StoreCoupon;
 import com.desserting.backend.domain.store.entity.StoreDessertTag;
 import com.desserting.backend.domain.store.entity.StoreReservationSlot;
+import com.desserting.backend.domain.store.repository.StoreCouponRepository;
 import com.desserting.backend.domain.store.repository.StoreDessertTagRepository;
 import com.desserting.backend.domain.store.repository.StoreRepository;
 import com.desserting.backend.domain.store.repository.StoreReservationSlotRepository;
@@ -34,6 +36,7 @@ import java.util.Map;
  * - 목업 매장의 디저트 태그 (store_dessert_tags, 지도 디저트 필터용)
  * - 제휴매장 예약 슬롯을 앞으로 14일까지 보충 (없는 시간대만 생성, 목업과 같은 14·16·18·20시 / 4팀)
  * - 위치정보가 있는 매칭 테스트 유저 demo1~6@desserting.com / password123!
+ * - 쿠폰이 없는 제휴매장에 시연용 할인쿠폰 2종 (4-7 주문 할인 시연용)
  * 공용 목업 시딩이 끝난 뒤 실행되도록 ApplicationReadyEvent 에서 동작한다. 끄려면 desserting.seed.explore=false
  */
 @Slf4j
@@ -60,6 +63,7 @@ public class LocalDemoDataInitializer {
     private final StoreRepository storeRepository;
     private final StoreDessertTagRepository dessertTagRepository;
     private final StoreReservationSlotRepository slotRepository;
+    private final StoreCouponRepository couponRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final Clock clock;
@@ -71,7 +75,23 @@ public class LocalDemoDataInitializer {
         int tags = seedDessertTags(partnerStores);
         int slots = fillReservationSlots(partnerStores);
         int users = seedDemoUsers();
-        log.info("[ExploreDemoData] 디저트 태그 {}개, 예약 슬롯 {}개, 데모 유저 {}명 추가", tags, slots, users);
+        int coupons = seedCoupons(partnerStores);
+        log.info("[ExploreDemoData] 디저트 태그 {}개, 예약 슬롯 {}개, 데모 유저 {}명, 쿠폰 {}개 추가", tags, slots, users, coupons);
+    }
+
+    private int seedCoupons(List<Store> stores) {
+        List<StoreCoupon> newCoupons = new ArrayList<>();
+        for (Store store : stores) {
+            if (!couponRepository.findAllByStoreIdOrderByIdDesc(store.getId()).isEmpty()) {
+                continue;
+            }
+            newCoupons.add(StoreCoupon.builder().store(store)
+                    .couponName("디저팅 첫 데이트 2,000원 할인").discountAmount(2000).minOrderAmount(10000).build());
+            newCoupons.add(StoreCoupon.builder().store(store)
+                    .couponName("커플 디저트 3,000원 할인").discountAmount(3000).minOrderAmount(20000).build());
+        }
+        couponRepository.saveAll(newCoupons);
+        return newCoupons.size();
     }
 
     private int seedDessertTags(List<Store> stores) {

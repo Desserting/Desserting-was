@@ -257,6 +257,18 @@ class ReservationOrderServiceTest {
     }
 
     @SuppressWarnings("unchecked")
+    @Test
+    @DisplayName("PaymentType Enum은 SPLIT과 INDIVIDUAL 입력을 모두 SPLIT으로 역직렬화 지원한다")
+    void paymentType_deserializationAlias() {
+        assertThat(PaymentType.from("INDIVIDUAL")).isEqualTo(PaymentType.SPLIT);
+        assertThat(PaymentType.from("individual")).isEqualTo(PaymentType.SPLIT);
+        assertThat(PaymentType.from("SPLIT")).isEqualTo(PaymentType.SPLIT);
+        assertThat(PaymentType.from("split")).isEqualTo(PaymentType.SPLIT);
+        assertThat(PaymentType.from("COMBINED")).isEqualTo(PaymentType.COMBINED);
+        assertThat(PaymentType.from("combined")).isEqualTo(PaymentType.COMBINED);
+        assertThat(PaymentType.from(null)).isNull();
+    }
+
     private void givenMenus(StoreMenu... menus) {
         given(menuRepository.findAllByStoreIdAndIdIn(eq(10L), any(Collection.class))).willReturn(List.of(menus));
     }

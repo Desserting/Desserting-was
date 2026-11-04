@@ -1,5 +1,6 @@
 package com.desserting.backend.domain.order.entity;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
@@ -11,4 +12,19 @@ public enum PaymentType {
     SPLIT("개별 결제");
 
     private final String description;
+
+    @JsonCreator
+    public static PaymentType from(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String upper = value.trim().toUpperCase();
+        if ("INDIVIDUAL".equals(upper) || "SPLIT".equals(upper)) {
+            return SPLIT;
+        }
+        if ("COMBINED".equals(upper)) {
+            return COMBINED;
+        }
+        throw new IllegalArgumentException("Unknown paymentType: " + value + " (허용 값: COMBINED, SPLIT, INDIVIDUAL)");
+    }
 }

@@ -28,8 +28,9 @@ public class RedisSubscriber implements MessageListener {
             }
 
             log.debug("Redis Sub: roomId={}, messageId={}", chatMessage.getRoomId(), chatMessage.getMessageId());
-            // STOMP WebSocket 구독자들에게 실시간 브로드캐스팅
+            // STOMP WebSocket 구독자들에게 실시간 브로드캐스팅 (단수형/복수형 토픽 모두 호환 발행)
             messagingTemplate.convertAndSend("/sub/chat/room/" + chatMessage.getRoomId(), chatMessage);
+            messagingTemplate.convertAndSend("/sub/chats/rooms/" + chatMessage.getRoomId(), chatMessage);
         } catch (Exception e) {
             log.error("Redis 메시지 역직렬화 및 브로드캐스트 실패: ", e);
         }

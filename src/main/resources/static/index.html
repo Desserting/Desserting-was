@@ -867,7 +867,7 @@
                             <label class="block font-medium text-slate-600 mb-1">결제 방식</label>
                             <select id="order-pay-type" class="w-full p-2 border border-slate-200 rounded-lg">
                                 <option value="COMBINED">전체 한번에 결제 (COMBINED)</option>
-                                <option value="INDIVIDUAL">더치페이 1인 결제 (INDIVIDUAL)</option>
+                                <option value="SPLIT">더치페이 개별 결제 (SPLIT / INDIVIDUAL - 2인 이상)</option>
                             </select>
                         </div>
                         <button onclick="handleOrderMockPayment()" id="btn-submit-payment" disabled
@@ -1108,7 +1108,9 @@
             selectedStoreId: 1,
             activeReservationId: null,
             cart: {}, // menuId -> { menu, quantity }
-            latestAiData: null
+            latestAiData: null,
+            roomSyncTimer: null,
+            stompSubscriptionAlt: null
         };
 
         // Initialize DOM
@@ -1677,19 +1679,39 @@
 
             fetchRoomMessages(roomId);
             connectStompWebSocket(roomId);
+            startRoomSync(roomId);
         }
 
         async function fetchRoomMessages(roomId) {
             try {
-                const res = await apiFetch(`/api/v1/chats/rooms/${roomId}/messages?size=20`);
+                const res = await apiFetch(`/api/v1/chats/rooms/${roomId}/messages?size=50`);
                 const container = document.getElementById('chat-messages-container');
-                const messages = res.data?.messages || res.data || [];
-                if (messages.length === 0) {
+                const rawMessages = res.data?.messages || res.data || [];
+                if (rawMessages.length === 0) {
                     container.innerHTML = '<div class="text-center text-slate-400 text-xs py-10">메시지 내역이 없습니다. 인사를 건네보세요!</div>';
                     return;
                 }
-                container.innerHTML = messages.map(m => renderChatMessage(m)).join('');
+                // MongoDB 최신순(내림차순) 결과를 과거->최신(오름차순)으로 역순 정렬하여 새 메시지가 자연스럽게 아래에 표시되도록 정정
+                const ordered = [...rawMessages].reverse();
+                container.dataset.msgCount = ordered.length;
+                container.innerHTML = ordered.map(m => renderChatMessage(m)).join('');
                 container.scrollTop = container.scrollHeight;
+            } catch (err) {}
+        }
+
+        async function fetchRoomMessagesSilently(roomId) {
+            if (!STATE.currentRoomId || STATE.currentRoomId !== roomId) return;
+            try {
+                const res = await apiFetch(`/api/v1/chats/rooms/${roomId}/messages?size=50`);
+                const container = document.getElementById('chat-messages-container');
+                const rawMessages = res.data?.messages || res.data || [];
+                if (rawMessages.length === 0) return;
+                const ordered = [...rawMessages].reverse();
+                if (container.dataset.msgCount != ordered.length) {
+                    container.dataset.msgCount = ordered.length;
+                    container.innerHTML = ordered.map(m => renderChatMessage(m)).join('');
+                    container.scrollTop = container.scrollHeight;
+                }
             } catch (err) {}
         }
 
@@ -1747,14 +1769,45 @@
 
         function subscribeRoom(roomId) {
             if (!STATE.stompClient || !STATE.stompClient.connected) return;
-            STATE.stompSubscription = STATE.stompClient.subscribe(`/sub/chats/rooms/${roomId}`, (frame) => {
+            const onMsgReceived = (frame) => {
                 try {
                     const msg = JSON.parse(frame.body);
-                    const container = document.getElementById('chat-messages-container');
-                    container.innerHTML += renderChatMessage(msg);
-                    container.scrollTop = container.scrollHeight;
+                    appendChatMessage(msg);
                 } catch (e) {}
-            });
+            };
+            // 단수형(/sub/chat/room/)과 복수형(/sub/chats/rooms/) 토픽 모두 구독
+            STATE.stompSubscription = STATE.stompClient.subscribe(`/sub/chat/room/${roomId}`, onMsgReceived);
+            STATE.stompSubscriptionAlt = STATE.stompClient.subscribe(`/sub/chats/rooms/${roomId}`, onMsgReceived);
+        }
+
+        function appendChatMessage(m) {
+            const container = document.getElementById('chat-messages-container');
+            const placeholder = container.querySelector('.text-slate-400');
+            if (placeholder) {
+                container.innerHTML = '';
+            }
+            container.insertAdjacentHTML('beforeend', renderChatMessage(m));
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function startRoomSync(roomId) {
+            stopRoomSync();
+            STATE.roomSyncTimer = setInterval(() => {
+                if (STATE.currentRoomId === roomId) {
+                    fetchRoomMessagesSilently(roomId);
+                }
+            }, 2000);
+        }
+
+        function stopRoomSync() {
+            if (STATE.roomSyncTimer) {
+                clearInterval(STATE.roomSyncTimer);
+                STATE.roomSyncTimer = null;
+            }
+            if (STATE.stompSubscriptionAlt) {
+                try { STATE.stompSubscriptionAlt.unsubscribe(); } catch(e) {}
+                STATE.stompSubscriptionAlt = null;
+            }
         }
 
         function handleSendStompMessage(e) {
@@ -1766,10 +1819,13 @@
             const payload = {
                 roomId: STATE.currentRoomId,
                 content: content,
+                messageType: 'TEXT',
                 type: 'TEXT'
             };
             STATE.stompClient.send('/pub/chat/message', {}, JSON.stringify(payload));
             input.value = '';
+            // 전송 직후 0.2초 후 무소음 동기화 호출
+            setTimeout(() => fetchRoomMessagesSilently(STATE.currentRoomId), 200);
         }
 
         // Place proposal modal
@@ -1798,6 +1854,7 @@
         async function handleLeaveCurrentRoom() {
             if (!confirm('정말 이 채팅방을 나가시겠습니까?')) return;
             try {
+                stopRoomSync();
                 await apiFetch(`/api/v1/chats/rooms/${STATE.currentRoomId}/leave`, { method: 'POST' });
                 showToast('채팅방을 나갔습니다.', 'info');
                 STATE.currentRoomId = null;
@@ -2369,10 +2426,13 @@
             }
 
             // Lazy fetches
+            if (tabName !== 'chat') {
+                stopRoomSync();
+            }
             if (tabName === 'mates') fetchUserList();
             else if (tabName === 'auth' && STATE.token) fetchMyProfile();
             else if (tabName === 'hearts') { fetchHeartBalance(); fetchHeartHistory(); fetchReceivedChatRequests(); }
-            else if (tabName === 'chat') { fetchChatRooms(); }
+            else if (tabName === 'chat') { fetchChatRooms(); if (STATE.currentRoomId) startRoomSync(STATE.currentRoomId); }
             else if (tabName === 'stores') { fetchThemeStreets(); fetchPublicStores(); }
             else if (tabName === 'orders') { onResStoreChange(); }
             else if (tabName === 'admin') { refreshAdminAll(); }

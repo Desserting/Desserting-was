@@ -148,7 +148,7 @@ api.interceptors.response.use(undefined, async (error) => {
 ### ⑤ 하트·대화 요청·수락함 (C-01)
 | 화면 | 동작 | API |
 |---|---|---|
-| 대화 요청 | 요청 보내기 (하트 1개 차감, 프리미엄은 무료) | `POST /matches/requests` `{receiverId}` |
+| 대화 요청 | 요청 보내기 (하트 1개 차감, 프리미엄은 무료). 일반 회원은 **최근 24시간 랜덤 매칭으로 만난 상대**에게만, 프리미엄은 누구에게나 | `POST /matches/requests` `{receiverId}` (조건 밖이면 `A002`) |
 | 하트 부족 | `H001` 받으면 하트 구매 팝업 (⑨) | — |
 | 수락함 | 받은 요청 목록 | `GET /matches/requests/received` |
 | 수락함 | 수락 → 채팅방 생성 | `POST /matches/requests/{requestId}/accept` → `data.chatRoomId` 로 채팅방 이동 |
@@ -242,9 +242,14 @@ api.interceptors.response.use(undefined, async (error) => {
 | E-05 나를 좋아요한 사람 | **프리미엄 전용** | `GET /users/me/likes` (일반 회원은 `A002`) |
 | E-06 내 프로필 방문자 | **프리미엄 전용** | `GET /users/me/visitors` (PRF-05, 일반 회원은 `A002`) |
 | B-04 스킵한 상대 재선택 | **프리미엄 전용** | `GET /matches/history` (MAT-04, 일반 회원은 `A002`) |
+| 프리미엄 안내 | 가격·혜택·내 이용 상태 | `GET /premium` → `{premium, expiresAt, monthlyPrice: 9900, periodDays: 30, benefits}` |
+| 프리미엄 가입 | 모의 결제 (30일) | `POST /premium/subscribe` `{paymentMethod: "CARD"\|"EASY_PAY"}` → 201 (이미 이용 중이면 `C001`) |
+| 프리미엄 결제 내역 | 결제 이력 | `GET /premium/subscriptions` |
 
 - 가격은 프론트에 하드코딩하지 말고 `GET /hearts/packages` 값을 표시하세요 (가격 정책 변경 대비).
 - 프리미엄 회원은 하트를 쓰지 않아 구매가 막혀 있습니다 (`C001`).
+- 프리미엄 가입 직후부터 `GET /users/me`의 `isPremium`이 `true`입니다. 기간이 끝나면 자동으로 일반 회원이 됩니다 (시드 프리미엄 계정은 만료 없음).
+- 프로필 직접 선택(ProfileExplore)에서 일반 회원이 요청하면 `A002` → 프리미엄 안내 화면으로 보내 주세요.
 
 ### ⑩ AI 맞춤 데이트 장소 추천 (AI-01)
 | 화면 | 동작 | API |

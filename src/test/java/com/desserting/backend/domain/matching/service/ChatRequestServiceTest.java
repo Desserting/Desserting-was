@@ -1,5 +1,7 @@
 package com.desserting.backend.domain.matching.service;
 
+import static org.mockito.Mockito.never;
+import com.desserting.backend.domain.matching.repository.MatchExposureRepository;
 import com.desserting.backend.domain.chat.entity.ChatRoom;
 import com.desserting.backend.domain.chat.entity.ChatRoomMember;
 import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
@@ -57,6 +59,9 @@ class ChatRequestServiceTest {
     @Mock
     private UserBlockRepository userBlockRepository;
 
+    @Mock
+    private MatchExposureRepository matchExposureRepository;
+
     @InjectMocks
     private ChatRequestService chatRequestService;
 
@@ -71,6 +76,7 @@ class ChatRequestServiceTest {
         ReflectionTestUtils.setField(receiver, "id", 2L);
 
         given(heartService.deductHeartForRequest(1L)).willReturn(sender);
+        given(matchExposureRepository.wasShownRecently(1L, 2L)).willReturn(true);
         given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
         given(chatRoomMemberRepository.existsActiveRoomBetween(1L, 2L)).willReturn(false);
         given(chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(1L, 2L, RequestStatus.PENDING)).willReturn(false);
@@ -90,6 +96,40 @@ class ChatRequestServiceTest {
         assertThat(response.getRequestId()).isEqualTo(100L);
         assertThat(response.getStatus()).isEqualTo(RequestStatus.PENDING);
         verify(heartService).deductHeartForRequest(1L);
+    }
+
+    @Test
+    @DisplayName("일반 회원이 매칭으로 만나지 않은 상대에게 직접 요청하면 ACCESS_DENIED (하트 차감은 롤백)")
+    void sendRequest_DirectRequestRequiresPremium() {
+        User sender = User.builder().nickname("일반").isPremium(false).dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(sender, "id", 1L);
+        given(heartService.deductHeartForRequest(1L)).willReturn(sender);
+        given(matchExposureRepository.wasShownRecently(1L, 2L)).willReturn(false);
+
+        assertThatThrownBy(() -> chatRequestService.sendRequest(1L, new ChatRequestCreateRequest(2L)))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+        verify(chatRequestRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("프리미엄 회원은 매칭 이력 없이도 원하는 상대에게 직접 요청할 수 있다")
+    void sendRequest_PremiumDirectRequest() {
+        User sender = User.builder().nickname("프리미엄").isPremium(true).dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(sender, "id", 1L);
+        User receiver = User.builder().nickname("받는사람").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(receiver, "id", 2L);
+        given(heartService.deductHeartForRequest(1L)).willReturn(sender);
+        given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
+        given(chatRequestRepository.save(any(ChatRequest.class))).willAnswer(inv -> {
+            ChatRequest req = inv.getArgument(0);
+            ReflectionTestUtils.setField(req, "createdAt", LocalDateTime.now());
+            return req;
+        });
+
+        assertThat(chatRequestService.sendRequest(1L, new ChatRequestCreateRequest(2L)).getStatus())
+                .isEqualTo(RequestStatus.PENDING);
+        verify(matchExposureRepository, never()).wasShownRecently(any(), any());
     }
 
     @Test

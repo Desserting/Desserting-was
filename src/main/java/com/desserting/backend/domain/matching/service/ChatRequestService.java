@@ -11,6 +11,7 @@ import com.desserting.backend.domain.matching.dto.ChatRequestResponse;
 import com.desserting.backend.domain.matching.entity.ChatRequest;
 import com.desserting.backend.domain.matching.entity.RequestStatus;
 import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
+import com.desserting.backend.domain.matching.repository.MatchExposureRepository;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
@@ -34,6 +35,7 @@ public class ChatRequestService {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final HeartService heartService;
     private final UserBlockRepository userBlockRepository;
+    private final MatchExposureRepository matchExposureRepository;
 
     @Transactional
     public ChatRequestResponse sendRequest(Long senderId, ChatRequestCreateRequest request) {
@@ -57,6 +59,12 @@ public class ChatRequestService {
 
         // HRT-02: 하트 1개 차감 (동시성 lost update 방지를 위해 비관적 락으로 먼저 차감 및 최신 sender 획득)
         User sender = heartService.deductHeartForRequest(senderId);
+        // MAT-04/PRE-03: 원하는 프로필에 직접 요청은 프리미엄 전용. 일반 회원은 최근 24시간 매칭으로 만난 상대에게만 요청한다
+        // (예외 시 트랜잭션 롤백으로 하트 차감도 취소된다)
+        if (!Boolean.TRUE.equals(sender.getIsPremium()) && !matchExposureRepository.wasShownRecently(senderId, receiverId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED,
+                    "원하는 상대에게 직접 대화 요청하기는 프리미엄 패스 회원 전용 기능입니다. 랜덤 매칭으로 만난 상대에게 요청해 주세요.");
+        }
         User receiver = userRepository.findById(receiverId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "대화 요청 대상 사용자를 찾을 수 없습니다: " + receiverId));
 

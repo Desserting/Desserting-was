@@ -215,6 +215,7 @@ api.interceptors.response.use(undefined, async (error) => {
 | 7-2 모의 결제 | 결제 승인 + 주문 생성 | `POST /reservations/{reservationId}/order` `{items, couponId?, paymentMethod: CARD\|EASY_PAY, paymentType: COMBINED\|SPLIT}` → 201 |
 | 결제 완료·영수증 | 예약의 주문 | `GET /reservations/{reservationId}/order` |
 | 마이페이지 주문 내역 | 내 주문 (환불 포함) | `GET /orders/me` |
+| 점주 내 매장 | 점주가 관리하는 매장 목록 (첫 화면에서 storeId 결정) | `GET /admin/my-stores` |
 | 점주 주문 화면 (4-8) | 매장 주문 메뉴 내역 (점주·관리자) | `GET /admin/stores/{storeId}/orders` |
 
 ```jsonc
@@ -230,6 +231,7 @@ api.interceptors.response.use(undefined, async (error) => {
 - 할인액이 메뉴 합계보다 크면 합계까지만 할인합니다 (`finalAmount`는 0 미만이 되지 않음).
 - `SPLIT`(개별 결제)은 예약 인원(`guestCount`, 2명 이상)으로 나누며 1원 단위 나머지는 앞사람이 냅니다 → `shareAmounts`. `COMBINED`는 1명이 전액.
 - 결제 후 예약의 `totalAmount`·`discountAmount`·`finalAmount`가 함께 갱신되어 예약 내역·점주 화면에 보입니다.
+- 점주(`STORE_OWNER`)는 `/admin/stores/{storeId}/**` 전체(예약·주문·메뉴·슬롯·쿠폰·정산)에서 **자기 매장만** 쓸 수 있습니다. 다른 매장이면 `403 A002`. 점주가 `POST /admin/stores`로 등록한 매장은 자동으로 그 점주의 매장이 됩니다. 관리자는 모든 매장에 접근합니다.
 - 매장 준비 단계(접수 → 준비 중 → 방문 완료)는 주문이 아닌 **예약 상태(`reservationStatus`)**를 보면 됩니다.
 - 로컬 시드: 제휴매장마다 쿠폰 2종 (`2,000원 할인 / 1만원 이상`, `3,000원 할인 / 2만원 이상`).
 
@@ -344,7 +346,8 @@ client.publish({
 | `demo1@desserting.com` ~ `demo6@desserting.com` | `password123!` | 위치정보 있음 (앞산·수성못·동성로 근처) → 거리 매칭·거리순 테스트용 |
 | `minjung@desserting.com` | `test1234!` | 프리미엄 회원 (나를 좋아요한 사람 확인) |
 | `jihun@desserting.com` 등 목업 유저 | `test1234!` | 위치정보 없음 (지역 기준 매칭) |
-| `admin@desserting.com` | `admin1234!` | 관리자 (점주 화면, 예약 상태 변경) |
+| `admin@desserting.com` | `admin1234!` | 관리자 (점주 화면, 예약 상태 변경) — 모든 매장 접근 |
+| `owner@anook.com` / `owner@lucid.com` | `owner1234!` | 점주 — **자기 매장만** (아눅 앞산 / 카페 루시드) |
 
 - 테마거리 3곳(앞산 카페거리, 동성로 통신골목 카페거리, 김광석 다시그리기길 카페거리), 제휴매장 5곳, 앞으로 14일치 예약 시간대(14·16·18·20시, 각 4팀)가 들어 있습니다.
 

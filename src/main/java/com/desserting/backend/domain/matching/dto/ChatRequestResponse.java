@@ -48,6 +48,13 @@ public class ChatRequestResponse {
     @Schema(description = "요청 만료 일시")
     private LocalDateTime expiredAt;
 
+    @Schema(description = "수락된 요청의 채팅방 ID (GET /chats/rooms 의 roomId 와 같음). 그 외에는 null", example = "3")
+    private Long chatRoomId;
+
+    public void assignChatRoomId(Long chatRoomId) {
+        this.chatRoomId = chatRoomId;
+    }
+
     public static ChatRequestResponse from(ChatRequest request) {
         User sender = request.getSender();
         List<DessertType> tags = sender.getDessertTags().stream()

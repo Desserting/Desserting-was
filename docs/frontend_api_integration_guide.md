@@ -3,8 +3,10 @@
 > 화면(와이어프레임 ID)별로 **어떤 API를 어떤 순서로 부르는지**, Swagger에 없는 **실시간 채팅(STOMP)**, **에러 코드 처리**를 정리한 문서입니다.
 > 요청·응답 필드의 자세한 형식은 Swagger를 기준으로 합니다.
 >
-> - Swagger UI: `{BASE_URL}/swagger-ui.html`
+> - Swagger UI: `{BASE_URL}/swagger-ui/index.html` (`/swagger-ui.html`은 여기로 리다이렉트)
 > - OpenAPI JSON: `{BASE_URL}/v3/api-docs`
+> - ⚠️ `{BASE_URL}`은 **백엔드 서버 주소**(로컬 `http://localhost:8080`)입니다. Vite 개발 서버(`localhost:5173`)는 `/api`, `/ws`만 프록시하므로 `5173/v3/api-docs`로는 열리지 않습니다.
+> - ngrok 주소는 브라우저에서 처음에 ngrok 경고 페이지가 뜹니다. **Visit Site**를 누르거나, 요청에 `ngrok-skip-browser-warning: true` 헤더를 붙이세요 (`npm run gen:api`는 `localhost:8080` 기준).
 > - 기준 코드: `main` `4d2b7ba` + 4-7 메뉴 주문·모의 결제(`feat/order-mock-payment`) — 2026-11-04
 
 ---
@@ -150,12 +152,30 @@ api.interceptors.response.use(undefined, async (error) => {
 |---|---|---|
 | 대화 요청 | 요청 보내기 (하트 1개 차감, 프리미엄은 무료). 일반 회원은 **최근 24시간 랜덤 매칭으로 만난 상대**에게만, 프리미엄은 누구에게나 | `POST /matches/requests` `{receiverId}` (조건 밖이면 `A002`) |
 | 하트 부족 | `H001` 받으면 하트 구매 팝업 (⑨) | — |
-| 수락함 | 받은 요청 목록 | `GET /matches/requests/received` |
+| 수락함 | 받은 요청 목록 (대기 중만) | `GET /matches/requests/received` |
+| 수락함 | 최근 7일 처리된 요청까지 (새로고침 후 "수락 완료·채팅방 가기") | `GET /matches/requests/received?includeProcessed=true` → 수락 건은 `chatRoomId` 포함 |
 | 수락함 | 수락 → 채팅방 생성 | `POST /matches/requests/{requestId}/accept` → `data.chatRoomId` 로 채팅방 이동 |
 | 수락함 | 거절 (보낸 사람 하트 환불) | `POST /matches/requests/{requestId}/reject` |
 
 - 24시간 동안 응답이 없으면 자동 만료되고 하트가 환불됩니다.
 - 같은 상대에게 대기 중인 요청이 있거나 이미 채팅방이 있으면 `H002`.
+- 이미 수락·거절된 요청을 다시 처리하면 `409 H005`, 만료된 요청이면 `410 H006`.
+
+**응답 예시**
+```jsonc
+// POST /matches/requests (201), GET /matches/requests/received 항목도 같은 모양
+{ "requestId": 5,               // accept/reject 경로에 쓰는 id
+  "senderId": 4, "senderNickname": "초코크로와상", "senderAvatarUrl": "https://.../bakery.png",
+  "senderAge": 26, "senderRegion": "대구 수성구", "senderDessertTags": ["BAKERY"],
+  "status": "PENDING",          // PENDING | ACCEPTED | REJECTED | EXPIRED
+  "createdAt": "2026-11-05T08:47:22", "expiredAt": "2026-11-06T08:47:22",
+  "chatRoomId": null }          // ACCEPTED 이고 방이 열려 있으면 채워짐 (includeProcessed=true)
+// POST /matches/requests/{id}/accept
+{ "requestId": 5, "chatRoomId": 3, "roomUuid": "1dd9...", "message": "대화 요청이 수락되어 채팅방이 개설되었습니다." }
+```
+- 요청 응답에는 남은 하트 수가 없습니다. 전송 후 `GET /users/me`의 `heartCount`를 다시 불러 주세요. 프리미엄 여부도 `isPremium`으로 판단합니다 (프리미엄은 차감 없음).
+- `accept`의 `chatRoomId`와 `GET /chats/rooms`의 `roomId`는 같은 값이며, 수락 직후 바로 방 목록에 보입니다 (양쪽 모두).
+- 대화 요청의 `receiverId`는 랜덤 매칭 `candidate.userId`, `GET /users` 항목의 `userId`를 그대로 쓰면 됩니다.
 
 ### ⑥ 채팅 (C-02, C-03, C-04)
 | 화면 | 동작 | API |
@@ -169,6 +189,10 @@ api.interceptors.response.use(undefined, async (error) => {
 | 나가기 | 채팅방 퇴장 | `POST /chats/rooms/{roomId}/leave` |
 
 - `unreadCount`는 상대가 보낸 메시지 중 내가 안 읽은 개수입니다. 메시지 **첫 페이지**(`cursorId` 없이)를 조회하면 자동으로 읽음 처리됩니다. 방을 보는 중 STOMP로 받은 메시지는 방을 나갈 때(또는 받을 때마다) `POST /chats/rooms/{roomId}/read`를 호출해 주세요.
+- 채팅방 목록은 **최근 메시지 시각(`lastMessageAt`) 최신순**입니다. `lastMessagePreview`에는 SYSTEM 메시지도 포함됩니다.
+- **나가기:** 내 목록에서 방이 사라지고, 상대 방에는 `SYSTEM` 메시지 "OO님이 채팅방을 나갔습니다."가 실시간으로 갑니다. 상대의 방 목록에는 `otherUserLeft: true`가 오며, 이때는 메시지를 보낼 수 없으니 입력창을 비활성화해 주세요.
+- **SYSTEM 메시지**는 서버만 만듭니다 (현재는 나가기 안내). 클라이언트가 `SYSTEM`으로 보내면 거절됩니다.
+- 내 사용자 ID는 `GET /users/me`의 `userId`입니다. 내 메시지 판별은 닉네임보다 `senderId === me.userId`가 안전합니다.
 - `POST /chats/rooms/direct?targetUserId=`는 **이미 있는 방을 돌려주거나**, 운영자(ADMIN)와의 방, 또는 **대화 요청이 수락된 적 있는 상대**와의 방만 새로 엽니다. 그 외에는 `403 A002`. 앱 흐름에서는 ⑤의 요청→수락을 사용하세요.
 
 ### ⑦ 제휴매장 지도·테마거리 (D-01, D-03, D-11 ~ D-14)
@@ -241,7 +265,7 @@ api.interceptors.response.use(undefined, async (error) => {
 | E-01 마이페이지 | 내 정보 | `GET /users/me` |
 | E-03 하트 구매 | 상품 목록 | `GET /hearts/packages` → `[{packageCode, quantity, unitPrice, price}]` (현재 개당 200원) |
 | E-03 하트 구매 | 모의 결제 | `POST /hearts/purchase` `{packageCode: "HEARTS_5", paymentMethod: "CARD"}` → `heartCountAfter` |
-| 하트 내역 | 충전·차감 이력 | `GET /hearts/history` |
+| 하트 내역 | 충전·차감 이력 | `GET /hearts/history` → `[{id, amount(±), balanceAfter, type, description, createdAt}]` |
 | 구매 내역 | 결제 이력 | `GET /hearts/purchases` |
 | E-05 나를 좋아요한 사람 | **프리미엄 전용** | `GET /users/me/likes` (일반 회원은 `A002`) |
 | E-06 내 프로필 방문자 | **프리미엄 전용** | `GET /users/me/visitors` (PRF-05, 일반 회원은 `A002`) |
@@ -263,6 +287,10 @@ api.interceptors.response.use(undefined, async (error) => {
 - 로컬 온디바이스 Qwen 2.5 3B (Ollama) 모델이 채팅방 최근 대화와 두 사람의 디저트 취향을 분석하여 최적의 카페와 메뉴를 선정합니다.
 - 호출 완료 시 채팅방에 `PLACE_PROPOSAL` 타입 카드 메시지가 실시간 STOMP 브로드캐스트되어 양측 화면에 즉시 노출됩니다.
 - Ollama 미기동 시에도 스마트 Fallback 엔진이 100% 정상 작동합니다.
+- REST 응답의 `data`는 `null`이고, 카드는 STOMP로 옵니다. Ollama 응답은 최대 약 15초 걸릴 수 있으니 호출 중 로딩을 보여 주세요 (실패 시 Fallback으로 카드가 오므로 에러는 드뭅니다).
+- AI 카드의 `content`는 서버가 `🍰 [AI 데이트 제안] 매장명 (주소) 어때요? ...` 형태로 만듭니다 (접두어 포함).
+- AI 카드 `metadata`: `storeId`, `storeName`, `storeAddress`(부제목으로 쓰기 좋음), `recommendedMenus`(문자열 배열), `reason`(추천 이유), `aiSource`(`OLLAMA` 또는 `SMART_KEYWORD_FALLBACK`). **날짜·시간은 없으므로 "일시 미정"으로 표시**하면 됩니다.
+- 제안 카드에는 수락/거절 상태가 없습니다 (상태 변경 API 없음). 카드의 "예약하기"에서 `storeId`로 매장 상세·예약 화면으로 보내 주세요.
 
 ---
 
@@ -330,6 +358,7 @@ client.publish({
 }
 ```
 받는 쪽은 `storeId`로 `GET /stores/{storeId}` 상세나 예약 화면으로 바로 이동시킬 수 있습니다.
+- 사용자가 직접 제안할 때는 매장 목록을 `GET /stores`(파라미터 없이 호출 가능, 제휴매장 전체)로 불러 매장·날짜·시간을 고르게 하면 됩니다. 로컬 시드의 제안 메시지도 이 형식(`proposedDate`, `proposedTime`)입니다.
 
 ### 4.5 주의
 - 실시간 수신은 **PR #3이 머지된 서버**에서 동작합니다. 그 이전 버전 서버에서는 메시지가 저장만 되고 실시간으로 오지 않으니, 동작하지 않으면 서버 버전을 먼저 확인하세요.
@@ -375,6 +404,8 @@ client.publish({
 | `H001` | 400 | 하트 부족 | 대화 요청 → **하트 구매 팝업** |
 | `H002` | 409 | 대기 중인 요청 또는 채팅방이 이미 있음 | 대화 요청 |
 | `H003` | 404 | 대화 요청 없음 | 수락·거절 |
+| `H005` | 409 | 이미 수락·거절된 요청 | 수락·거절 |
+| `H006` | 410 | 24시간이 지나 만료된 요청 | 수락·거절 |
 | `H004` | 400 | 자기 자신에게 요청 | 대화 요청·1:1 방 |
 | `CH001` | 404 | 채팅방 없음 | 채팅 |
 | `CH002` | 403 | 채팅방 참여자가 아님 | 채팅 메시지 조회·구독 |

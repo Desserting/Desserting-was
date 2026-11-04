@@ -29,6 +29,8 @@ public enum ErrorCode {
     DUPLICATE_CHAT_REQUEST(HttpStatus.CONFLICT, "H002", "이미 진행 중인 대화 요청이 존재합니다."),
     CHAT_REQUEST_NOT_FOUND(HttpStatus.NOT_FOUND, "H003", "대화 요청을 찾을 수 없습니다."),
     CANNOT_REQUEST_SELF(HttpStatus.BAD_REQUEST, "H004", "본인에게는 대화 요청을 보낼 수 없습니다."),
+    CHAT_REQUEST_ALREADY_PROCESSED(HttpStatus.CONFLICT, "H005", "이미 수락 또는 거절된 대화 요청입니다."),
+    CHAT_REQUEST_EXPIRED(HttpStatus.GONE, "H006", "24시간이 지나 만료된 대화 요청입니다."),
 
     // Chat
     CHAT_ROOM_NOT_FOUND(HttpStatus.NOT_FOUND, "CH001", "채팅방을 찾을 수 없습니다."),

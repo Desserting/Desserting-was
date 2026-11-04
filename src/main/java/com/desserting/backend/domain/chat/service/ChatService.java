@@ -45,6 +45,8 @@ public class ChatService {
     private final ChatMessageQueryRepository chatMessageQueryRepository;
     private final ChatRequestRepository chatRequestRepository;
 
+    private static final String SYSTEM_TYPE = "SYSTEM";
+
     @Transactional
     public ChatMessageDto sendMessage(Long senderId, ChatMessageRequest request) {
         Long roomId = request.getRoomId();
@@ -56,8 +58,16 @@ public class ChatService {
             throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED, "이미 퇴장한 채팅방입니다.");
         }
 
+        // SYSTEM 메시지는 서버만 만든다 (퇴장 안내 등)
+        if (SYSTEM_TYPE.equalsIgnoreCase(request.getMessageType())) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "SYSTEM 메시지는 보낼 수 없습니다.");
+        }
+
         // 차단 관계 검증: 상대방과의 차단 상태 확인
         Optional<ChatRoomMember> otherMemberOpt = chatRoomMemberRepository.findOtherMember(roomId, senderId);
+        if (otherMemberOpt.isPresent() && Boolean.TRUE.equals(otherMemberOpt.get().getIsLeft())) {
+            throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED, "상대방이 나간 채팅방입니다.");
+        }
         if (otherMemberOpt.isPresent()) {
             Long otherUserId = otherMemberOpt.get().getUser().getId();
             if (userBlockRepository.isBlockedBetween(senderId, otherUserId)) {
@@ -105,6 +115,7 @@ public class ChatService {
             String otherNickname = "알 수 없음";
             String otherAvatarUrl = null;
             Long otherUserId = null;
+            boolean otherUserLeft = otherMemberOpt.map(m -> Boolean.TRUE.equals(m.getIsLeft())).orElse(false);
 
             if (otherMemberOpt.isPresent()) {
                 User otherUser = otherMemberOpt.get().getUser();
@@ -122,6 +133,7 @@ public class ChatService {
                     .lastMessagePreview(room.getLastMessagePreview())
                     .lastMessageAt(room.getLastMessageAt())
                     .unreadCount(chatMessageQueryRepository.countUnread(room.getId(), userId))
+                    .otherUserLeft(otherUserLeft)
                     .build());
         }
 
@@ -168,6 +180,9 @@ public class ChatService {
     public void leaveChatRoom(Long userId, Long roomId) {
         ChatRoomMember member = chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED));
+        if (Boolean.TRUE.equals(member.getIsLeft())) {
+            return; // 이미 나간 방
+        }
 
         // Soft delete: isLeft = true
         // Entity update via dirty checking or method
@@ -179,6 +194,7 @@ public class ChatService {
                 .isLeft(true)
                 .build();
         chatRoomMemberRepository.save(member);
+        publishLeaveNotice(member);
         log.info("채팅방 퇴장 완료: userId={}, roomId={}", userId, roomId);
     }
 
@@ -240,5 +256,23 @@ public class ChatService {
                 .lastMessageAt(savedRoom.getLastMessageAt())
                 .unreadCount(0L)
                 .build();
+    }
+
+    /** 상대 화면에 "OO님이 채팅방을 나갔습니다" SYSTEM 메시지를 남기고 실시간으로 보낸다 */
+    private void publishLeaveNotice(ChatRoomMember leaver) {
+        User user = leaver.getUser();
+        Long roomId = leaver.getChatRoom().getId();
+        String content = user.getNickname() + "님이 채팅방을 나갔습니다.";
+        ChatMessageDocument saved = chatMessageRepository.save(ChatMessageDocument.builder()
+                .roomId(roomId)
+                .senderId(user.getId())
+                .senderNickname(user.getNickname())
+                .messageType(SYSTEM_TYPE)
+                .content(content)
+                .readUserIds(new ArrayList<>(Collections.singletonList(user.getId())))
+                .createdAt(LocalDateTime.now())
+                .build());
+        leaver.getChatRoom().updateLastMessage(content);
+        redisPublisher.publish(ChannelTopic.of("chat:room:" + roomId), ChatMessageDto.from(saved, user.getDessertAvatarUrl()));
     }
 }

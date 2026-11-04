@@ -25,6 +25,12 @@ public class HeartService {
 
     @Transactional
     public User deductHeartForRequest(Long userId) {
+        return deductHeartForRequest(userId, null);
+    }
+
+    /** 하트 내역에 상대 닉네임을 남긴다 (홈 알림 "OO님에게 대화 요청" 표시용) */
+    @Transactional
+    public User deductHeartForRequest(Long userId, String receiverNickname) {
         User user = userRepository.findByIdWithLock(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -43,7 +49,8 @@ public class HeartService {
                 -1,
                 user.getHeartCount(),
                 HeartHistoryType.REQUEST_DEDUCT,
-                "대화 요청 전송 하트 1개 차감"
+                receiverNickname == null ? "대화 요청 전송 하트 1개 차감"
+                        : receiverNickname + "님에게 대화 요청 (하트 1개 차감)"
         ));
         log.info("하트 차감 완료: userId={}, 잔여 하트={}", userId, user.getHeartCount());
         return user;

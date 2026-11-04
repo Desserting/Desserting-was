@@ -344,12 +344,41 @@ class ChatServiceTest {
         ReflectionTestUtils.setField(member, "id", 55L);
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, userId)).willReturn(Optional.of(member));
+        given(chatMessageRepository.save(any(ChatMessageDocument.class))).willAnswer(inv -> inv.getArgument(0));
 
         // when
         chatService.leaveChatRoom(userId, roomId);
 
         // then
         verify(chatRoomMemberRepository).save(any(ChatRoomMember.class));
+        // 상대에게 퇴장 안내 SYSTEM 메시지를 저장·발행한다
+        verify(chatMessageRepository).save(org.mockito.ArgumentMatchers.argThat(
+                (ChatMessageDocument d) -> "SYSTEM".equals(d.getMessageType()) && d.getContent().contains("유저1님이 채팅방을 나갔습니다")));
+        verify(redisPublisher).publish(any(), any());
+        assertThat(chatRoom.getLastMessagePreview()).isEqualTo("유저1님이 채팅방을 나갔습니다.");
+    }
+
+    @Test
+    @DisplayName("상대가 나간 방에는 메시지를 보낼 수 없고, 클라이언트는 SYSTEM 메시지를 보낼 수 없다")
+    void sendMessage_BlockedWhenOtherLeftOrSystem() {
+        User me = User.builder().nickname("나").build();
+        ReflectionTestUtils.setField(me, "id", 1L);
+        User other = User.builder().nickname("상대").build();
+        ReflectionTestUtils.setField(other, "id", 2L);
+        ChatRoom room = ChatRoom.create();
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(10L, 1L))
+                .willReturn(Optional.of(ChatRoomMember.builder().chatRoom(room).user(me).isLeft(false).build()));
+
+        ChatMessageRequest system = ChatMessageRequest.builder().roomId(10L).messageType("SYSTEM").content("가짜 안내").build();
+        assertThatThrownBy(() -> chatService.sendMessage(1L, system))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
+
+        given(chatRoomMemberRepository.findOtherMember(10L, 1L))
+                .willReturn(Optional.of(ChatRoomMember.builder().chatRoom(room).user(other).isLeft(true).build()));
+        ChatMessageRequest text = ChatMessageRequest.builder().roomId(10L).messageType("TEXT").content("안녕").build();
+        assertThatThrownBy(() -> chatService.sendMessage(1L, text))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_MEMBER_NOT_ALLOWED);
+        verify(chatMessageRepository, never()).save(any());
     }
 
     @Test

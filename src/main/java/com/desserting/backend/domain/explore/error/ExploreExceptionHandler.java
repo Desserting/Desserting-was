@@ -4,6 +4,7 @@ import com.desserting.backend.domain.matching.controller.MatchingController;
 import com.desserting.backend.domain.order.controller.AdminStoreOrderController;
 import com.desserting.backend.domain.order.controller.ReservationOrderController;
 import com.desserting.backend.domain.reservation.controller.ReservationController;
+import com.desserting.backend.domain.store.controller.AdminMenuCategoryController;
 import com.desserting.backend.domain.store.controller.StoreController;
 import com.desserting.backend.domain.theme.controller.ThemeStreetController;
 import com.desserting.backend.global.error.CustomException;
@@ -25,7 +26,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @RestControllerAdvice(assignableTypes = {
         MatchingController.class, ThemeStreetController.class, StoreController.class, ReservationController.class,
-        ReservationOrderController.class, AdminStoreOrderController.class})
+        ReservationOrderController.class, AdminStoreOrderController.class, AdminMenuCategoryController.class})
 public class ExploreExceptionHandler {
 
     @ExceptionHandler(ExploreException.class)

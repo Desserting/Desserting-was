@@ -11,6 +11,7 @@ import com.desserting.backend.domain.order.dto.OrderResponse;
 import com.desserting.backend.domain.order.entity.OrderStatus;
 import com.desserting.backend.domain.order.entity.PaymentType;
 import com.desserting.backend.domain.order.entity.ReservationOrder;
+import com.desserting.backend.domain.order.entity.OrderProgressStep;
 import com.desserting.backend.domain.order.entity.ReservationOrderItem;
 import com.desserting.backend.domain.order.repository.OrderMenuRepository;
 import com.desserting.backend.domain.order.repository.OrderReservationRepository;
@@ -149,6 +150,44 @@ public class ReservationOrderService {
             throw new CustomException(ErrorCode.STORE_NOT_FOUND);
         }
         return orderRepository.findAllDetailByStoreId(storeId).stream().map(OrderResponse::from).toList();
+    }
+
+    /**
+     * 점주가 주문 준비 단계를 바꾼다 (ORD-03 접수 → 준비 중 → 준비 완료).
+     * 준비를 시작하면 예약 상태도 PREPARING 으로 맞춘다. '준비 완료'는 방문 완료(COMPLETED)와 다르므로 예약 상태는 그대로 둔다.
+     */
+    @Transactional
+    public OrderResponse updateProgress(Long storeId, Long orderId, OrderProgressStep step) {
+        ReservationOrder order = orderRepository.findById(orderId)
+                .filter(o -> o.getStore().getId().equals(storeId))
+                .orElseThrow(() -> new ExploreException(ExploreErrorCode.ORDER_NOT_FOUND));
+        if (order.getStatus() != OrderStatus.PAID) {
+            throw new ExploreException(ExploreErrorCode.ORDER_PROGRESS_NOT_ALLOWED, "환불된 주문입니다.");
+        }
+        Reservation reservation = order.getReservation();
+        ReservationStatus rs = reservation.getStatus();
+        if (rs == ReservationStatus.CANCELLED || rs == ReservationStatus.COMPLETED) {
+            throw new ExploreException(ExploreErrorCode.ORDER_PROGRESS_NOT_ALLOWED,
+                    "취소되었거나 방문 완료된 예약의 주문입니다.");
+        }
+        LocalDateTime now = LocalDateTime.now(clock);
+        switch (step) {
+            case RECEIVED -> throw new ExploreException(ExploreErrorCode.ORDER_PROGRESS_NOT_ALLOWED,
+                    "주문 접수는 결제 시 자동으로 기록됩니다.");
+            case PREPARING -> {
+                if (order.getReadyAt() != null) {
+                    throw new ExploreException(ExploreErrorCode.ORDER_PROGRESS_NOT_ALLOWED,
+                            "이미 준비 완료된 주문입니다.");
+                }
+                order.markPreparing(now);
+            }
+            case READY -> order.markReady(now);
+        }
+        if (rs == ReservationStatus.PENDING || rs == ReservationStatus.CONFIRMED) {
+            reservation.updateStatus(ReservationStatus.PREPARING);
+        }
+        log.info("주문 준비 단계 변경: orderId={}, storeId={}, step={}", orderId, storeId, step);
+        return OrderResponse.from(order);
     }
 
     /** 사용자가 예약을 취소하면 결제 완료 주문을 모의 환불한다 (ReservationService.cancelReservation 에서 호출) */

@@ -1,6 +1,7 @@
 package com.desserting.backend.domain.admin.service;
 
 import com.desserting.backend.domain.admin.dto.AdminReservationResponse;
+import com.desserting.backend.domain.order.service.ReservationOrderService;
 import com.desserting.backend.domain.reservation.entity.Reservation;
 import com.desserting.backend.domain.reservation.entity.ReservationStatus;
 import com.desserting.backend.domain.reservation.repository.ReservationRepository;
@@ -23,6 +24,7 @@ public class AdminOrderService {
     private final ReservationRepository reservationRepository;
     private final StoreRepository storeRepository;
     private final StoreReservationSlotRepository slotRepository;
+    private final ReservationOrderService reservationOrderService;
 
     @Transactional(readOnly = true)
     public List<AdminReservationResponse> getStoreReservations(Long storeId, ReservationStatus status) {
@@ -62,6 +64,8 @@ public class AdminOrderService {
                 slot.decreaseReservation();
                 log.info("예약 취소로 인한 슬롯 복구: slotId={}, current={}/{}", slot.getId(), slot.getCurrentReservedCount(), slot.getMaxCapacity());
             });
+            // 결제된 메뉴 주문(4-7)이 있으면 모의 환불
+            reservationOrderService.refundIfPaid(reservationId);
         } else if (oldStatus == ReservationStatus.CANCELLED && newStatus != ReservationStatus.CANCELLED) {
             slotRepository.findByStoreIdAndSlotDateAndSlotTime(
                     storeId, reservation.getReservationDate(), reservation.getReservationTime()

@@ -188,7 +188,7 @@ class AdminStoreServiceTest {
 
         given(storeRepository.findById(10L)).willReturn(Optional.of(store));
         given(reservationRepository.countByStoreIdAndStatus(10L, ReservationStatus.COMPLETED)).willReturn(completedCount);
-        given(reservationRepository.sumTotalAmountByStoreIdAndStatus(10L, ReservationStatus.COMPLETED)).willReturn(totalOrderAmount);
+        given(reservationRepository.sumPaidAmountByStoreIdAndStatus(10L, ReservationStatus.COMPLETED)).willReturn(totalOrderAmount);
 
         // when
         StoreSettlementResponse response = adminStoreService.getSettlement(10L);
@@ -212,7 +212,7 @@ class AdminStoreServiceTest {
 
         given(storeRepository.findById(20L)).willReturn(Optional.of(store));
         given(reservationRepository.countByStoreIdAndStatus(20L, ReservationStatus.COMPLETED)).willReturn(0L);
-        given(reservationRepository.sumTotalAmountByStoreIdAndStatus(20L, ReservationStatus.COMPLETED)).willReturn(null);
+        given(reservationRepository.sumPaidAmountByStoreIdAndStatus(20L, ReservationStatus.COMPLETED)).willReturn(null);
 
         // when
         StoreSettlementResponse response = adminStoreService.getSettlement(20L);

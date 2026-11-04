@@ -9,6 +9,7 @@ import com.desserting.backend.domain.store.entity.StoreReservationSlot;
 import com.desserting.backend.domain.store.repository.StoreRepository;
 import com.desserting.backend.domain.store.repository.StoreReservationSlotRepository;
 import com.desserting.backend.domain.user.entity.User;
+import com.desserting.backend.domain.order.service.ReservationOrderService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +24,9 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.ArgumentMatchers.anyLong;
 
 @ExtendWith(MockitoExtension.class)
 class AdminOrderServiceTest {
@@ -35,6 +39,9 @@ class AdminOrderServiceTest {
 
     @Mock
     private StoreReservationSlotRepository slotRepository;
+
+    @Mock
+    private ReservationOrderService reservationOrderService;
 
     @InjectMocks
     private AdminOrderService adminOrderService;
@@ -116,6 +123,7 @@ class AdminOrderServiceTest {
         assertThat(response.getStatus()).isEqualTo(ReservationStatus.CANCELLED);
         assertThat(slot.getCurrentReservedCount()).isEqualTo(3);
         assertThat(slot.getIsAvailable()).isTrue();
+        verify(reservationOrderService).refundIfPaid(reservationId);
     }
 
     @Test
@@ -157,5 +165,6 @@ class AdminOrderServiceTest {
         // then
         assertThat(response.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
         assertThat(slot.getCurrentReservedCount()).isEqualTo(3);
+        verify(reservationOrderService, never()).refundIfPaid(anyLong());
     }
 }

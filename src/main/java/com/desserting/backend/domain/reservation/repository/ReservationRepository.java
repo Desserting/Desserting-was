@@ -15,6 +15,10 @@ public interface ReservationRepository extends JpaRepository<Reservation, Long> 
 
     long countByStoreIdAndStatus(Long storeId, ReservationStatus status);
 
-    @Query("SELECT COALESCE(SUM(r.totalAmount), 0) FROM Reservation r WHERE r.store.id = :storeId AND r.status = :status")
-    Long sumTotalAmountByStoreIdAndStatus(@Param("storeId") Long storeId, @Param("status") ReservationStatus status);
+    /** 쿠폰 할인 후 실결제 금액 합계 (메뉴 합계 - 할인, 음수는 0으로). 할인 없는 예약은 메뉴 합계 그대로. */
+    @Query("""
+            SELECT COALESCE(SUM(CASE WHEN r.totalAmount > r.discountAmount THEN r.totalAmount - r.discountAmount ELSE 0 END), 0)
+            FROM Reservation r WHERE r.store.id = :storeId AND r.status = :status
+            """)
+    Long sumPaidAmountByStoreIdAndStatus(@Param("storeId") Long storeId, @Param("status") ReservationStatus status);
 }

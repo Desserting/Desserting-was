@@ -208,7 +208,7 @@ api.interceptors.response.use(undefined, async (error) => {
 
 | 화면 | 동작 | API |
 |---|---|---|
-| 6-4 메뉴 선택 | 매장 메뉴 (품절 `isSoldOut`) | `GET /stores/{storeId}` 의 `menus` |
+| 6-4 메뉴 선택 | 매장 메뉴 (품절이면 `soldOut: true`) | `GET /stores/{storeId}` 의 `menus` |
 | 7-1 주문 확인 | 금액 계산만 (저장 안 함) | `POST /reservations/{reservationId}/order/preview` `{items: [{menuId, quantity(1~20)}], couponId?}` |
 | 7-2 모의 결제 | 결제 승인 + 주문 생성 | `POST /reservations/{reservationId}/order` `{items, couponId?, paymentMethod: CARD\|EASY_PAY, paymentType: COMBINED\|SPLIT}` → 201 |
 | 결제 완료·영수증 | 예약의 주문 | `GET /reservations/{reservationId}/order` |

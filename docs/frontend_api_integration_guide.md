@@ -165,9 +165,11 @@ api.interceptors.response.use(undefined, async (error) => {
 | C-03 위로 스크롤 | 더 이전 메시지 | `...?cursorId={가장 오래된 메시지의 messageId}&size=30` |
 | C-03 실시간 | 송수신 | **STOMP (4장)** |
 | C-04 카페 방문 제안 | 제안 메시지 | STOMP `messageType: "PLACE_PROPOSAL"` + `metadata` (4.4) |
+| 읽음 처리 | 방을 보는 중 실시간으로 받은 메시지 읽음 | `POST /chats/rooms/{roomId}/read` |
 | 나가기 | 채팅방 퇴장 | `POST /chats/rooms/{roomId}/leave` |
 
-- ⚠️ `POST /chats/rooms/direct?targetUserId=` (1:1 방 바로 개설)은 **하트 차감·상대 수락 없이** 방이 만들어집니다. 기획의 "서로 동의한 두 사람만 대화"와 다르므로, 앱 흐름에서는 ⑤의 요청→수락을 사용하세요. (용도는 백엔드와 확정 필요)
+- `unreadCount`는 상대가 보낸 메시지 중 내가 안 읽은 개수입니다. 메시지 **첫 페이지**(`cursorId` 없이)를 조회하면 자동으로 읽음 처리됩니다. 방을 보는 중 STOMP로 받은 메시지는 방을 나갈 때(또는 받을 때마다) `POST /chats/rooms/{roomId}/read`를 호출해 주세요.
+- `POST /chats/rooms/direct?targetUserId=`는 **이미 있는 방을 돌려주거나**, 운영자(ADMIN)와의 방, 또는 **대화 요청이 수락된 적 있는 상대**와의 방만 새로 엽니다. 그 외에는 `403 A002`. 앱 흐름에서는 ⑤의 요청→수락을 사용하세요.
 
 ### ⑦ 제휴매장 지도·테마거리 (D-01, D-03, D-11 ~ D-14)
 | 동작 | API |

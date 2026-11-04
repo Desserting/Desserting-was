@@ -131,6 +131,30 @@ class StompHandlerTest {
     }
 
     @Test
+    @DisplayName("STOMP SUBSCRIBE - 복수형 토픽(/sub/chats/rooms/{id})도 참여자가 아니면 차단")
+    void preSend_Subscribe_PluralTopic_NonMember_ThrowsForbidden() {
+        // given
+        StompHeaderAccessor accessor = StompHeaderAccessor.create(StompCommand.SUBSCRIBE);
+        accessor.setDestination("/sub/chats/rooms/99");
+
+        User mockUser = User.builder().email("user@desserting.com").role(UserRole.ROLE_USER).build();
+        ReflectionTestUtils.setField(mockUser, "id", 100L);
+        CustomUserDetails userDetails = CustomUserDetails.create(mockUser);
+        Authentication auth = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+        accessor.setUser(auth);
+
+        Message<byte[]> message = MessageBuilder.createMessage(new byte[0], accessor.getMessageHeaders());
+        MessageChannel channel = mock(MessageChannel.class);
+
+        given(chatRoomMemberRepository.existsByChatRoomIdAndUserIdAndIsLeftFalse(99L, 100L)).willReturn(false);
+
+        // when & then
+        assertThatThrownBy(() -> stompHandler.preSend(message, channel))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_MEMBER_NOT_ALLOWED);
+    }
+
+    @Test
     @DisplayName("STOMP SUBSCRIBE - 정회원 채팅방 구독 시 인가 성공")
     void preSend_Subscribe_Member_Success() {
         // given

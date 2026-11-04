@@ -2,6 +2,7 @@ package com.desserting.backend.domain.reservation.service;
 
 import com.desserting.backend.domain.explore.error.ExploreErrorCode;
 import com.desserting.backend.domain.explore.error.ExploreException;
+import com.desserting.backend.domain.order.service.ReservationOrderService;
 import com.desserting.backend.domain.reservation.dto.CreateReservationRequest;
 import com.desserting.backend.domain.reservation.dto.ReservationDateResponse;
 import com.desserting.backend.domain.reservation.dto.ReservationResponse;
@@ -11,6 +12,7 @@ import com.desserting.backend.domain.reservation.entity.ReservationStatus;
 import com.desserting.backend.domain.reservation.repository.ReservationSlotBookingRepository;
 import com.desserting.backend.domain.reservation.repository.UserReservationRepository;
 import com.desserting.backend.domain.store.entity.Store;
+import com.desserting.backend.domain.store.entity.StoreCoupon;
 import com.desserting.backend.domain.store.entity.StoreReservationSlot;
 import com.desserting.backend.domain.store.repository.StoreCouponRepository;
 import com.desserting.backend.domain.store.repository.StoreRepository;
@@ -60,6 +62,8 @@ class ReservationServiceTest {
     private StoreCouponRepository storeCouponRepository;
     @Mock
     private UserRepository userRepository;
+    @Mock
+    private ReservationOrderService orderService;
 
     private ReservationService reservationService;
     private Store store;
@@ -68,7 +72,7 @@ class ReservationServiceTest {
     void setUp() {
         // 현재 시각: 2026-11-03 14:30 KST
         Clock clock = Clock.fixed(LocalDateTime.of(TODAY, LocalTime.of(14, 30)).atZone(KST).toInstant(), KST);
-        reservationService = new ReservationService(reservationRepository, slotRepository, storeRepository, storeCouponRepository, userRepository, clock);
+        reservationService = new ReservationService(reservationRepository, slotRepository, storeRepository, storeCouponRepository, userRepository, orderService, clock);
 
         store = Store.builder()
                 .name("아눅 앞산")
@@ -191,6 +195,41 @@ class ReservationServiceTest {
 
         assertThat(response.status()).isEqualTo(ReservationStatus.CANCELLED);
         verify(slotRepository).release(5L);
+        verify(orderService).refundIfPaid(100L);
+    }
+
+    @Test
+    @DisplayName("최소 주문 금액이 있는 쿠폰도 예약 때는 고를 수 있고, 할인은 주문 전까지 0원")
+    void createReservation_couponWithMinOrderAmount() {
+        StoreReservationSlot slot = slot(5L, TOMORROW, 16, 4, 0, true);
+        StoreCoupon coupon = StoreCoupon.builder().store(store).couponName("2,000원 할인")
+                .discountAmount(2000).minOrderAmount(10000).build();
+        given(slotRepository.findByIdWithStore(5L)).willReturn(Optional.of(slot));
+        given(userRepository.findById(1L)).willReturn(Optional.of(User.builder().build()));
+        given(slotRepository.tryReserve(5L)).willReturn(1);
+        given(storeCouponRepository.findByIdAndStoreId(7L, 10L)).willReturn(Optional.of(coupon));
+        given(reservationRepository.save(any(Reservation.class))).willAnswer(inv -> inv.getArgument(0));
+
+        ReservationResponse response = reservationService.createReservation(1L, new CreateReservationRequest(5L, 2, null, 7L));
+
+        assertThat(response.couponName()).isEqualTo("2,000원 할인");
+        assertThat(response.discountAmount()).isZero();
+        assertThat(response.finalAmount()).isZero();
+    }
+
+    @Test
+    @DisplayName("만료된 쿠폰으로는 예약할 수 없다 (EX305)")
+    void createReservation_expiredCoupon() {
+        StoreCoupon coupon = StoreCoupon.builder().store(store).couponName("지난 쿠폰")
+                .discountAmount(2000).expiryDate(TODAY.minusDays(1)).build();
+        given(slotRepository.findByIdWithStore(5L)).willReturn(Optional.of(slot(5L, TOMORROW, 16, 4, 0, true)));
+        given(userRepository.findById(1L)).willReturn(Optional.of(User.builder().build()));
+        given(slotRepository.tryReserve(5L)).willReturn(1);
+        given(storeCouponRepository.findByIdAndStoreId(7L, 10L)).willReturn(Optional.of(coupon));
+
+        assertThatThrownBy(() -> reservationService.createReservation(1L, new CreateReservationRequest(5L, 2, null, 7L)))
+                .hasFieldOrPropertyWithValue("errorCode", ExploreErrorCode.COUPON_NOT_USABLE);
+        verify(reservationRepository, never()).save(any());
     }
 
     @Test

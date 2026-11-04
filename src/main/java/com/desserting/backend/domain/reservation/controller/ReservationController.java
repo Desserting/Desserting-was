@@ -69,11 +69,12 @@ public class ReservationController {
                 reservationService.getSlots(storeId, date));
     }
 
-    @Operation(summary = "예약 생성 (RSV-03)", description = "선택한 시간대의 정원 1팀을 차감하고 PENDING(예약 대기) 상태로 예약을 만듭니다.")
+    @Operation(summary = "예약 생성 (RSV-03)", description = "선택한 시간대의 정원 1팀을 차감하고 PENDING(예약 대기) 상태로 예약을 만듭니다. "
+            + "couponId 는 예약에 기억만 하며, 최소 주문 금액 확인과 할인 계산은 메뉴 주문(4-7) 때 합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "예약 생성 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",
-                    description = "C001 요청 값 검증 실패(인원 1~10명 등) / EX001 JSON 형식 오류 / EX302 이미 지난 시간대",
+                    description = "C001 요청 값 검증 실패(인원 1~10명 등) / EX001 JSON 형식 오류 / EX302 이미 지난 시간대 / EX305 다른 매장·사용중지·만료 쿠폰",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "A001 인증 실패",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
@@ -119,7 +120,7 @@ public class ReservationController {
         return ApiResponse.success("예약 조회에 성공하였습니다.", reservationService.getMyReservation(userId, reservationId));
     }
 
-    @Operation(summary = "예약 취소 (RSV-04)", description = "PENDING/CONFIRMED 예약만 취소할 수 있으며 시간대 자리가 반환됩니다.")
+    @Operation(summary = "예약 취소 (RSV-04)", description = "PENDING/CONFIRMED 예약만 취소할 수 있으며 시간대 자리가 반환되고, 결제된 주문은 모의 환불(REFUNDED)됩니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "취소 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400",

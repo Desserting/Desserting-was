@@ -2,6 +2,7 @@ package com.desserting.backend.domain.reservation.service;
 
 import com.desserting.backend.domain.explore.error.ExploreErrorCode;
 import com.desserting.backend.domain.explore.error.ExploreException;
+import com.desserting.backend.domain.order.service.ReservationOrderService;
 import com.desserting.backend.domain.reservation.dto.CreateReservationRequest;
 import com.desserting.backend.domain.reservation.dto.ReservationDateResponse;
 import com.desserting.backend.domain.reservation.dto.ReservationResponse;
@@ -49,6 +50,7 @@ public class ReservationService {
     private final StoreRepository storeRepository;
     private final StoreCouponRepository storeCouponRepository;
     private final UserRepository userRepository;
+    private final ReservationOrderService orderService;
     private final Clock clock;
 
     /** RSV-01: 기간 내 날짜별 예약 가능 여부 (기본 오늘부터 14일) */
@@ -118,16 +120,8 @@ public class ReservationService {
             throw new CustomException(ErrorCode.RESERVATION_SLOT_FULL);
         }
 
-        StoreCoupon coupon = null;
-        int discount = 0;
-        if (request.couponId() != null) {
-            coupon = storeCouponRepository.findByIdAndStoreId(request.couponId(), store.getId())
-                    .orElseThrow(() -> new CustomException(ErrorCode.INVALID_INPUT_VALUE, "해당 매장의 유효한 쿠폰이 아닙니다."));
-            if (!coupon.isUsable(0)) {
-                throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "현재 사용할 수 없는 쿠폰입니다.");
-            }
-            discount = coupon.getDiscountAmount();
-        }
+        // 쿠폰은 예약에 기억만 해 두고, 최소 주문 금액 확인·할인 계산은 메뉴 주문(4-7) 시점에 한다
+        StoreCoupon coupon = request.couponId() != null ? findSelectableCoupon(request.couponId(), store.getId()) : null;
 
         Reservation reservation = reservationRepository.save(Reservation.builder()
                 .user(user)
@@ -137,12 +131,10 @@ public class ReservationService {
                 .guestCount(request.guestCount())
                 .specialRequest(request.specialRequest())
                 .coupon(coupon)
-                .discountAmount(discount)
-                .finalAmount(Math.max(0, 0 - discount))
                 .build());
 
-        log.info("예약 생성: reservationId={}, userId={}, storeId={}, {} {} ({}명, 할인={}원)", reservation.getId(), userId,
-                store.getId(), slot.getSlotDate(), slot.getSlotTime(), request.guestCount(), discount);
+        log.info("예약 생성: reservationId={}, userId={}, storeId={}, {} {} ({}명, couponId={})", reservation.getId(), userId,
+                store.getId(), slot.getSlotDate(), slot.getSlotTime(), request.guestCount(), request.couponId());
         return ReservationResponse.from(reservation);
     }
 
@@ -171,6 +163,7 @@ public class ReservationService {
         slotRepository.findByStoreIdAndSlotDateAndSlotTime(
                         reservation.getStore().getId(), reservation.getReservationDate(), reservation.getReservationTime())
                 .ifPresent(slot -> slotRepository.release(slot.getId()));
+        orderService.refundIfPaid(reservationId);
 
         log.info("예약 취소: reservationId={}, userId={}", reservationId, userId);
         return ReservationResponse.from(reservation);
@@ -180,6 +173,19 @@ public class ReservationService {
         return reservationRepository.findByIdWithStore(reservationId)
                 .filter(r -> r.getUser().getId().equals(userId))
                 .orElseThrow(() -> new CustomException(ErrorCode.RESERVATION_NOT_FOUND));
+    }
+
+    /** 예약 단계에서는 매장·사용중지·만료만 확인 (최소 주문 금액은 주문 시 확인) */
+    private StoreCoupon findSelectableCoupon(Long couponId, Long storeId) {
+        StoreCoupon coupon = storeCouponRepository.findByIdAndStoreId(couponId, storeId)
+                .orElseThrow(() -> new ExploreException(ExploreErrorCode.COUPON_NOT_USABLE, "해당 매장의 쿠폰이 아닙니다."));
+        if (!Boolean.TRUE.equals(coupon.getIsActive())) {
+            throw new ExploreException(ExploreErrorCode.COUPON_NOT_USABLE, "사용이 중지된 쿠폰입니다.");
+        }
+        if (coupon.getExpiryDate() != null && coupon.getExpiryDate().isBefore(LocalDate.now(clock))) {
+            throw new ExploreException(ExploreErrorCode.COUPON_NOT_USABLE, "기간이 만료된 쿠폰입니다.");
+        }
+        return coupon;
     }
 
     private void validatePartnerStore(Long storeId) {

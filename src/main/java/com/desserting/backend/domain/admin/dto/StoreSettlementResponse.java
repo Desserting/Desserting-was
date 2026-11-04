@@ -19,7 +19,7 @@ public class StoreSettlementResponse {
     @Schema(description = "방문 완료된 총 주문/예약 건수", example = "12")
     private Long completedOrderCount;
 
-    @Schema(description = "방문 완료된 총 주문 금액 (원)", example = "300000")
+    @Schema(description = "방문 완료된 총 실결제 금액 (원, 쿠폰 할인 후)", example = "300000")
     private Long totalOrderAmount;
 
     @Schema(description = "플랫폼 수수료율 (%)", example = "7.0")

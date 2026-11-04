@@ -222,9 +222,9 @@ public class AdminStoreService {
         Store store = storeRepository.findById(storeId)
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
 
-        // 방문 완료(COMPLETED) 건수 및 총 결제 금액 동적 합산 집계
+        // 방문 완료(COMPLETED) 건수 및 쿠폰 할인 후 실결제 금액 합산 (7% 수수료는 할인 후 금액 기준)
         long completedCount = reservationRepository.countByStoreIdAndStatus(storeId, ReservationStatus.COMPLETED);
-        Long totalAmount = reservationRepository.sumTotalAmountByStoreIdAndStatus(storeId, ReservationStatus.COMPLETED);
+        Long totalAmount = reservationRepository.sumPaidAmountByStoreIdAndStatus(storeId, ReservationStatus.COMPLETED);
 
         return StoreSettlementResponse.of(store.getId(), store.getName(), completedCount, totalAmount);
     }

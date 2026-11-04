@@ -39,7 +39,7 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final ObjectMapper objectMapper;
 
-    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000,https://desserting.vercel.app}")
+    @Value("${cors.allowed-origins:http://localhost:5173,http://localhost:3000,https://desserting.vercel.app,https://desserting-web.vercel.app}")
     private String allowedOrigins;
 
     @Bean

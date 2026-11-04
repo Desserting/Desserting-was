@@ -9,6 +9,7 @@
 
 | 서비스 | 환경 | 접속 주소 | 설명 |
 | :--- | :---: | :--- | :--- |
+| **🎨 공식 프론트엔드 (Vercel)** | **배포** | **[https://desserting-web.vercel.app/](https://desserting-web.vercel.app/)** | 디저팅 공식 배포 프론트엔드 웹 애플리케이션 |
 | **📡 ngrok 공용 API** | 공용 | **`https://acetone-suffocate-uncombed.ngrok-free.dev`** | 외부 클라이언트 / 프론트엔드 연동용 터널 |
 | **📖 스웨거 (Swagger)** | 공용 | **[Swagger UI (ngrok)](https://acetone-suffocate-uncombed.ngrok-free.dev/swagger-ui.html)** | 인터랙티브 API 명세서 및 실시간 API 테스트 |
 | | 로컬 | **[Swagger UI (Local)](http://localhost:8080/swagger-ui.html)** | 로컬 환경 Swagger UI |

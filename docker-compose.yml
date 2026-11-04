@@ -67,7 +67,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - JWT_SECRET=${JWT_SECRET:-ZGVzc2VydGluZy1zZWNyZXQta2V5LTIwMjYtZGFuZGl0aG9uLWJhY2tlbmQtand0LXRva2VuLXNlY3VyZQ==}
-      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,https://desserting.vercel.app}
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,https://desserting.vercel.app,https://desserting-web.vercel.app}
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
     extra_hosts:
       - "host.docker.internal:host-gateway"

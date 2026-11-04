@@ -36,7 +36,7 @@ jwt:
 
 # CORS Configuration
 cors:
-  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,https://desserting.vercel.app}
+  allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173,http://localhost:3000,https://desserting.vercel.app,https://desserting-web.vercel.app}
 
 # Desserting Business & AI Configuration
 desserting:

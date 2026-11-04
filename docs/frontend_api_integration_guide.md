@@ -11,11 +11,12 @@
 
 ## 1. 기본 규칙
 
-### 1.1 서버 주소
-| 환경 | BASE_URL | 비고 |
+### 1.1 서버 및 프론트엔드 배포 주소
+| 구분 | 접속 주소 | 비고 |
 |---|---|---|
-| 로컬 | `http://localhost:8080` | README 방법 A/B로 실행 |
-| 시연(ngrok) | `https://acetone-suffocate-uncombed.ngrok-free.dev` | 모든 요청에 `ngrok-skip-browser-warning: 69420` 헤더 추가 |
+| 프론트엔드 (배포) | `https://desserting-web.vercel.app/` | Vercel 공식 배포 웹앱 |
+| 백엔드 시연(ngrok) | `https://acetone-suffocate-uncombed.ngrok-free.dev` | 모든 요청에 `ngrok-skip-browser-warning: 69420` 헤더 추가 |
+| 백엔드 로컬 | `http://localhost:8080` | README 방법 A/B로 실행 |
 
 - 모든 REST API는 `/api/v1`로 시작합니다.
 - 실시간 채팅 웹소켓은 `ws(s)://{호스트}/ws` 입니다 (4장).
@@ -401,6 +402,7 @@ client.publish({
 | 4-1 방문자 확인 (PRF-05) & 4-2 스킵 상대 (MAT-04) | ✅ 구현 완료 | 프리미엄 전용 `GET /users/me/visitors`, `GET /matches/history` 제공 |
 | 4-5 로컬 AI 데이트 추천 (AI-01) | ✅ 구현 완료 | `POST /chats/rooms/{roomId}/ai-recommendation` (Qwen 2.5 3B 연동) |
 | 시연 서버(ngrok) 주소 | ✅ 연동 완료 | `https://acetone-suffocate-uncombed.ngrok-free.dev` |
+| 공식 프론트엔드(Vercel) 배포 | ✅ 배포 완료 | `https://desserting-web.vercel.app/` (CORS 허용 완료) |
 | 실시간 채팅 수신 & WebSocket | ✅ 동작 완료 | `/pub/chat/message`, `/sub/chat/room/{roomId}` 정상 동작 |
 | 외부 PG사(토스/포트원) 실제 카드 결제 | ❌ 미구현 | 해커톤 기획상 모의 결제 시스템으로 대체 운영 |
 | 실시간 모바일 푸시 알림 (FCM) | ❌ 미구현 | 모바일 앱 백그라운드 푸시 알림 (웹소켓 실시간 수신으로 대체) |

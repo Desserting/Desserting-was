@@ -7,17 +7,20 @@ import com.desserting.backend.domain.chat.dto.ChatRoomResponse;
 import com.desserting.backend.domain.chat.entity.ChatRoom;
 import com.desserting.backend.domain.chat.entity.ChatRoomMember;
 import com.desserting.backend.domain.chat.redis.RedisPublisher;
+import com.desserting.backend.domain.chat.repository.ChatMessageQueryRepository;
 import com.desserting.backend.domain.chat.repository.ChatMessageRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomRepository;
+import com.desserting.backend.domain.matching.entity.RequestStatus;
+import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
 import com.desserting.backend.domain.user.entity.User;
+import com.desserting.backend.domain.user.entity.UserRole;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +42,8 @@ public class ChatService {
     private final UserRepository userRepository;
     private final RedisPublisher redisPublisher;
     private final UserBlockRepository userBlockRepository;
+    private final ChatMessageQueryRepository chatMessageQueryRepository;
+    private final ChatRequestRepository chatRequestRepository;
 
     @Transactional
     public ChatMessageDto sendMessage(Long senderId, ChatMessageRequest request) {
@@ -116,7 +121,7 @@ public class ChatService {
                     .otherUserAvatarUrl(otherAvatarUrl)
                     .lastMessagePreview(room.getLastMessagePreview())
                     .lastMessageAt(room.getLastMessageAt())
-                    .unreadCount(0L)
+                    .unreadCount(chatMessageQueryRepository.countUnread(room.getId(), userId))
                     .build());
         }
 
@@ -132,13 +137,12 @@ public class ChatService {
             throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED);
         }
 
-        List<ChatMessageDocument> documents;
-        PageRequest pageRequest = PageRequest.of(0, Math.min(size, 100));
+        List<ChatMessageDocument> documents =
+                chatMessageQueryRepository.findPage(roomId, cursorId, Math.max(1, Math.min(size, 100)));
 
-        if (cursorId != null && !cursorId.isBlank()) {
-            documents = chatMessageRepository.findByRoomIdAndIdLessThanOrderByCreatedAtDesc(roomId, cursorId, pageRequest);
-        } else {
-            documents = chatMessageRepository.findByRoomIdOrderByCreatedAtDesc(roomId, pageRequest);
+        // 방에 들어와 최신 페이지를 열면 안 읽은 메시지를 모두 읽음 처리
+        if (cursorId == null || cursorId.isBlank()) {
+            chatMessageQueryRepository.markAllRead(roomId, userId);
         }
 
         // DTO 변환
@@ -149,6 +153,15 @@ public class ChatService {
                     return ChatMessageDto.from(doc, avatarUrl);
                 })
                 .toList();
+    }
+
+    /** 채팅방을 보고 있는 동안 실시간으로 받은 메시지를 읽음 처리 */
+    @Transactional(readOnly = true)
+    public void markAsRead(Long userId, Long roomId) {
+        if (!chatRoomMemberRepository.existsByChatRoomIdAndUserIdAndIsLeftFalse(roomId, userId)) {
+            throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED);
+        }
+        chatMessageQueryRepository.markAllRead(roomId, userId);
     }
 
     @Transactional
@@ -196,8 +209,16 @@ public class ChatService {
                     .otherUserAvatarUrl(targetUser.getDessertAvatarUrl())
                     .lastMessagePreview(room.getLastMessagePreview())
                     .lastMessageAt(room.getLastMessageAt())
-                    .unreadCount(0L)
+                    .unreadCount(chatMessageQueryRepository.countUnread(room.getId(), currentUserId))
                     .build();
+        }
+
+        // 새 방은 운영자(ADMIN)가 끼어 있거나, 두 사람 사이에 수락된 대화 요청이 있을 때만 연다 (하트·수락 절차 우회 방지)
+        boolean operatorChat = currentUser.getRole() == UserRole.ROLE_ADMIN || targetUser.getRole() == UserRole.ROLE_ADMIN;
+        boolean accepted = chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(currentUserId, targetUserId, RequestStatus.ACCEPTED)
+                || chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(targetUserId, currentUserId, RequestStatus.ACCEPTED);
+        if (!operatorChat && !accepted) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "대화 요청이 수락된 상대와만 대화방을 열 수 있습니다.");
         }
 
         ChatRoom chatRoom = ChatRoom.create();

@@ -20,6 +20,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
+import java.util.List;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -28,6 +30,9 @@ public class StompHandler implements ChannelInterceptor {
     private final JwtTokenProvider jwtTokenProvider;
     private final CustomUserDetailsService userDetailsService;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+
+    /** RedisSubscriber 가 두 토픽 모두로 방송하므로 두 경로 모두 참여자 검증을 한다 */
+    private static final List<String> ROOM_TOPIC_PREFIXES = List.of("/sub/chat/room/", "/sub/chats/rooms/");
 
     @Override
     public Message<?> preSend(Message<?> message, MessageChannel channel) {
@@ -54,7 +59,9 @@ public class StompHandler implements ChannelInterceptor {
         // 2. 특정 채팅방 구독(/sub/chat/room/{roomId}) 시 참여 권한 검증
         if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             String destination = accessor.getDestination();
-            if (destination != null && destination.startsWith("/sub/chat/room/")) {
+            String roomPrefix = destination == null ? null
+                    : ROOM_TOPIC_PREFIXES.stream().filter(destination::startsWith).findFirst().orElse(null);
+            if (roomPrefix != null) {
                 Authentication auth = (Authentication) accessor.getUser();
                 if (auth == null || !(auth.getPrincipal() instanceof CustomUserDetails userDetails)) {
                     log.warn("STOMP SUBSCRIBE 거부: 미인증 세션의 구독 시도 destination={}", destination);
@@ -63,7 +70,7 @@ public class StompHandler implements ChannelInterceptor {
 
                 Long roomId;
                 try {
-                    roomId = Long.parseLong(destination.substring("/sub/chat/room/".length()));
+                    roomId = Long.parseLong(destination.substring(roomPrefix.length()));
                 } catch (NumberFormatException e) {
                     log.warn("STOMP SUBSCRIBE 거부: 유효하지 않은 방 번호 destination={}", destination);
                     throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "유효하지 않은 채팅방 경로입니다.");

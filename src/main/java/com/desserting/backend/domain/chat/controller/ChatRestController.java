@@ -52,6 +52,16 @@ public class ChatRestController {
         return ApiResponse.success("채팅 메시지 내역 조회에 성공하였습니다.", messages);
     }
 
+    @Operation(summary = "채팅방 읽음 처리",
+            description = "채팅방을 보는 동안 실시간(STOMP)으로 받은 메시지를 읽음 처리합니다. 메시지 첫 페이지 조회 시에는 자동으로 읽음 처리됩니다.")
+    @PostMapping("/rooms/{roomId}/read")
+    public ApiResponse<Void> markAsRead(
+            @Parameter(hidden = true) @CurrentUser Long userId,
+            @PathVariable Long roomId) {
+        chatService.markAsRead(userId, roomId);
+        return ApiResponse.success("채팅방 메시지를 읽음 처리하였습니다.", null);
+    }
+
     @Operation(summary = "채팅방 나가기 (CHT-03)", description = "해당 채팅방에서 퇴장(Soft Delete)합니다.")
     @PostMapping("/rooms/{roomId}/leave")
     public ApiResponse<Void> leaveChatRoom(

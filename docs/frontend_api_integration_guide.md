@@ -5,7 +5,7 @@
 >
 > - Swagger UI: `{BASE_URL}/swagger-ui.html`
 > - OpenAPI JSON: `{BASE_URL}/v3/api-docs`
-> - 기준 코드: `main`(PR #2 머지 이후) + PR #3(실시간 채팅 수신 수정) — 2026-11-03
+> - 기준 코드: `main` `4d2b7ba`(PR #3 머지, 쿠폰·방문자·MAT-04·AI 추천 반영) — 2026-11-04
 
 ---
 
@@ -189,13 +189,14 @@ api.interceptors.response.use(undefined, async (error) => {
 | 매장 사용 가능 쿠폰 | 활성 쿠폰 목록 조회 | `GET /stores/{storeId}/coupons` (SHOP-03) |
 | 날짜 선택 (달력) | 예약 가능 날짜 | `GET /stores/{storeId}/reservation-dates` (기본 오늘부터 14일) → `available`이 false인 날은 비활성 |
 | 시간 선택 | 시간대·잔여 | `GET /stores/{storeId}/reservation-slots?date=2026-11-15` → `available`이 false면 비활성 |
-| 예약하기 (쿠폰/주문 포함) | 예약 생성 | `POST /reservations` `{slotId, guestCount(1~10), specialRequest?, couponId?, orderMenus?: [{menuId, quantity}]}` → 상태 `PENDING` (RSV-02, RSV-04) |
+| 예약하기 (쿠폰 포함) | 예약 생성 | `POST /reservations` `{slotId, guestCount(1~10), specialRequest?, couponId?}` → 상태 `PENDING` (RSV-02, RSV-04) |
 | 예약 내역 (E-07) | 내 예약 | `GET /reservations/me` |
 | 예약 상세 | 예약 1건 | `GET /reservations/{reservationId}` |
 | 예약 취소 | 취소 (대기·확정 상태만) | `PATCH /reservations/{reservationId}/cancel` |
 
 - 정원은 **팀 수** 기준입니다 (예약 1건 = 1팀, `guestCount`는 기록용).
-- `couponId` 전달 시 쿠폰 할인 금액(`discountAmount`)이 자동 차감되며, `finalAmount` 실결제 금액이 산출됩니다.
+- 예약 생성 요청에는 메뉴 선주문 필드가 없습니다 (`orderMenus` 등을 보내도 무시됨).
+- `couponId`를 보내면 응답에 `couponName`, `discountAmount`가 채워집니다. 단, **현재 `totalAmount`가 0으로 생성되므로 `finalAmount`는 항상 0**이며, **최소 주문 금액(`minOrderAmount`)이 0보다 큰 쿠폰은 `C001`("현재 사용할 수 없는 쿠폰입니다.")로 거절**됩니다. 금액 표시는 백엔드 수정 전까지 참고용으로만 사용하세요.
 - 지난 시간대는 `available: false`이며 예약 시 `EX302`.
 - 예약 상태(`PREPARING`, `COMPLETED` 등)는 점주가 바꿉니다. 사용자 화면은 `GET /reservations/me`를 다시 불러 반영합니다.
 
@@ -358,7 +359,8 @@ client.publish({
 ## 7. 아직 없는 기능 / 확인 필요 (최신 상태)
 | 항목 | 상태 | 비고 |
 |---|:---:|---|
-| 4-7 메뉴 주문·모의 결제 (D-06 ~ D-09) | ✅ 구현 완료 | 예약 생성(`POST /reservations`)에 `orderMenus` 및 `couponId` 포함 시 결제금액 자동 계산 |
+| 4-7 메뉴 주문·모의 결제 (D-06 ~ D-09) | ⚠️ 사용자 API 없음 | 사용자용 메뉴 주문·결제 API가 없습니다. `POST /reservations`는 `couponId`만 받으며 `orderMenus`는 지원하지 않습니다 |
+| 쿠폰 할인 금액 계산 (RSV-04) | ⚠️ 확인 필요 | `finalAmount`가 항상 0, 최소 주문 금액 있는 쿠폰은 거절 (백엔드 수정 예정) |
 | 4-1 방문자 확인 (PRF-05) & 4-2 스킵 상대 (MAT-04) | ✅ 구현 완료 | 프리미엄 전용 `GET /users/me/visitors`, `GET /matches/history` 제공 |
 | 4-5 로컬 AI 데이트 추천 (AI-01) | ✅ 구현 완료 | `POST /chats/rooms/{roomId}/ai-recommendation` (Qwen 2.5 3B 연동) |
 | 시연 서버(ngrok) 주소 | ✅ 연동 완료 | `https://acetone-suffocate-uncombed.ngrok-free.dev` |

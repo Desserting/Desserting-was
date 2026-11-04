@@ -1,6 +1,7 @@
 package com.desserting.backend.domain.order.dto;
 
 import com.desserting.backend.domain.heart.entity.MockPaymentMethod;
+import com.desserting.backend.domain.order.entity.OrderProgressStep;
 import com.desserting.backend.domain.order.entity.OrderStatus;
 import com.desserting.backend.domain.order.entity.PaymentType;
 import com.desserting.backend.domain.order.entity.ReservationOrder;
@@ -36,10 +37,13 @@ public record OrderResponse(
         @Schema(example = "PAID") OrderStatus orderStatus,
         @Schema(example = "결제 완료(모의)") String orderStatusDescription,
         LocalDateTime paidAt,
-        LocalDateTime refundedAt
+        LocalDateTime refundedAt,
+        @Schema(description = "현재 진행 단계 (환불된 주문은 null)", example = "PREPARING") OrderProgressStep currentStep,
+        @Schema(description = "진행 단계 목록: 주문 접수 → 준비 중 → 준비 완료") List<OrderProgressStepResponse> progressSteps
 ) {
     public static OrderResponse from(ReservationOrder order) {
         Reservation r = order.getReservation();
+        List<OrderProgressStepResponse> steps = OrderProgressStepResponse.of(order);
         return new OrderResponse(
                 order.getId(),
                 r.getId(),
@@ -62,6 +66,8 @@ public record OrderResponse(
                 order.getStatus(),
                 order.getStatus().getDescription(),
                 order.getPaidAt(),
-                order.getRefundedAt());
+                order.getRefundedAt(),
+                OrderProgressStepResponse.current(order, steps),
+                steps);
     }
 }

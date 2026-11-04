@@ -42,6 +42,7 @@ public class StoreQueryService {
     private final StoreDessertTagRepository dessertTagRepository;
     private final UserRepository userRepository;
     private final StoreCouponRepository storeCouponRepository;
+    private final MenuCategoryService menuCategoryService;
 
     public List<StoreCardResponse> searchStores(Long userId, StoreSearchCondition cond) {
         Specification<Store> spec = StoreSpecifications.isPartner();
@@ -82,7 +83,8 @@ public class StoreQueryService {
         Store store = storeRepository.findByIdWithMenus(storeId)
                 .filter(s -> Boolean.TRUE.equals(s.getIsPartner()))
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
-        return StoreDetailResponse.of(store, dessertTypesByStore(List.of(storeId)).getOrDefault(storeId, List.of()));
+        return StoreDetailResponse.of(store, dessertTypesByStore(List.of(storeId)).getOrDefault(storeId, List.of()),
+                menuCategoryService.resolve(store.getMenus()));
     }
 
     private Map<Long, List<DessertType>> dessertTypesByStore(List<Long> storeIds) {

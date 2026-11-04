@@ -1944,20 +1944,41 @@
                     list.innerHTML = '<div class="p-4 text-center text-slate-400">등록된 매장이 없습니다.</div>';
                     return;
                 }
-                list.innerHTML = stores.map(s => `
-                    <div onclick="selectStoreDetail(${s.id})"
+
+                // Dynamically sync reservation store select dropdown
+                const resStoreSelect = document.getElementById('res-store-select');
+                if (resStoreSelect && stores.length > 0) {
+                    const currentVal = resStoreSelect.value;
+                    resStoreSelect.innerHTML = stores.map(s => `
+                        <option value="${s.storeId || s.id}">${s.name}</option>
+                    `).join('');
+                    if (currentVal && stores.some(s => String(s.storeId || s.id) === String(currentVal))) {
+                        resStoreSelect.value = currentVal;
+                    }
+                }
+
+                list.innerHTML = stores.map(s => {
+                    const resolvedStoreId = s.storeId || s.id;
+                    const badgeText = s.themeStreetName || s.status || '제휴카페';
+                    return `
+                    <div onclick="selectStoreDetail(${resolvedStoreId})"
                          class="p-3 rounded-xl border border-slate-200 hover:border-dessert-500 hover:bg-dessert-50/40 cursor-pointer transition-all space-y-1">
                         <div class="flex justify-between items-center">
                             <span class="font-bold text-slate-900 text-xs">${s.name}</span>
-                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">${s.status || 'ACTIVE'}</span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">${badgeText}</span>
                         </div>
                         <div class="text-[11px] text-slate-500 truncate">${s.address || '대구'}</div>
                     </div>
-                `).join('');
+                `;
+                }).join('');
             } catch (err) {}
         }
 
         async function selectStoreDetail(storeId) {
+            if (!storeId || storeId === 'undefined') {
+                showToast('유효하지 않은 매장 ID입니다.', 'error');
+                return;
+            }
             STATE.selectedStoreId = storeId;
             try {
                 const res = await apiFetch(`/api/v1/stores/${storeId}`);
@@ -1986,6 +2007,7 @@
         }
 
         async function fetchStoreDetailCoupons(storeId) {
+            if (!storeId || storeId === 'undefined') return;
             try {
                 const res = await apiFetch(`/api/v1/stores/${storeId}/coupons`);
                 const list = document.getElementById('store-detail-coupons');
@@ -1997,7 +2019,7 @@
                 list.innerHTML = coupons.map(c => `
                     <div class="p-2.5 bg-emerald-50 border border-emerald-200 rounded-lg flex justify-between items-center">
                         <div>
-                            <span class="font-bold text-emerald-900">${c.name || '할인 쿠폰'}</span>
+                            <span class="font-bold text-emerald-900">${c.couponName || c.name || '할인 쿠폰'}</span>
                             <div class="text-[10px] text-emerald-700">최소 주문 ₩${(c.minOrderAmount || 0).toLocaleString()}</div>
                         </div>
                         <span class="font-bold font-mono text-emerald-800">-₩${(c.discountAmount || 0).toLocaleString()}</span>
@@ -2008,13 +2030,19 @@
 
         function proceedToReservationWithStore() {
             switchTab('orders');
-            document.getElementById('res-store-select').value = STATE.selectedStoreId;
-            onResStoreChange();
+            if (STATE.selectedStoreId) {
+                const select = document.getElementById('res-store-select');
+                if (select) {
+                    select.value = STATE.selectedStoreId;
+                }
+                onResStoreChange();
+            }
         }
 
         // ==================== TAB 6: RESERVATIONS & ORDERS / MOCK PAYMENT (4-6 & 4-7) ====================
         async function onResStoreChange() {
             const storeId = document.getElementById('res-store-select').value;
+            if (!storeId || storeId === 'undefined') return;
             await loadReservationDates(storeId);
             await loadStoreCoupons(storeId);
             await loadStoreMenusForCart(storeId);
@@ -2023,12 +2051,13 @@
         async function onResDateChange() {
             const storeId = document.getElementById('res-store-select').value;
             const date = document.getElementById('res-date-select').value;
-            if (storeId && date) {
+            if (storeId && date && storeId !== 'undefined') {
                 await loadReservationSlots(storeId, date);
             }
         }
 
         async function loadReservationDates(storeId) {
+            if (!storeId || storeId === 'undefined') return;
             try {
                 const res = await apiFetch(`/api/v1/stores/${storeId}/reservation-dates`);
                 const select = document.getElementById('res-date-select');
@@ -2043,6 +2072,7 @@
         }
 
         async function loadReservationSlots(storeId, date) {
+            if (!storeId || storeId === 'undefined') return;
             try {
                 const res = await apiFetch(`/api/v1/stores/${storeId}/reservation-slots?date=${date}`);
                 const select = document.getElementById('res-slot-select');
@@ -2056,12 +2086,13 @@
         }
 
         async function loadStoreCoupons(storeId) {
+            if (!storeId || storeId === 'undefined') return;
             try {
                 const res = await apiFetch(`/api/v1/stores/${storeId}/coupons`);
                 const select = document.getElementById('res-coupon-select');
                 const coupons = res.data || [];
                 select.innerHTML = '<option value="">쿠폰 적용 안함 (0원 할인)</option>' +
-                    coupons.map(c => `<option value="${c.couponId}">${c.name} (-₩${c.discountAmount.toLocaleString()})</option>`).join('');
+                    coupons.map(c => `<option value="${c.couponId}">${c.couponName || c.name || '쿠폰'} (-₩${(c.discountAmount || 0).toLocaleString()})</option>`).join('');
             } catch (err) {}
         }
 

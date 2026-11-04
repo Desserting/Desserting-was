@@ -53,11 +53,11 @@ public class Reservation extends BaseTimeEntity {
     @JoinColumn(name = "coupon_id")
     private StoreCoupon coupon;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "integer default 0")
     @Builder.Default
     private Integer discountAmount = 0; // 쿠폰 할인 금액
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "integer default 0")
     @Builder.Default
     private Integer finalAmount = 0; // 할인 적용 후 실결제 금액
 

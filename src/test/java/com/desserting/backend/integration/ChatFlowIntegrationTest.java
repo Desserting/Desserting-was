@@ -36,9 +36,13 @@ class ChatFlowIntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         // 프리미엄 테스트 유저(minjung@desserting.com) 로그인
+        userToken = login("minjung@desserting.com", "test1234!");
+    }
+
+    private String login(String email, String password) throws Exception {
         LoginRequest loginRequest = LoginRequest.builder()
-                .email("minjung@desserting.com")
-                .password("test1234!")
+                .email(email)
+                .password(password)
                 .build();
 
         MvcResult loginResult = mockMvc.perform(post("/api/v1/auth/login")
@@ -48,7 +52,17 @@ class ChatFlowIntegrationTest {
                 .andReturn();
 
         JsonNode jsonNode = objectMapper.readTree(loginResult.getResponse().getContentAsString());
-        userToken = jsonNode.get("data").get("accessToken").asText();
+        return jsonNode.get("data").get("accessToken").asText();
+    }
+
+    /** 시드 순서·DB 상태에 따라 id 가 달라지므로, 계정으로 로그인해 실제 id 를 조회한다 */
+    private String userIdOf(String email, String password) throws Exception {
+        MvcResult meResult = mockMvc.perform(get("/api/v1/users/me")
+                        .header("Authorization", "Bearer " + login(email, password)))
+                .andExpect(status().isOk())
+                .andReturn();
+        return objectMapper.readTree(meResult.getResponse().getContentAsString())
+                .get("data").get("userId").asText();
     }
 
     @Test
@@ -110,10 +124,11 @@ class ChatFlowIntegrationTest {
     @Test
     @DisplayName("[통합 E2E] 1:1 직통 채팅방 개설 및 재진입 조회 검증 (POST /api/v1/chats/rooms/direct)")
     void getOrCreateDirectRoom_Success() throws Exception {
-        // 1. 대상 유저 2번(디저팅운영자)과의 1:1 대화방 개설
+        // 1. 운영자 계정(디저팅운영자)과의 1:1 대화방 개설 (id 는 고정값 대신 실제 조회)
+        String adminUserId = userIdOf("admin@desserting.com", "admin1234!");
         MvcResult firstResult = mockMvc.perform(post("/api/v1/chats/rooms/direct")
                         .header("Authorization", "Bearer " + userToken)
-                        .param("targetUserId", "2"))
+                        .param("targetUserId", adminUserId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.roomId").isNumber())
                 .andExpect(jsonPath("$.data.otherUserNickname").value("디저팅운영자"))
@@ -125,7 +140,7 @@ class ChatFlowIntegrationTest {
         // 2. 동일 대상 유저와 다시 호출 시 기존 방 반환
         mockMvc.perform(post("/api/v1/chats/rooms/direct")
                         .header("Authorization", "Bearer " + userToken)
-                        .param("targetUserId", "2"))
+                        .param("targetUserId", adminUserId))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.roomId").value(roomId))
                 .andExpect(jsonPath("$.data.otherUserNickname").value("디저팅운영자"));

@@ -33,9 +33,17 @@ public class SwaggerConfig {
                         .bearerFormat("JWT")
                         .description("JWT Access Token을 입력해주세요 (접두사 'Bearer ' 제외)"));
 
+        Server currentServer = new Server()
+                .url("/")
+                .description("현재 도메인 자동 감지 (권장)");
+
+        Server prodServer = new Server()
+                .url("https://desserting-api.duckdns.org")
+                .description("운영 클라우드 서버 (GCP)");
+
         Server localServer = new Server()
                 .url("http://localhost:" + serverPort)
-                .description("Local Development Server");
+                .description("로컬 개발 서버 (Local)");
 
         return new OpenAPI()
                 .info(new Info()
@@ -47,7 +55,7 @@ public class SwaggerConfig {
                         .version("v0.1.0")
                         .contact(new Contact().name("Desserting Team").email("team@desserting.com"))
                         .license(new License().name("Apache 2.0").url("http://springdoc.org")))
-                .servers(List.of(localServer))
+                .servers(List.of(currentServer, prodServer, localServer))
                 .addSecurityItem(securityRequirement)
                 .components(components);
     }

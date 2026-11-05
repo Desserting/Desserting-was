@@ -23,9 +23,16 @@ public record CreateReservationRequest(
         String specialRequest,
 
         @Schema(description = "사용할 매장 할인쿠폰 ID (선택, 할인은 메뉴 주문 때 적용)", example = "1")
-        Long couponId
+        Long couponId,
+
+        @Schema(description = "데이트 진행 중인 채팅방 ID (선택: 채팅방에서 예약 진입 시 전달)", example = "10")
+        Long chatRoomId
 ) {
     public CreateReservationRequest(Long slotId, Integer guestCount, String specialRequest) {
-        this(slotId, guestCount, specialRequest, null);
+        this(slotId, guestCount, specialRequest, null, null);
+    }
+
+    public CreateReservationRequest(Long slotId, Integer guestCount, String specialRequest, Long couponId) {
+        this(slotId, guestCount, specialRequest, couponId, null);
     }
 }

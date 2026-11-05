@@ -13,6 +13,14 @@ import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomRepository;
 import com.desserting.backend.domain.matching.entity.RequestStatus;
 import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
+import com.desserting.backend.domain.chat.dto.PlaceProposalRequest;
+import com.desserting.backend.domain.chat.dto.ShareReservationRequest;
+import com.desserting.backend.domain.order.entity.ReservationOrder;
+import com.desserting.backend.domain.order.repository.ReservationOrderRepository;
+import com.desserting.backend.domain.reservation.entity.Reservation;
+import com.desserting.backend.domain.reservation.repository.UserReservationRepository;
+import com.desserting.backend.domain.store.entity.Store;
+import com.desserting.backend.domain.store.repository.StoreRepository;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserRole;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
@@ -42,6 +50,12 @@ public class ChatService {
     private final UserBlockRepository userBlockRepository;
     private final ChatMessageQueryRepository chatMessageQueryRepository;
     private final ChatRequestRepository chatRequestRepository;
+    private final StoreRepository storeRepository;
+    private final UserReservationRepository userReservationRepository;
+    private final ReservationOrderRepository reservationOrderRepository;
+
+    public static final String PLACE_PROPOSAL_TYPE = "PLACE_PROPOSAL";
+    public static final String RESERVATION_CARD_TYPE = "RESERVATION_CARD";
 
     private static final String SYSTEM_TYPE = "SYSTEM";
 
@@ -100,6 +114,99 @@ public class ChatService {
         log.info("채팅 메시지 전송 성공: roomId={}, senderId={}, messageId={}", roomId, senderId, savedDoc.getId());
         return messageDto;
     }
+
+    /**
+     * 데이트 제휴 매장 방문 제안 (PLACE_PROPOSAL) 카드 발송
+     */
+    @Transactional
+    public ChatMessageDto proposePlace(Long senderId, Long roomId, PlaceProposalRequest request) {
+        Store store = storeRepository.findById(request.getStoreId())
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
+
+        String customMsg = request.getMessage() != null && !request.getMessage().isBlank()
+                ? request.getMessage().trim()
+                : store.getName() + " 방문 어떠세요?";
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("storeId", store.getId());
+        metadata.put("storeName", store.getName());
+        metadata.put("storeAddress", store.getAddress());
+        metadata.put("themeStreetName", store.getThemeStreet() != null ? store.getThemeStreet().getName() : null);
+        metadata.put("coverImageUrl", store.getCoverImageUrl());
+
+        ChatMessageRequest messageRequest = ChatMessageRequest.builder()
+                .roomId(roomId)
+                .messageType(PLACE_PROPOSAL_TYPE)
+                .content(customMsg)
+                .metadata(metadata)
+                .build();
+
+        return sendMessage(senderId, messageRequest);
+    }
+
+    /**
+     * 예약 및 결제 완료 내역 (RESERVATION_CARD) 채팅방 공유
+     */
+    @Transactional
+    public ChatMessageDto shareReservation(Long senderId, Long roomId, ShareReservationRequest request) {
+        Reservation reservation = userReservationRepository.findByIdWithStore(request.getReservationId())
+                .orElseThrow(() -> new CustomException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        if (!reservation.getUser().getId().equals(senderId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "본인이 생성한 예약만 채팅방에 공유할 수 있습니다.");
+        }
+
+        // 예약 객체에 해당 채팅방 연계 저장
+        reservation.updateChatRoomId(roomId);
+
+        Store store = reservation.getStore();
+        Optional<ReservationOrder> orderOpt = reservationOrderRepository.findDetailByReservationId(reservation.getId());
+
+        String defaultContent = "[" + store.getName() + "] 예약 및 결제가 완료되었습니다!";
+        String content = request.getMessage() != null && !request.getMessage().isBlank()
+                ? request.getMessage().trim()
+                : defaultContent;
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("reservationId", reservation.getId());
+        metadata.put("storeId", store.getId());
+        metadata.put("storeName", store.getName());
+        metadata.put("storeAddress", store.getAddress());
+        metadata.put("reservationDate", reservation.getReservationDate().toString());
+        metadata.put("reservationTime", reservation.getReservationTime().toString());
+        metadata.put("guestCount", reservation.getGuestCount());
+        metadata.put("status", reservation.getStatus().name());
+        metadata.put("statusDescription", reservation.getStatus().getDescription());
+        metadata.put("totalAmount", reservation.getTotalAmount());
+        metadata.put("discountAmount", reservation.getDiscountAmount());
+        metadata.put("finalAmount", reservation.getFinalAmount());
+
+        orderOpt.ifPresent(order -> {
+            metadata.put("orderId", order.getId());
+            metadata.put("paymentMethod", order.getPaymentMethod() != null ? order.getPaymentMethod().name() : null);
+            if (order.getItems() != null) {
+                List<Map<String, Object>> items = order.getItems().stream().map(item -> {
+                    Map<String, Object> itemMap = new HashMap<>();
+                    itemMap.put("menuName", item.getMenuName());
+                    itemMap.put("unitPrice", item.getUnitPrice());
+                    itemMap.put("quantity", item.getQuantity());
+                    itemMap.put("lineAmount", item.getLineAmount());
+                    return itemMap;
+                }).toList();
+                metadata.put("orderedItems", items);
+            }
+        });
+
+        ChatMessageRequest messageRequest = ChatMessageRequest.builder()
+                .roomId(roomId)
+                .messageType(RESERVATION_CARD_TYPE)
+                .content(content)
+                .metadata(metadata)
+                .build();
+
+        return sendMessage(senderId, messageRequest);
+    }
+
 
     @Transactional(readOnly = true)
     public List<ChatRoomResponse> getMyChatRooms(Long userId) {

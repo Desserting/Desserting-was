@@ -1,5 +1,6 @@
 package com.desserting.backend.domain.reservation.service;
 
+import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
 import com.desserting.backend.domain.explore.error.ExploreErrorCode;
 import com.desserting.backend.domain.explore.error.ExploreException;
 import com.desserting.backend.domain.order.service.ReservationOrderService;
@@ -64,6 +65,9 @@ class ReservationServiceTest {
     private UserRepository userRepository;
     @Mock
     private ReservationOrderService orderService;
+    @Mock
+    private ChatRoomMemberRepository chatRoomMemberRepository;
+
 
     private ReservationService reservationService;
     private Store store;
@@ -72,7 +76,7 @@ class ReservationServiceTest {
     void setUp() {
         // 현재 시각: 2026-11-03 14:30 KST
         Clock clock = Clock.fixed(LocalDateTime.of(TODAY, LocalTime.of(14, 30)).atZone(KST).toInstant(), KST);
-        reservationService = new ReservationService(reservationRepository, slotRepository, storeRepository, storeCouponRepository, userRepository, orderService, clock);
+        reservationService = new ReservationService(reservationRepository, slotRepository, storeRepository, storeCouponRepository, userRepository, orderService, chatRoomMemberRepository, clock);
 
         store = Store.builder()
                 .name("아눅 앞산")

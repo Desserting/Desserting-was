@@ -30,6 +30,10 @@ public class Reservation extends BaseTimeEntity {
     @JoinColumn(name = "store_id", nullable = false)
     private Store store;
 
+    /** 연계된 채팅방 ID (선택: 채팅방 데이트 예약 플로우에서 생성 시 설정) */
+    @Column(name = "chat_room_id")
+    private Long chatRoomId;
+
     @Column(nullable = false)
     private LocalDate reservationDate;
 
@@ -68,6 +72,10 @@ public class Reservation extends BaseTimeEntity {
         if (status != null) {
             this.status = status;
         }
+    }
+
+    public void updateChatRoomId(Long chatRoomId) {
+        this.chatRoomId = chatRoomId;
     }
 
     public void applyCoupon(StoreCoupon coupon, int discount) {

@@ -1,5 +1,6 @@
 package com.desserting.backend.domain.reservation.service;
 
+import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
 import com.desserting.backend.domain.explore.error.ExploreErrorCode;
 import com.desserting.backend.domain.explore.error.ExploreException;
 import com.desserting.backend.domain.order.service.ReservationOrderService;
@@ -51,6 +52,7 @@ public class ReservationService {
     private final StoreCouponRepository storeCouponRepository;
     private final UserRepository userRepository;
     private final ReservationOrderService orderService;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final Clock clock;
 
     /** RSV-01: 기간 내 날짜별 예약 가능 여부 (기본 오늘부터 14일) */
@@ -126,6 +128,7 @@ public class ReservationService {
         Reservation reservation = reservationRepository.save(Reservation.builder()
                 .user(user)
                 .store(store)
+                .chatRoomId(request.chatRoomId())
                 .reservationDate(slot.getSlotDate())
                 .reservationTime(slot.getSlotTime())
                 .guestCount(request.guestCount())
@@ -133,8 +136,9 @@ public class ReservationService {
                 .coupon(coupon)
                 .build());
 
-        log.info("예약 생성: reservationId={}, userId={}, storeId={}, {} {} ({}명, couponId={})", reservation.getId(), userId,
-                store.getId(), slot.getSlotDate(), slot.getSlotTime(), request.guestCount(), request.couponId());
+        log.info("예약 생성: reservationId={}, userId={}, storeId={}, {} {} ({}명, couponId={}, chatRoomId={})",
+                reservation.getId(), userId, store.getId(), slot.getSlotDate(), slot.getSlotTime(),
+                request.guestCount(), request.couponId(), request.chatRoomId());
         return ReservationResponse.from(reservation);
     }
 
@@ -148,7 +152,7 @@ public class ReservationService {
 
     @Transactional(readOnly = true)
     public ReservationResponse getMyReservation(Long userId, Long reservationId) {
-        return ReservationResponse.from(findOwnReservation(userId, reservationId));
+        return ReservationResponse.from(findAccessibleReservation(userId, reservationId));
     }
 
     /** RSV-04: 예약 취소 및 자리 반환 (예약 대기·확정 상태만) */
@@ -173,6 +177,23 @@ public class ReservationService {
         return reservationRepository.findByIdWithStore(reservationId)
                 .filter(r -> r.getUser().getId().equals(userId))
                 .orElseThrow(() -> new CustomException(ErrorCode.RESERVATION_NOT_FOUND));
+    }
+
+    /** 예약자 본인 또는 해당 예약이 공유된 채팅방 멤버라면 열람 가능 */
+    private Reservation findAccessibleReservation(Long userId, Long reservationId) {
+        Reservation reservation = reservationRepository.findByIdWithStore(reservationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESERVATION_NOT_FOUND));
+
+        if (reservation.getUser().getId().equals(userId)) {
+            return reservation;
+        }
+
+        if (reservation.getChatRoomId() != null
+                && chatRoomMemberRepository.findByChatRoomIdAndUserId(reservation.getChatRoomId(), userId).isPresent()) {
+            return reservation;
+        }
+
+        throw new CustomException(ErrorCode.ACCESS_DENIED, "해당 예약 내역을 조회할 권한이 없습니다.");
     }
 
     /** 예약 단계에서는 매장·사용중지·만료만 확인 (최소 주문 금액은 주문 시 확인) */

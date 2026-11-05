@@ -2,6 +2,9 @@ package com.desserting.backend.domain.chat.controller;
 
 import com.desserting.backend.domain.chat.dto.ChatMessageDto;
 import com.desserting.backend.domain.chat.dto.ChatRoomResponse;
+import com.desserting.backend.domain.chat.dto.PlaceProposalRequest;
+import com.desserting.backend.domain.chat.dto.ShareReservationRequest;
+import jakarta.validation.Valid;
 import com.desserting.backend.domain.chat.service.ChatService;
 import com.desserting.backend.global.common.ApiResponse;
 import com.desserting.backend.global.security.CurrentUser;
@@ -51,6 +54,29 @@ public class ChatRestController {
         List<ChatMessageDto> messages = chatService.getChatMessages(userId, roomId, cursorId, size);
         return ApiResponse.success("채팅 메시지 내역 조회에 성공하였습니다.", messages);
     }
+
+    @Operation(summary = "데이트 제휴 매장 방문 제안 (PLACE_PROPOSAL)",
+            description = "채팅방에서 제휴 매장을 상대방에게 제안하는 카드 메시지를 전송하고 웹소켓으로 실시간 브로드캐스팅합니다.")
+    @PostMapping("/rooms/{roomId}/propose-place")
+    public ApiResponse<ChatMessageDto> proposePlace(
+            @Parameter(hidden = true) @CurrentUser Long userId,
+            @PathVariable Long roomId,
+            @Valid @RequestBody PlaceProposalRequest request) {
+        ChatMessageDto response = chatService.proposePlace(userId, roomId, request);
+        return ApiResponse.success("매장 방문 제안 메시지가 전송되었습니다.", response);
+    }
+
+    @Operation(summary = "예약 및 결제 내역 채팅방 공유 (RESERVATION_CARD)",
+            description = "예약 및 메뉴 주문/결제가 완료된 내역을 채팅방에 공유 카드 형태로 전송하고 웹소켓으로 실시간 브로드캐스팅합니다.")
+    @PostMapping("/rooms/{roomId}/share-reservation")
+    public ApiResponse<ChatMessageDto> shareReservation(
+            @Parameter(hidden = true) @CurrentUser Long userId,
+            @PathVariable Long roomId,
+            @Valid @RequestBody ShareReservationRequest request) {
+        ChatMessageDto response = chatService.shareReservation(userId, roomId, request);
+        return ApiResponse.success("예약 및 결제 내역이 채팅방에 공유되었습니다.", response);
+    }
+
 
     @Operation(summary = "채팅방 읽음 처리",
             description = "채팅방을 보는 동안 실시간(STOMP)으로 받은 메시지를 읽음 처리합니다. 메시지 첫 페이지 조회 시에는 자동으로 읽음 처리됩니다.")

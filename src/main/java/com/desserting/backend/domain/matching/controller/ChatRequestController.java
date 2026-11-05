@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
-@Tag(name = "4-3. 대화 요청 관리 API", description = "대화 요청 발송(하트 1개 차감), 받은 요청함 조회, 수락/거절 API (4-3)")
+@Tag(name = "4-3. 대화 요청 관리 API", description = "대화 요청 발송(하트 1개 차감), 받은/보낸 요청함 조회, 수락/거절 API (4-3)")
 @RestController
 @RequestMapping("/api/v1/matches/requests")
 @RequiredArgsConstructor
@@ -44,6 +44,17 @@ public class ChatRequestController {
             @RequestParam(defaultValue = "false") boolean includeProcessed) {
         List<ChatRequestResponse> responses = chatRequestService.getReceivedRequests(receiverId, includeProcessed);
         return ApiResponse.success("받은 대화 요청 목록 조회에 성공하였습니다.", responses);
+    }
+
+    @Operation(summary = "내가 보낸 대화 요청 목록 조회 (REQ-02)",
+            description = "내가 보낸 대기 중(PENDING)인 대화 요청 목록을 조회합니다.")
+    @GetMapping("/sent")
+    public ApiResponse<List<ChatRequestResponse>> getSentRequests(
+            @Parameter(hidden = true) @CurrentUser Long senderId,
+            @Parameter(description = "true 면 최근 7일의 수락·거절·만료 요청도 포함 (수락 건은 chatRoomId 포함)")
+            @RequestParam(defaultValue = "false") boolean includeProcessed) {
+        List<ChatRequestResponse> responses = chatRequestService.getSentRequests(senderId, includeProcessed);
+        return ApiResponse.success("보낸 대화 요청 목록 조회에 성공하였습니다.", responses);
     }
 
     @Operation(summary = "대화 요청 수락 (REQ-01, CHT-01)",

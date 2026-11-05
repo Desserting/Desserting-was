@@ -42,7 +42,14 @@ public class OtherUserProfileResponse {
     @Schema(description = "선호 디저트 취향 목록", example = "[\"BAKERY\", \"COFFEE\"]")
     private List<DessertType> dessertTags;
 
+    @Schema(description = "내가 이 사용자를 좋아요(Like)했는지 여부", example = "true")
+    private Boolean liked;
+
     public static OtherUserProfileResponse from(User user) {
+        return from(user, null);
+    }
+
+    public static OtherUserProfileResponse from(User user, Boolean liked) {
         List<DessertType> tags = user.getDessertTags().stream()
                 .map(UserDessertTag::getDessertType)
                 .toList();
@@ -57,6 +64,7 @@ public class OtherUserProfileResponse {
                 .isPremium(user.getIsPremium())
                 .dessertAvatarUrl(user.getDessertAvatarUrl())
                 .dessertTags(tags)
+                .liked(liked)
                 .build();
     }
 }

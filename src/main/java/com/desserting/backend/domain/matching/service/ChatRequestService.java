@@ -107,6 +107,33 @@ public class ChatRequestService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
+    public List<ChatRequestResponse> getSentRequests(Long senderId) {
+        return getSentRequests(senderId, false);
+    }
+
+    /**
+     * 내가 보낸 대화 요청 목록 조회.
+     * includeProcessed=true 면 최근 7일의 수락·거절·만료 요청도 함께 반환.
+     */
+    @Transactional(readOnly = true)
+    public List<ChatRequestResponse> getSentRequests(Long senderId, boolean includeProcessed) {
+        List<ChatRequest> requests = includeProcessed
+                ? chatRequestRepository.findRecentSentWithReceiver(senderId, java.time.LocalDateTime.now().minusDays(7))
+                : chatRequestRepository.findSentRequestsWithReceiver(senderId, RequestStatus.PENDING);
+        return requests.stream()
+                .map(r -> {
+                    ChatRequestResponse res = ChatRequestResponse.from(r);
+                    if (r.getStatus() == RequestStatus.ACCEPTED) {
+                        chatRoomMemberRepository.findActiveRoomsBetween(senderId, r.getReceiver().getId()).stream()
+                                .findFirst()
+                                .ifPresent(m -> res.assignChatRoomId(m.getChatRoom().getId()));
+                    }
+                    return res;
+                })
+                .toList();
+    }
+
     @Transactional
     public ChatRequestAcceptResponse acceptRequest(Long currentUserId, Long requestId) {
         ChatRequest request = chatRequestRepository.findByIdWithUsers(requestId)

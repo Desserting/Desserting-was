@@ -1,16 +1,21 @@
 package com.desserting.backend.domain.matching.service;
 
+import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
 import com.desserting.backend.domain.explore.error.ExploreErrorCode;
 import com.desserting.backend.domain.explore.error.ExploreException;
 import com.desserting.backend.domain.matching.dto.MatchCandidateResponse;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse.AppliedFilter;
 import com.desserting.backend.domain.matching.entity.MatchType;
+import com.desserting.backend.domain.matching.entity.RequestStatus;
+import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
 import com.desserting.backend.domain.matching.repository.MatchCandidateRepository;
 import com.desserting.backend.domain.matching.repository.MatchExposureRepository;
 import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
+import com.desserting.backend.domain.user.repository.UserBlockRepository;
+import com.desserting.backend.domain.user.repository.UserLikeRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -45,6 +50,10 @@ public class MatchingService {
     private final UserRepository userRepository;
     private final MatchCandidateRepository matchCandidateRepository;
     private final MatchExposureRepository matchExposureRepository;
+    private final ChatRequestRepository chatRequestRepository;
+    private final UserLikeRepository userLikeRepository;
+    private final UserBlockRepository userBlockRepository;
+    private final ChatRoomMemberRepository chatRoomMemberRepository;
 
     /**
      * 조건에 맞는 랜덤 상대 1명을 반환한다. 다시 호출하면 다음 상대(MAT-03).
@@ -181,6 +190,10 @@ public class MatchingService {
             approxKm = Math.max(1, (int) Math.ceil(km));
         }
 
+        boolean requested = chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(me.getId(), c.getId(), RequestStatus.PENDING);
+        boolean liked = userLikeRepository.existsBySenderIdAndReceiverId(me.getId(), c.getId());
+        boolean canRequest = checkCanRequest(me, c, requested);
+
         return MatchCandidateResponse.builder()
                 .userId(c.getId())
                 .nickname(c.getNickname())
@@ -192,7 +205,36 @@ public class MatchingService {
                 .dessertTags(theirTags)
                 .commonDessertTags(theirTags.stream().filter(myTags::contains).toList())
                 .approxDistanceKm(approxKm)
+                .requested(requested)
+                .liked(liked)
+                .canRequest(canRequest)
                 .build();
+    }
+
+    private boolean checkCanRequest(User me, User candidate, boolean requested) {
+        if (candidate.getId().equals(me.getId())) {
+            return false;
+        }
+        if (requested) {
+            return false;
+        }
+        if (userBlockRepository.isBlockedBetween(me.getId(), candidate.getId())) {
+            return false;
+        }
+        if (chatRoomMemberRepository.existsActiveRoomBetween(me.getId(), candidate.getId())) {
+            return false;
+        }
+        boolean isPremium = Boolean.TRUE.equals(me.getIsPremium());
+        if (!isPremium) {
+            int hearts = me.getHeartCount() != null ? me.getHeartCount() : 0;
+            if (hearts < 1) {
+                return false;
+            }
+            if (!matchExposureRepository.wasShownRecently(me.getId(), candidate.getId())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static Set<DessertType> tagsOf(User user) {

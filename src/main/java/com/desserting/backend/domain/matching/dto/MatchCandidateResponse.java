@@ -46,4 +46,13 @@ public class MatchCandidateResponse {
 
     @Schema(description = "대략적인 거리(km, 올림 정수). 위치정보가 없으면 null", example = "5")
     private Integer approxDistanceKm;
+
+    @Schema(description = "내가 상대방에게 보낸 대기 중인 대화 요청이 있는지 여부", example = "false")
+    private Boolean requested;
+
+    @Schema(description = "내가 상대방을 좋아요(Like)했는지 여부", example = "false")
+    private Boolean liked;
+
+    @Schema(description = "내가 상대방에게 대화 요청을 보낼 수 있는 상태인지 여부 (차단, 중복, 하트/권한 등 종합 판정)", example = "true")
+    private Boolean canRequest;
 }

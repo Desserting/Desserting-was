@@ -32,11 +32,11 @@ public class SocialService {
     @Transactional
     public boolean toggleLike(Long senderId, Long receiverId) {
         if (senderId.equals(receiverId)) {
-            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "본인에게는 좋아요를 누를 수 없습니다.");
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "본인에게 좋아요를 누를 수 없습니다.");
         }
 
         if (userBlockRepository.isBlockedBetween(senderId, receiverId)) {
-            throw new CustomException(ErrorCode.ACCESS_DENIED, "차단 관계인 사용자에게는 좋아요를 누를 수 없습니다.");
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "차단 관계인 사용자와는 인터랙션할 수 없습니다.");
         }
 
         User sender = userRepository.findById(senderId)
@@ -45,6 +45,7 @@ public class SocialService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         Optional<UserLike> existingLike = userLikeRepository.findBySenderIdAndReceiverId(senderId, receiverId);
+
         if (existingLike.isPresent()) {
             userLikeRepository.delete(existingLike.get());
             log.info("좋아요 취소: senderId={}, receiverId={}", senderId, receiverId);
@@ -69,7 +70,22 @@ public class SocialService {
         List<UserLike> likes = userLikeRepository.findLikesReceivedWithSender(userId);
         return likes.stream()
                 .filter(like -> !userBlockRepository.isBlockedBetween(userId, like.getSender().getId()))
-                .map(like -> OtherUserProfileResponse.from(like.getSender()))
+                .map(like -> {
+                    boolean likedBack = userLikeRepository.existsBySenderIdAndReceiverId(userId, like.getSender().getId());
+                    return OtherUserProfileResponse.from(like.getSender(), likedBack);
+                })
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<OtherUserProfileResponse> getMyLikesSent(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
+
+        List<UserLike> likes = userLikeRepository.findLikesSentWithReceiver(userId);
+        return likes.stream()
+                .filter(like -> !userBlockRepository.isBlockedBetween(userId, like.getReceiver().getId()))
+                .map(like -> OtherUserProfileResponse.from(like.getReceiver(), true))
                 .toList();
     }
 
@@ -102,6 +118,6 @@ public class SocialService {
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
         userReportRepository.save(UserReport.of(reporter, reported, reason, description));
-        log.info("사용자 신고 접수: reporterId={}, reportedId={}, reason={}", reporterId, reportedId, reason);
+        log.info("사용자 신고 완료: reporterId={}, reportedId={}", reporterId, reportedId);
     }
 }

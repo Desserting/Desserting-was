@@ -39,6 +39,24 @@ public class ChatRequestResponse {
     @Schema(description = "보낸 사람 선호 디저트 태그", example = "[\"CAKE\", \"COFFEE\"]")
     private List<DessertType> senderDessertTags;
 
+    @Schema(description = "요청을 받은 사용자 ID", example = "3")
+    private Long receiverId;
+
+    @Schema(description = "받은 사람 디저트 닉네임", example = "초코파르페")
+    private String receiverNickname;
+
+    @Schema(description = "받은 사람 디저트 아바타 URL")
+    private String receiverAvatarUrl;
+
+    @Schema(description = "받은 사람 나이", example = "23")
+    private Integer receiverAge;
+
+    @Schema(description = "받은 사람 활동 지역", example = "대구 수성구")
+    private String receiverRegion;
+
+    @Schema(description = "받은 사람 선호 디저트 태그", example = "[\"PARFAIT\", \"TEA_NON_COFFEE\"]")
+    private List<DessertType> receiverDessertTags;
+
     @Schema(description = "요청 처리 상태", example = "PENDING")
     private RequestStatus status;
 
@@ -57,18 +75,29 @@ public class ChatRequestResponse {
 
     public static ChatRequestResponse from(ChatRequest request) {
         User sender = request.getSender();
-        List<DessertType> tags = sender.getDessertTags().stream()
-                .map(UserDessertTag::getDessertType)
-                .toList();
+        List<DessertType> senderTags = sender != null && sender.getDessertTags() != null
+                ? sender.getDessertTags().stream().map(UserDessertTag::getDessertType).toList()
+                : List.of();
+
+        User receiver = request.getReceiver();
+        List<DessertType> receiverTags = receiver != null && receiver.getDessertTags() != null
+                ? receiver.getDessertTags().stream().map(UserDessertTag::getDessertType).toList()
+                : List.of();
 
         return ChatRequestResponse.builder()
                 .requestId(request.getId())
-                .senderId(sender.getId())
-                .senderNickname(sender.getNickname())
-                .senderAvatarUrl(sender.getDessertAvatarUrl())
-                .senderAge(sender.getAge())
-                .senderRegion(sender.getRegion())
-                .senderDessertTags(tags)
+                .senderId(sender != null ? sender.getId() : null)
+                .senderNickname(sender != null ? sender.getNickname() : null)
+                .senderAvatarUrl(sender != null ? sender.getDessertAvatarUrl() : null)
+                .senderAge(sender != null ? sender.getAge() : null)
+                .senderRegion(sender != null ? sender.getRegion() : null)
+                .senderDessertTags(senderTags)
+                .receiverId(receiver != null ? receiver.getId() : null)
+                .receiverNickname(receiver != null ? receiver.getNickname() : null)
+                .receiverAvatarUrl(receiver != null ? receiver.getDessertAvatarUrl() : null)
+                .receiverAge(receiver != null ? receiver.getAge() : null)
+                .receiverRegion(receiver != null ? receiver.getRegion() : null)
+                .receiverDessertTags(receiverTags)
                 .status(request.getStatus())
                 .createdAt(request.getCreatedAt())
                 .expiredAt(request.getExpiredAt())

@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Map;
 
-@Tag(name = "4-4. 소셜 인터랙션 및 안전 API", description = "상대방 좋아요(LIKE), 나를 좋아요한 사람 목록(프리미엄), 차단 및 신고 API (4-4)")
+@Tag(name = "4-4. 소셜 인터랙션 및 안전 API", description = "상대방 좋아요(LIKE), 나를 좋아요한/내가 좋아요한 사람 목록, 차단 및 신고 API (4-4)")
 @RestController
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
@@ -38,6 +38,14 @@ public class SocialController {
             @Parameter(hidden = true) @CurrentUser Long currentUserId) {
         List<OtherUserProfileResponse> responses = socialService.getMyLikesReceived(currentUserId);
         return ApiResponse.success("나를 좋아요한 사람 목록 조회에 성공하였습니다.", responses);
+    }
+
+    @Operation(summary = "내가 좋아요한 사람 목록 조회 (LIKE-01)", description = "내가 좋아요를 누른 사용자 프로필 목록을 조회합니다.")
+    @GetMapping("/me/likes/sent")
+    public ApiResponse<List<OtherUserProfileResponse>> getMyLikesSent(
+            @Parameter(hidden = true) @CurrentUser Long currentUserId) {
+        List<OtherUserProfileResponse> responses = socialService.getMyLikesSent(currentUserId);
+        return ApiResponse.success("내가 좋아요한 사람 목록 조회에 성공하였습니다.", responses);
     }
 
     @Operation(summary = "사용자 차단 (SEC-01)", description = "특정 사용자를 차단합니다.")

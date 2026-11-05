@@ -19,4 +19,10 @@ public interface UserLikeRepository extends JpaRepository<UserLike, Long> {
             "LEFT JOIN FETCH s.dessertTags " +
             "WHERE ul.receiver.id = :receiverId ORDER BY ul.createdAt DESC")
     List<UserLike> findLikesReceivedWithSender(@Param("receiverId") Long receiverId);
+
+    @Query("SELECT DISTINCT ul FROM UserLike ul " +
+            "JOIN FETCH ul.receiver rc " +
+            "LEFT JOIN FETCH rc.dessertTags " +
+            "WHERE ul.sender.id = :senderId ORDER BY ul.createdAt DESC")
+    List<UserLike> findLikesSentWithReceiver(@Param("senderId") Long senderId);
 }

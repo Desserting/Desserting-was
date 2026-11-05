@@ -57,6 +57,10 @@ public class ChatRequestService {
             throw new CustomException(ErrorCode.DUPLICATE_CHAT_REQUEST, "이미 해당 상대에게 보낸 대기 중인 요청이 존재합니다.");
         }
 
+        if (chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(receiverId, senderId, RequestStatus.PENDING)) {
+            throw new CustomException(ErrorCode.DUPLICATE_CHAT_REQUEST, "상대방이 이미 회원님에게 보낸 대기 중인 대화 요청이 있습니다. 받은 요청함을 확인해 주세요.");
+        }
+
         User receiver = userRepository.findById(receiverId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "대화 요청 대상 사용자를 찾을 수 없습니다: " + receiverId));
         User sender = userRepository.findById(senderId)
@@ -93,7 +97,9 @@ public class ChatRequestService {
     public List<ChatRequestResponse> getReceivedRequests(Long receiverId, boolean includeProcessed) {
         List<ChatRequest> requests = includeProcessed
                 ? chatRequestRepository.findRecentReceivedWithSender(receiverId, java.time.LocalDateTime.now().minusDays(7))
-                : chatRequestRepository.findReceivedRequestsWithSender(receiverId, RequestStatus.PENDING);
+                : chatRequestRepository.findRecentReceivedWithSender(receiverId, java.time.LocalDateTime.now().minusDays(7)).stream()
+                        .filter(r -> r.getStatus() == RequestStatus.PENDING)
+                        .toList();
         return requests.stream()
                 .map(r -> {
                     ChatRequestResponse res = ChatRequestResponse.from(r);
@@ -113,14 +119,16 @@ public class ChatRequestService {
     }
 
     /**
-     * 내가 보낸 대화 요청 목록 조회.
-     * includeProcessed=true 면 최근 7일의 수락·거절·만료 요청도 함께 반환.
+     * includeProcessed=true 면 최근 7일의 처리된 요청(수락·거절·만료)도 함께 준다.
+     * 수락된 요청에는 지금 열려 있는 채팅방 id(chatRoomId)를 채운다.
      */
     @Transactional(readOnly = true)
     public List<ChatRequestResponse> getSentRequests(Long senderId, boolean includeProcessed) {
         List<ChatRequest> requests = includeProcessed
                 ? chatRequestRepository.findRecentSentWithReceiver(senderId, java.time.LocalDateTime.now().minusDays(7))
-                : chatRequestRepository.findSentRequestsWithReceiver(senderId, RequestStatus.PENDING);
+                : chatRequestRepository.findRecentSentWithReceiver(senderId, java.time.LocalDateTime.now().minusDays(7)).stream()
+                        .filter(r -> r.getStatus() == RequestStatus.PENDING)
+                        .toList();
         return requests.stream()
                 .map(r -> {
                     ChatRequestResponse res = ChatRequestResponse.from(r);
@@ -142,6 +150,15 @@ public class ChatRequestService {
         if (!request.getReceiver().getId().equals(currentUserId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED, "본인에게 수신된 대화 요청만 수락할 수 있습니다.");
         }
+
+        if (userBlockRepository.isBlockedBetween(request.getSender().getId(), currentUserId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "차단 관계인 사용자의 대화 요청은 수락할 수 없습니다.");
+        }
+
+        if (chatRoomMemberRepository.existsActiveRoomBetween(request.getSender().getId(), currentUserId)) {
+            throw new CustomException(ErrorCode.DUPLICATE_CHAT_REQUEST, "이미 활성 채팅방이 존재하는 상대입니다.");
+        }
+
         ensurePending(request);
 
         request.accept();

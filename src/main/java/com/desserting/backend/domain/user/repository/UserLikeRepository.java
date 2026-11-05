@@ -7,12 +7,16 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public interface UserLikeRepository extends JpaRepository<UserLike, Long> {
 
     boolean existsBySenderIdAndReceiverId(Long senderId, Long receiverId);
 
     Optional<UserLike> findBySenderIdAndReceiverId(Long senderId, Long receiverId);
+
+    @Query("SELECT ul.receiver.id FROM UserLike ul WHERE ul.sender.id = :senderId")
+    Set<Long> findLikedReceiverIdsBySenderId(@Param("senderId") Long senderId);
 
     @Query("SELECT DISTINCT ul FROM UserLike ul " +
             "JOIN FETCH ul.sender s " +

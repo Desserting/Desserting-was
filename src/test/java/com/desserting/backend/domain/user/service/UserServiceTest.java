@@ -11,6 +11,7 @@ import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
 import com.desserting.backend.domain.user.repository.ProfileVisitRepository;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
+import com.desserting.backend.domain.user.repository.UserLikeRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -23,10 +24,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -40,6 +41,9 @@ class UserServiceTest {
 
     @Mock
     private UserBlockRepository userBlockRepository;
+
+    @Mock
+    private UserLikeRepository userLikeRepository;
 
     @Mock
     private ProfileVisitRepository profileVisitRepository;
@@ -58,13 +62,12 @@ class UserServiceTest {
                 .gender("MALE")
                 .age(26)
                 .region("대구 수성구")
-                .heartCount(4)
-                .isPremium(false)
-                .dessertAvatarUrl("https://desserting-web.vercel.app/avatars/coffee.png")
-                .dessertTags(new ArrayList<>())
+                .bio("커피 좋아합니다")
+                .dessertAvatarUrl(DessertType.COFFEE.getDefaultAvatarUrl())
+                .heartCount(5)
+                .isPremium(true)
                 .build();
         ReflectionTestUtils.setField(user, "id", 1L);
-        ReflectionTestUtils.setField(user, "createdAt", LocalDateTime.now());
         user.getDessertTags().add(UserDessertTag.of(user, DessertType.COFFEE));
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
@@ -73,89 +76,73 @@ class UserServiceTest {
         UserProfileResponse response = userService.getMyProfile(1L);
 
         // then
-        assertThat(response).isNotNull();
+        assertThat(response.getUserId()).isEqualTo(1L);
         assertThat(response.getNickname()).isEqualTo("바닐라빈라떼");
-        assertThat(response.getHeartCount()).isEqualTo(4);
+        assertThat(response.getHeartCount()).isEqualTo(5);
+        assertThat(response.getIsPremium()).isTrue();
         assertThat(response.getDessertTags()).containsExactly(DessertType.COFFEE);
     }
 
     @Test
-    @DisplayName("프로필 수정 시 닉네임, 소개글, 디저트 취향 태그가 정상 갱신된다")
+    @DisplayName("존재하지 않는 회원 프로필 조회 시 USER_NOT_FOUND 예외 발생")
+    void getMyProfile_NotFound_ThrowsException() {
+        // given
+        given(userRepository.findByIdWithTags(999L)).willReturn(Optional.empty());
+
+        // when & then
+        assertThatThrownBy(() -> userService.getMyProfile(999L))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.USER_NOT_FOUND);
+    }
+
+    @Test
+    @DisplayName("프로필 수정 시 닉네임, 소개글, 활동지역, 아바타, 선호태그가 정상 변경된다")
     void updateMyProfile_Success() {
         // given
         User user = User.builder()
-                .email("me@desserting.com")
-                .nickname("기존닉네임")
-                .bio("기존 소개")
-                .region("대구 남구")
-                .dessertTags(new ArrayList<>())
+                .nickname("옛날닉네임")
+                .bio("옛날소개")
+                .region("대구 중구")
+                .dessertAvatarUrl(DessertType.CAKE.getDefaultAvatarUrl())
                 .build();
         ReflectionTestUtils.setField(user, "id", 1L);
-        user.getDessertTags().add(UserDessertTag.of(user, DessertType.CAKE));
 
-        UpdateProfileRequest request = UpdateProfileRequest.builder()
-                .nickname("새로운닉네임")
-                .bio("새로운 자기소개입니다")
-                .region("대구 중구")
-                .dessertTypes(List.of(DessertType.BAKERY, DessertType.TEA_NON_COFFEE))
-                .build();
+        String newAvatarUrl = DessertType.BAKERY.getDefaultAvatarUrl();
+        UpdateProfileRequest request = new UpdateProfileRequest(
+                "새닉네임",
+                "새소개글",
+                "대구 북구",
+                newAvatarUrl,
+                List.of(DessertType.BAKERY, DessertType.CAKE)
+        );
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
-        given(userRepository.existsByNickname("새로운닉네임")).willReturn(false);
+        given(userRepository.existsByNickname("새닉네임")).willReturn(false);
 
         // when
         UserProfileResponse response = userService.updateMyProfile(1L, request);
 
         // then
-        assertThat(response.getNickname()).isEqualTo("새로운닉네임");
-        assertThat(response.getBio()).isEqualTo("새로운 자기소개입니다");
-        assertThat(response.getRegion()).isEqualTo("대구 중구");
-        assertThat(response.getDessertTags()).containsExactly(DessertType.BAKERY, DessertType.TEA_NON_COFFEE);
+        assertThat(response.getNickname()).isEqualTo("새닉네임");
+        assertThat(response.getBio()).isEqualTo("새소개글");
+        assertThat(response.getRegion()).isEqualTo("대구 북구");
+        assertThat(response.getDessertAvatarUrl()).isEqualTo(newAvatarUrl);
+        assertThat(response.getDessertTags()).containsExactlyInAnyOrder(DessertType.BAKERY, DessertType.CAKE);
     }
 
     @Test
-    @DisplayName("프로필 수정 시 기본 제공 아바타 URL이면 대표 아바타가 변경된다")
-    void updateMyProfile_SelectableAvatar() {
-        User user = User.builder().email("me@desserting.com").nickname("닉네임")
-                .dessertAvatarUrl(DessertType.CAKE.getDefaultAvatarUrl()).dessertTags(new ArrayList<>()).build();
-        ReflectionTestUtils.setField(user, "id", 1L);
-        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
-
-        UserProfileResponse response = userService.updateMyProfile(1L, UpdateProfileRequest.builder()
-                .dessertAvatarUrl(DessertType.TEA_NON_COFFEE.getDefaultAvatarUrl()).build());
-
-        assertThat(response.getDessertAvatarUrl()).isEqualTo("https://desserting-web.vercel.app/avatars/tea.png");
-    }
-
-    @Test
-    @DisplayName("프로필 수정 시 기본 제공 목록에 없는 아바타 URL이면 INVALID_AVATAR_URL 예외 발생")
-    void updateMyProfile_InvalidAvatar() {
-        User user = User.builder().email("me@desserting.com").nickname("닉네임").dessertTags(new ArrayList<>()).build();
-        ReflectionTestUtils.setField(user, "id", 1L);
-        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
-
-        assertThatThrownBy(() -> userService.updateMyProfile(1L, UpdateProfileRequest.builder()
-                .dessertAvatarUrl("https://evil.example.com/a.png").build()))
-                .isInstanceOf(CustomException.class)
-                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_AVATAR_URL);
-    }
-
-    @Test
-    @DisplayName("프로필 수정 시 이미 사용 중인 닉네임이면 DUPLICATE_NICKNAME 예외 발생")
-    void updateMyProfile_DuplicateNickname() {
+    @DisplayName("프로필 수정 시 중복된 닉네임으로 변경을 시도하면 DUPLICATE_NICKNAME 예외 발생")
+    void updateMyProfile_DuplicateNickname_ThrowsException() {
         // given
-        User user = User.builder()
-                .email("me@desserting.com")
-                .nickname("기존닉네임")
-                .build();
+        User user = User.builder().nickname("기존닉네임").build();
         ReflectionTestUtils.setField(user, "id", 1L);
 
-        UpdateProfileRequest request = UpdateProfileRequest.builder()
-                .nickname("이미있는닉네임")
-                .build();
+        UpdateProfileRequest request = new UpdateProfileRequest(
+                "이미존재하는닉네임", null, null, null, null
+        );
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
-        given(userRepository.existsByNickname("이미있는닉네임")).willReturn(true);
+        given(userRepository.existsByNickname("이미존재하는닉네임")).willReturn(true);
 
         // when & then
         assertThatThrownBy(() -> userService.updateMyProfile(1L, request))
@@ -164,20 +151,40 @@ class UserServiceTest {
     }
 
     @Test
-    @DisplayName("위치 정보(위경도 및 수동 지역) 정상 갱신 검증")
+    @DisplayName("선택 가능한 아바타 목록에 없는 URL로 변경을 시도하면 INVALID_AVATAR_URL 예외 발생")
+    void updateMyProfile_InvalidAvatarUrl_ThrowsException() {
+        // given
+        User user = User.builder().nickname("기존닉네임").build();
+        ReflectionTestUtils.setField(user, "id", 1L);
+
+        UpdateProfileRequest request = new UpdateProfileRequest(
+                null, null, null, "https://desserting.com/avatars/unknown-random.png", null
+        );
+
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
+
+        // when & then
+        assertThatThrownBy(() -> userService.updateMyProfile(1L, request))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_AVATAR_URL);
+    }
+
+    @Test
+    @DisplayName("위치 갱신 시 위도/경도/지역명이 올바르게 업데이트된다")
     void updateLocation_Success() {
         // given
         User user = User.builder()
-                .email("me@desserting.com")
-                .region("대구 남구")
+                .region("대구 중구")
+                .latitude(BigDecimal.valueOf(35.868))
+                .longitude(BigDecimal.valueOf(128.593))
                 .build();
         ReflectionTestUtils.setField(user, "id", 1L);
 
-        UpdateLocationRequest request = UpdateLocationRequest.builder()
-                .latitude(new BigDecimal("35.8398120"))
-                .longitude(new BigDecimal("128.5876320"))
-                .region("앞산 카페거리")
-                .build();
+        UpdateLocationRequest request = new UpdateLocationRequest(
+                BigDecimal.valueOf(35.871),
+                BigDecimal.valueOf(128.601),
+                "대구 수성구"
+        );
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
 
@@ -185,44 +192,51 @@ class UserServiceTest {
         UserProfileResponse response = userService.updateLocation(1L, request);
 
         // then
-        assertThat(response.getLatitude()).isEqualTo(new BigDecimal("35.8398120"));
-        assertThat(response.getLongitude()).isEqualTo(new BigDecimal("128.5876320"));
-        assertThat(response.getRegion()).isEqualTo("앞산 카페거리");
+        assertThat(response.getLatitude()).isEqualByComparingTo(BigDecimal.valueOf(35.871));
+        assertThat(response.getLongitude()).isEqualByComparingTo(BigDecimal.valueOf(128.601));
+        assertThat(response.getRegion()).isEqualTo("대구 수성구");
     }
 
     @Test
-    @DisplayName("타인 프로필 열람 시 민감 정보(이메일, 잔여 하트 등)는 노출되지 않고 공개 정보만 반환된다")
+    @DisplayName("타인 프로필 조회 시 민감정보(이메일, 잔여 하트수 등)는 제외되고 공개 프로필과 좋아요 여부가 반환된다")
     void getOtherUserProfile_Success() {
         // given
         User targetUser = User.builder()
-                .email("private@desserting.com")
-                .password("secret")
+                .email("secret@desserting.com")
+                .password("encoded")
                 .nickname("초코크로플")
                 .gender("FEMALE")
-                .age(23)
-                .region("대구 수성구")
+                .age(24)
+                .region("대구 동구")
+                .bio("디저트 투어 좋아해요")
+                .dessertAvatarUrl(DessertType.BAKERY.getDefaultAvatarUrl())
                 .heartCount(10)
                 .isPremium(true)
-                .dessertAvatarUrl("https://desserting-web.vercel.app/avatars/bakery.png")
-                .dessertTags(new ArrayList<>())
                 .build();
         ReflectionTestUtils.setField(targetUser, "id", 99L);
         targetUser.getDessertTags().add(UserDessertTag.of(targetUser, DessertType.BAKERY));
 
+        User viewerUser = User.builder().nickname("보는사람").build();
+        ReflectionTestUtils.setField(viewerUser, "id", 1L);
+
         given(userRepository.findByIdWithTags(99L)).willReturn(Optional.of(targetUser));
+        given(userRepository.findById(1L)).willReturn(Optional.of(viewerUser));
+        given(profileVisitRepository.findByVisitorIdAndVisitedUserId(1L, 99L)).willReturn(Optional.empty());
+        given(userLikeRepository.existsBySenderIdAndReceiverId(1L, 99L)).willReturn(true);
 
         // when
-        OtherUserProfileResponse response = userService.getOtherUserProfile(99L);
+        OtherUserProfileResponse response = userService.getOtherUserProfile(1L, 99L);
 
         // then
         assertThat(response.getUserId()).isEqualTo(99L);
         assertThat(response.getNickname()).isEqualTo("초코크로플");
         assertThat(response.getIsPremium()).isTrue();
+        assertThat(response.getLiked()).isTrue();
         assertThat(response.getDessertTags()).containsExactly(DessertType.BAKERY);
     }
 
     @Test
-    @DisplayName("전체 사용자 목록 조회 시 자신과 차단/피차단 사용자는 제외된다")
+    @DisplayName("전체 사용자 목록 조회 시 자신과 차단/피차단 사용자는 제외되고 좋아요 여부가 매핑된다")
     void getAllOtherUsers_ExcludesBlockedUsers() {
         // given
         User me = User.builder().nickname("나").dessertTags(new ArrayList<>()).build();
@@ -240,6 +254,7 @@ class UserServiceTest {
         given(userRepository.findAllWithTags()).willReturn(List.of(me, normalUser, blockedUser, blockerUser));
         given(userBlockRepository.findBlockedUserIdsByUserId(1L)).willReturn(List.of(3L));
         given(userBlockRepository.findBlockerUserIdsByUserId(1L)).willReturn(List.of(4L));
+        given(userLikeRepository.findLikedReceiverIdsBySenderId(1L)).willReturn(Set.of(2L));
 
         // when
         List<OtherUserProfileResponse> result = userService.getAllOtherUsers(1L);
@@ -248,6 +263,7 @@ class UserServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getUserId()).isEqualTo(2L);
         assertThat(result.get(0).getNickname()).isEqualTo("일반유저");
+        assertThat(result.get(0).getLiked()).isTrue();
     }
 
     @Test

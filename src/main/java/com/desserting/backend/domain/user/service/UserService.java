@@ -12,6 +12,7 @@ import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
 import com.desserting.backend.domain.user.repository.ProfileVisitRepository;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
+import com.desserting.backend.domain.user.repository.UserLikeRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
@@ -20,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,6 +33,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final UserBlockRepository userBlockRepository;
+    private final UserLikeRepository userLikeRepository;
     private final ProfileVisitRepository profileVisitRepository;
 
     @Transactional(readOnly = true)
@@ -100,7 +103,11 @@ public class UserService {
             });
         }
 
-        return OtherUserProfileResponse.from(targetUser);
+        Boolean liked = viewerUserId != null
+                ? userLikeRepository.existsBySenderIdAndReceiverId(viewerUserId, targetUserId)
+                : null;
+
+        return OtherUserProfileResponse.from(targetUser, liked);
     }
 
     @Transactional(readOnly = true)
@@ -130,7 +137,7 @@ public class UserService {
         List<User> users = userRepository.findAllWithTags();
         if (currentUserId == null) {
             return users.stream()
-                    .map(OtherUserProfileResponse::from)
+                    .map(u -> OtherUserProfileResponse.from(u, null))
                     .toList();
         }
 
@@ -139,9 +146,11 @@ public class UserService {
         excludedUserIds.addAll(userBlockRepository.findBlockedUserIdsByUserId(currentUserId));
         excludedUserIds.addAll(userBlockRepository.findBlockerUserIdsByUserId(currentUserId));
 
+        Set<Long> likedUserIds = userLikeRepository.findLikedReceiverIdsBySenderId(currentUserId);
+
         return users.stream()
                 .filter(u -> !excludedUserIds.contains(u.getId()))
-                .map(OtherUserProfileResponse::from)
+                .map(u -> OtherUserProfileResponse.from(u, likedUserIds.contains(u.getId())))
                 .toList();
     }
 }

@@ -56,11 +56,11 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             "WHERE r.sender.id = :senderId AND r.createdAt >= :since " +
             "ORDER BY r.createdAt DESC")
     List<ChatRequest> findRecentSentWithReceiver(@Param("senderId") Long senderId,
-                                                @Param("since") LocalDateTime since);
+                                                 @Param("since") LocalDateTime since);
 
     boolean existsBySenderIdAndReceiverIdAndStatus(Long senderId, Long receiverId, RequestStatus status);
 
-    @Query("SELECT r FROM ChatRequest r WHERE r.status = :status AND r.expiredAt <= :now")
+    @Query("SELECT r FROM ChatRequest r JOIN FETCH r.sender s JOIN FETCH r.receiver rc WHERE r.status = :status AND r.expiredAt <= :now")
     List<ChatRequest> findAllByStatusAndExpiredAtLessThanEqual(
             @Param("status") RequestStatus status,
             @Param("now") LocalDateTime now

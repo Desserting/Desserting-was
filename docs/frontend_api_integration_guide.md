@@ -295,9 +295,15 @@ api.interceptors.response.use(undefined, async (error) => {
 - 로컬 온디바이스 Qwen 2.5 3B (Ollama) 모델이 채팅방 최근 대화와 두 사람의 디저트 취향을 분석하여 최적의 카페와 메뉴를 선정합니다.
 - 호출 완료 시 채팅방에 `PLACE_PROPOSAL` 타입 카드 메시지가 실시간 STOMP 브로드캐스트되어 양측 화면에 즉시 노출됩니다.
 - Ollama 미기동 시에도 스마트 Fallback 엔진이 100% 정상 작동합니다.
-- REST 응답의 `data`는 `null`이고, 카드는 STOMP로 옵니다. Ollama 응답은 최대 약 15초 걸릴 수 있으니 호출 중 로딩을 보여 주세요 (실패 시 Fallback으로 카드가 오므로 에러는 드뭅니다).
-- AI 카드의 `content`는 서버가 `🍰 [AI 데이트 제안] 매장명 (주소) 어때요? ...` 형태로 만듭니다 (접두어 포함).
-- AI 카드 `metadata`: `storeId`, `storeName`, `storeAddress`(부제목으로 쓰기 좋음), `recommendedMenus`(문자열 배열), `reason`(추천 이유), `aiSource`(`OLLAMA` 또는 `SMART_KEYWORD_FALLBACK`). **날짜·시간은 없으므로 "일시 미정"으로 표시**하면 됩니다.
+- REST 응답의 `data`에 추천 결과가 옵니다. 같은 카드가 STOMP로도 양쪽에 전달됩니다.
+  ```jsonc
+  { "roomId": 17, "storeId": 1, "storeName": "아눅 앞산 (a.nook Apsan)", "storeAddress": "대구 남구 앞산순환로 459",
+    "reason": "...", "recommendedMenus": ["피스타치오 크루키", "아눅 크림 라떼"], "source": "OLLAMA_LOCAL_QWEN" }
+  ```
+  REST 응답이 오면 로딩을 끝내고, 화면의 카드는 STOMP로 받은 메시지로 그리면 중복이 생기지 않습니다.
+- Ollama 응답은 시연 서버 기준 **약 10초**(최대 약 15초) 걸리니 호출 중 로딩을 보여 주세요 (실패 시 Fallback으로 카드가 오므로 에러는 드뭅니다).
+- AI 카드의 `content`는 서버가 `🍰 [AI 데이트 제안] 매장명 (추천 메뉴1, 추천 메뉴2) 어때요? 추천 이유` 형태로 만듭니다 (접두어 포함).
+- AI 카드 `metadata`: `storeId`, `storeName`, `storeAddress`(부제목으로 쓰기 좋음), `recommendedMenus`(문자열 배열), `reason`(추천 이유), `aiSource`(`OLLAMA_LOCAL_QWEN` 또는 `SMART_KEYWORD_FALLBACK`). **날짜·시간은 없으므로 "일시 미정"으로 표시**하면 됩니다.
 - 제안 카드에는 수락/거절 상태가 없습니다 (상태 변경 API 없음). 카드의 "예약하기"에서 `storeId`로 매장 상세·예약 화면으로 보내 주세요.
 
 ---

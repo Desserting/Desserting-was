@@ -26,7 +26,10 @@ public enum ExploreErrorCode {
     INVALID_ORDER_MENU(HttpStatus.BAD_REQUEST, "EX403", "예약한 매장의 메뉴가 아닙니다."),
     MENU_SOLD_OUT(HttpStatus.CONFLICT, "EX404", "품절된 메뉴가 포함되어 있습니다."),
     ORDER_NOT_FOUND(HttpStatus.NOT_FOUND, "EX405", "주문 내역이 없습니다."),
-    INVALID_SPLIT_PAYMENT(HttpStatus.BAD_REQUEST, "EX406", "개별 결제는 방문 인원이 2명 이상일 때만 가능합니다.");
+    INVALID_SPLIT_PAYMENT(HttpStatus.BAD_REQUEST, "EX406", "개별 결제는 방문 인원이 2명 이상일 때만 가능합니다."),
+    ORDER_PROGRESS_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "EX407", "주문 준비 단계를 변경할 수 없습니다."),
+
+    MENU_NOT_FOUND(HttpStatus.NOT_FOUND, "EX501", "해당 매장의 메뉴가 아닙니다.");
 
     private final HttpStatus httpStatus;
     private final String code;

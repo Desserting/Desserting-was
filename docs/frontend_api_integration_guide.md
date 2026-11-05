@@ -204,23 +204,29 @@ api.interceptors.response.use(undefined, async (error) => {
 - 결제된 예약을 사용자가 취소하면 주문도 모의 환불(`orderStatus: REFUNDED`)됩니다.
 
 ### ⑧-1 메뉴 주문·모의 결제 (D-06 ~ D-09, 4-7)
-흐름: 예약 생성 → **메뉴 선택** → **주문 확인(미리보기)** → **모의 결제** → 점주가 준비 상태 변경
+흐름: 예약 생성 → **메뉴 선택** → **주문 확인(미리보기)** → **모의 결제** → 점주가 준비 단계 변경 (접수 → 준비 중 → 준비 완료)
 
 | 화면 | 동작 | API |
 |---|---|---|
-| 6-4 메뉴 선택 | 매장 메뉴 (품절이면 `soldOut: true`) | `GET /stores/{storeId}` 의 `menus` |
+| 6-4 메뉴 선택 | 매장 메뉴 (품절 `soldOut`, 탭 분류 `category`: `DESSERT`\|`DRINK`\|`SET`, `categoryLabel`) | `GET /stores/{storeId}` 의 `menus` |
 | 7-1 주문 확인 | 금액 계산만 (저장 안 함) | `POST /reservations/{reservationId}/order/preview` `{items: [{menuId, quantity(1~20)}], couponId?}` |
 | 7-2 모의 결제 | 결제 승인 + 주문 생성 | `POST /reservations/{reservationId}/order` `{items, couponId?, paymentMethod: CARD\|EASY_PAY, paymentType: COMBINED\|SPLIT}` → 201 |
 | 결제 완료·영수증 | 예약의 주문 | `GET /reservations/{reservationId}/order` |
 | 마이페이지 주문 내역 | 내 주문 (환불 포함) | `GET /orders/me` |
 | 점주 주문 화면 (4-8) | 매장 주문 메뉴 내역 (점주·관리자) | `GET /admin/stores/{storeId}/orders` |
+| 점주 준비 단계 변경 | 준비 중 / 준비 완료 (점주·관리자) | `PATCH /admin/stores/{storeId}/orders/{orderId}/progress` `{step: PREPARING\|READY}` |
+| 점주 메뉴 분류 지정 | 메뉴 탭 분류 (점주·관리자) | `PUT /admin/stores/{storeId}/menus/{menuId}/category` `{category: DESSERT\|DRINK\|SET}` |
 
 ```jsonc
 // POST /reservations/10/order  { "items": [{"menuId":1,"quantity":2},{"menuId":2,"quantity":1}], "paymentMethod":"CARD", "paymentType":"SPLIT" }
 { "orderId": 1, "reservationId": 10, "items": [ {"menuId":1,"menuName":"바스크 치즈케이크","unitPrice":8000,"quantity":2,"lineAmount":16000}, ... ],
   "totalAmount": 22800, "couponName": "디저팅 첫 데이트 2,000원 할인", "discountAmount": 2000, "finalAmount": 20800,
   "paymentType": "SPLIT", "shareAmounts": [10400, 10400], "paymentMethod": "CARD", "paymentKey": "MOCK-ORD-...",
-  "orderStatus": "PAID", "reservationStatus": "PENDING", "paidAt": "2026-11-04T10:48:41", "refundedAt": null }
+  "orderStatus": "PAID", "reservationStatus": "PENDING", "paidAt": "2026-11-04T10:48:41", "refundedAt": null,
+  "currentStep": "RECEIVED",
+  "progressSteps": [ {"step":"RECEIVED","label":"주문 접수","done":true,"at":"2026-11-04T10:48:41"},
+                     {"step":"PREPARING","label":"준비 중","done":false,"at":null},
+                     {"step":"READY","label":"준비 완료","done":false,"at":null} ] }
 ```
 - 예약 **대기·확정** 상태에서만, 예약 1건당 **1번** 주문할 수 있습니다 (다시 결제하면 `EX402`).
 - 같은 `menuId`를 여러 줄로 보내면 수량이 합쳐집니다. 메뉴명·단가는 주문 시점 값으로 저장됩니다.
@@ -228,7 +234,9 @@ api.interceptors.response.use(undefined, async (error) => {
 - 할인액이 메뉴 합계보다 크면 합계까지만 할인합니다 (`finalAmount`는 0 미만이 되지 않음).
 - `SPLIT`(개별 결제)은 예약 인원(`guestCount`, 2명 이상)으로 나누며 1원 단위 나머지는 앞사람이 냅니다 → `shareAmounts`. `COMBINED`는 1명이 전액.
 - 결제 후 예약의 `totalAmount`·`discountAmount`·`finalAmount`가 함께 갱신되어 예약 내역·점주 화면에 보입니다.
-- 매장 준비 단계(접수 → 준비 중 → 방문 완료)는 주문이 아닌 **예약 상태(`reservationStatus`)**를 보면 됩니다.
+- 주문 진행 화면은 **`progressSteps`**(주문 접수 → 준비 중 → 준비 완료)와 `currentStep`을 그대로 그리면 됩니다. `at`은 각 단계 시각이며, 점주가 예약 상태 API로 바꾼 경우에는 `done: true`인데 `at: null`일 수 있습니다. 환불된 주문은 `currentStep: null`.
+- 점주가 준비 단계를 바꾸면(`PATCH .../progress`) 예약 상태도 `PREPARING`이 됩니다. 단계는 되돌릴 수 없고(`EX407`), 같은 단계를 다시 보내면 처음 시각이 유지됩니다.
+- 메뉴 `category`는 점주가 지정하지 않으면 이름으로 추정합니다 (커피·라떼·에이드·밀크티 등 → `DRINK`, '세트' → `SET`, 그 외 `DESSERT`).
 - 로컬 시드: 제휴매장마다 쿠폰 2종 (`2,000원 할인 / 1만원 이상`, `3,000원 할인 / 2만원 이상`).
 
 ### ⑨ 하트 구매·마이페이지 및 프리미엄 전용 기능 (E-01 ~ E-07)
@@ -386,6 +394,8 @@ client.publish({
 | `EX404` | 409 | 품절 메뉴 포함 → **메뉴 다시 불러오기** | 주문 미리보기·결제 |
 | `EX405` | 404 | 주문 없음 (아직 결제 전이거나 본인 주문 아님) | 주문 조회 |
 | `EX406` | 400 | 1인 예약은 개별 결제(`SPLIT`) 불가 | 주문 결제 |
+| `EX407` | 400 | 준비 단계를 바꿀 수 없음 (환불·취소·방문 완료 주문, 되돌리기, `RECEIVED` 지정) | 점주 준비 단계 변경 |
+| `EX501` | 404 | 해당 매장의 메뉴가 아님 | 점주 메뉴 분류 지정 |
 | `T001` | 404 | 테마거리 없음 | 테마거리 선택 |
 | `S001` | 404 | 매장 없음 또는 제휴 해지 | 매장 상세·예약 |
 | `R001` | 409 | 시간대 마감 | 예약 생성 → **시간 목록 새로고침** |

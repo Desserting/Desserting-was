@@ -88,6 +88,12 @@ public class ReservationOrder extends BaseTimeEntity {
 
     private LocalDateTime refundedAt;
 
+    /** 점주가 '준비 중'으로 바꾼 시각 */
+    private LocalDateTime preparingAt;
+
+    /** 점주가 '준비 완료'로 바꾼 시각 */
+    private LocalDateTime readyAt;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("id ASC")
     @Builder.Default
@@ -105,6 +111,21 @@ public class ReservationOrder extends BaseTimeEntity {
         this.status = OrderStatus.REFUNDED;
         this.refundedAt = now;
         return true;
+    }
+
+    /** 준비 시작. 이미 시작했으면 처음 시각을 유지한다. */
+    public void markPreparing(LocalDateTime now) {
+        if (preparingAt == null) {
+            this.preparingAt = now;
+        }
+    }
+
+    /** 준비 완료. '준비 중'을 건너뛰면 같은 시각으로 함께 기록한다. */
+    public void markReady(LocalDateTime now) {
+        markPreparing(now);
+        if (readyAt == null) {
+            this.readyAt = now;
+        }
     }
 
     /** 1인당 결제 금액 (합산 결제면 1개) */

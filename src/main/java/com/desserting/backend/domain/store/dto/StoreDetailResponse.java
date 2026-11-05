@@ -1,5 +1,6 @@
 package com.desserting.backend.domain.store.dto;
 
+import com.desserting.backend.domain.store.entity.MenuCategory;
 import com.desserting.backend.domain.store.entity.Store;
 import com.desserting.backend.domain.store.entity.StoreMenu;
 import com.desserting.backend.domain.user.entity.DessertType;
@@ -12,6 +13,7 @@ import lombok.NoArgsConstructor;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -46,7 +48,8 @@ public class StoreDetailResponse {
     @Schema(description = "메뉴 목록 (대표 메뉴 우선)")
     private List<MenuResponse> menus;
 
-    public static StoreDetailResponse of(Store store, List<DessertType> dessertTypes) {
+    public static StoreDetailResponse of(Store store, List<DessertType> dessertTypes,
+                                         Map<Long, MenuCategory> menuCategories) {
         return StoreDetailResponse.builder()
                 .storeId(store.getId())
                 .name(store.getName())
@@ -63,7 +66,7 @@ public class StoreDetailResponse {
                 .menus(store.getMenus().stream()
                         .sorted(Comparator.comparing((StoreMenu m) -> !Boolean.TRUE.equals(m.getIsRepresentative()))
                                 .thenComparing(StoreMenu::getId, Comparator.nullsLast(Comparator.naturalOrder())))
-                        .map(MenuResponse::from)
+                        .map(m -> MenuResponse.from(m, menuCategories.getOrDefault(m.getId(), MenuCategory.infer(m.getName()))))
                         .toList())
                 .build();
     }
@@ -76,11 +79,14 @@ public class StoreDetailResponse {
             String description,
             String imageUrl,
             boolean representative,
-            boolean soldOut
+            boolean soldOut,
+            @Schema(description = "메뉴 탭 분류 (DESSERT, DRINK, SET)", example = "DESSERT") MenuCategory category,
+            @Schema(example = "디저트") String categoryLabel
     ) {
-        static MenuResponse from(StoreMenu m) {
+        static MenuResponse from(StoreMenu m, MenuCategory category) {
             return new MenuResponse(m.getId(), m.getName(), m.getPrice(), m.getDescription(), m.getImageUrl(),
-                    Boolean.TRUE.equals(m.getIsRepresentative()), Boolean.TRUE.equals(m.getIsSoldOut()));
+                    Boolean.TRUE.equals(m.getIsRepresentative()), Boolean.TRUE.equals(m.getIsSoldOut()),
+                    category, category.getLabel());
         }
     }
 }

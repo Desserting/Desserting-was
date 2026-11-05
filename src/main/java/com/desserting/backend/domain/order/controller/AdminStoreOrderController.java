@@ -13,13 +13,17 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import jakarta.validation.Valid;
+import com.desserting.backend.domain.order.dto.OrderProgressRequest;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
-/** 점주 화면용 주문 메뉴 내역. 준비 상태 변경은 기존 4-8 예약 상태 API(PATCH .../reservations/{id}/status)를 사용한다. */
+/** 점주 화면용 주문 메뉴 내역과 준비 단계(접수 → 준비 중 → 준비 완료) 변경. */
 @Tag(name = "4-7. 메뉴 주문 및 모의 결제 API")
 @RestController
 @RequestMapping("/api/v1/admin/stores/{storeId}/orders")
@@ -44,5 +48,26 @@ public class AdminStoreOrderController {
     @PreAuthorize("hasAnyRole('ADMIN', 'STORE_OWNER')")
     public ApiResponse<List<OrderResponse>> getStoreOrders(@PathVariable Long storeId) {
         return ApiResponse.success("매장 주문 내역 조회에 성공하였습니다.", orderService.getStoreOrders(storeId));
+    }
+
+    @Operation(summary = "주문 준비 단계 변경 (점주/관리자, ORD-03)",
+            description = "주문을 '준비 중'(PREPARING) 또는 '준비 완료'(READY)로 바꾸고 시각을 기록합니다. "
+                    + "앞 단계로 되돌릴 수 없고, 같은 단계를 다시 보내면 처음 시각을 유지합니다. "
+                    + "준비를 시작하면 예약 상태도 PREPARING 이 됩니다.")
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "변경 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "EX407 변경할 수 없는 주문 (환불·취소·방문 완료·되돌리기)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "A002 점주·관리자 아님",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "EX405 매장의 주문이 아님",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    @PatchMapping("/{orderId}/progress")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STORE_OWNER')")
+    public ApiResponse<OrderResponse> updateProgress(@PathVariable Long storeId, @PathVariable Long orderId,
+                                                     @Valid @RequestBody OrderProgressRequest request) {
+        return ApiResponse.success("주문 준비 단계를 변경하였습니다.",
+                orderService.updateProgress(storeId, orderId, request.step()));
     }
 }

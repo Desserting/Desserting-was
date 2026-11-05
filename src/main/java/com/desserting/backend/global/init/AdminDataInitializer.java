@@ -299,7 +299,8 @@ public class AdminDataInitializer implements CommandLineRunner {
                         .metadata(Map.of(
                                 "storeId", 1,
                                 "storeName", "아눅 앞산",
-                                "proposedDateTime", "2026-11-08T15:00:00",
+                                "proposedDate", "2026-11-08",
+                                "proposedTime", "15:00",
                                 "discountNotice", "데이트 예약 방문 시 시그니처 아메리카노 1잔 무료 증정"
                         ))
                         .readUserIds(new ArrayList<>(List.of(userTaehyun.getId(), userMinjung.getId())))

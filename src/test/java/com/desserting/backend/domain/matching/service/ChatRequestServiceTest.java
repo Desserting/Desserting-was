@@ -1,5 +1,7 @@
 package com.desserting.backend.domain.matching.service;
 
+import static org.mockito.Mockito.never;
+import com.desserting.backend.domain.matching.repository.MatchExposureRepository;
 import com.desserting.backend.domain.chat.entity.ChatRoom;
 import com.desserting.backend.domain.chat.entity.ChatRoomMember;
 import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
@@ -57,6 +59,9 @@ class ChatRequestServiceTest {
     @Mock
     private UserBlockRepository userBlockRepository;
 
+    @Mock
+    private MatchExposureRepository matchExposureRepository;
+
     @InjectMocks
     private ChatRequestService chatRequestService;
 
@@ -70,7 +75,8 @@ class ChatRequestServiceTest {
         User receiver = User.builder().email("receiver@desserting.com").nickname("받는사람").dessertTags(new ArrayList<>()).build();
         ReflectionTestUtils.setField(receiver, "id", 2L);
 
-        given(heartService.deductHeartForRequest(1L)).willReturn(sender);
+        given(heartService.deductHeartForRequest(eq(1L), any())).willReturn(sender);
+        given(matchExposureRepository.wasShownRecently(1L, 2L)).willReturn(true);
         given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
         given(chatRoomMemberRepository.existsActiveRoomBetween(1L, 2L)).willReturn(false);
         given(chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(1L, 2L, RequestStatus.PENDING)).willReturn(false);
@@ -89,7 +95,44 @@ class ChatRequestServiceTest {
         assertThat(response).isNotNull();
         assertThat(response.getRequestId()).isEqualTo(100L);
         assertThat(response.getStatus()).isEqualTo(RequestStatus.PENDING);
-        verify(heartService).deductHeartForRequest(1L);
+        verify(heartService).deductHeartForRequest(1L, "받는사람");
+    }
+
+    @Test
+    @DisplayName("일반 회원이 매칭으로 만나지 않은 상대에게 직접 요청하면 ACCESS_DENIED (하트 차감은 롤백)")
+    void sendRequest_DirectRequestRequiresPremium() {
+        User sender = User.builder().nickname("일반").isPremium(false).dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(sender, "id", 1L);
+        given(heartService.deductHeartForRequest(eq(1L), any())).willReturn(sender);
+        given(matchExposureRepository.wasShownRecently(1L, 2L)).willReturn(false);
+        User target = User.builder().nickname("받는사람").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(target, "id", 2L);
+        given(userRepository.findById(2L)).willReturn(Optional.of(target));
+
+        assertThatThrownBy(() -> chatRequestService.sendRequest(1L, new ChatRequestCreateRequest(2L)))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+        verify(chatRequestRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("프리미엄 회원은 매칭 이력 없이도 원하는 상대에게 직접 요청할 수 있다")
+    void sendRequest_PremiumDirectRequest() {
+        User sender = User.builder().nickname("프리미엄").isPremium(true).dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(sender, "id", 1L);
+        User receiver = User.builder().nickname("받는사람").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(receiver, "id", 2L);
+        given(heartService.deductHeartForRequest(eq(1L), any())).willReturn(sender);
+        given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
+        given(chatRequestRepository.save(any(ChatRequest.class))).willAnswer(inv -> {
+            ChatRequest req = inv.getArgument(0);
+            ReflectionTestUtils.setField(req, "createdAt", LocalDateTime.now());
+            return req;
+        });
+
+        assertThat(chatRequestService.sendRequest(1L, new ChatRequestCreateRequest(2L)).getStatus())
+                .isEqualTo(RequestStatus.PENDING);
+        verify(matchExposureRepository, never()).wasShownRecently(any(), any());
     }
 
     @Test
@@ -179,7 +222,7 @@ class ChatRequestServiceTest {
         // given
         User sender = User.builder().build();
         ReflectionTestUtils.setField(sender, "id", 1L);
-        User receiver = User.builder().build();
+        User receiver = User.builder().nickname("받는사람").build();
         ReflectionTestUtils.setField(receiver, "id", 2L);
 
         ChatRequest request = ChatRequest.create(sender, receiver);
@@ -192,7 +235,7 @@ class ChatRequestServiceTest {
 
         // then
         assertThat(request.getStatus()).isEqualTo(RequestStatus.REJECTED);
-        verify(heartService).refundHeart(1L, "상대방 대화 요청 거절 환불");
+        verify(heartService).refundHeart(1L, "받는사람님이 대화 요청을 거절해 하트 환불");
     }
 
     @Test
@@ -201,7 +244,7 @@ class ChatRequestServiceTest {
         // given
         User sender = User.builder().build();
         ReflectionTestUtils.setField(sender, "id", 1L);
-        User receiver = User.builder().build();
+        User receiver = User.builder().nickname("받는사람").build();
         ReflectionTestUtils.setField(receiver, "id", 2L);
 
         ChatRequest staleRequest = ChatRequest.create(sender, receiver);
@@ -217,11 +260,11 @@ class ChatRequestServiceTest {
         // then
         assertThat(count).isEqualTo(1);
         assertThat(staleRequest.getStatus()).isEqualTo(RequestStatus.EXPIRED);
-        verify(heartService).refundHeart(1L, "대화 요청 24시간 미응답 자동 만료 환불");
+        verify(heartService).refundHeart(1L, "받는사람님이 24시간 동안 응답하지 않아 하트 환불");
     }
 
     @Test
-    @DisplayName("만료된 대화 요청을 수락하려 할 때 IllegalStateException 예외 발생")
+    @DisplayName("만료된 대화 요청을 수락하려 하면 500 대신 CHAT_REQUEST_EXPIRED(H006)")
     void acceptRequest_ThrowsException_WhenExpired() {
         // given
         User sender = User.builder().build();
@@ -237,7 +280,48 @@ class ChatRequestServiceTest {
 
         // when & then
         assertThatThrownBy(() -> chatRequestService.acceptRequest(2L, 40L))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("만료된");
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_REQUEST_EXPIRED);
+    }
+
+    @Test
+    @DisplayName("이미 수락·거절된 요청을 다시 수락·거절하면 500 대신 CHAT_REQUEST_ALREADY_PROCESSED(H005)")
+    void acceptOrReject_AlreadyProcessed() {
+        User sender = User.builder().build();
+        ReflectionTestUtils.setField(sender, "id", 1L);
+        User receiver = User.builder().build();
+        ReflectionTestUtils.setField(receiver, "id", 2L);
+        ChatRequest accepted = ChatRequest.create(sender, receiver);
+        accepted.accept();
+        given(chatRequestRepository.findByIdWithUsers(50L)).willReturn(Optional.of(accepted));
+
+        assertThatThrownBy(() -> chatRequestService.acceptRequest(2L, 50L))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_REQUEST_ALREADY_PROCESSED);
+        assertThatThrownBy(() -> chatRequestService.rejectRequest(2L, 50L))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_REQUEST_ALREADY_PROCESSED);
+        verify(heartService, never()).refundHeart(any(), any());
+    }
+
+    @Test
+    @DisplayName("includeProcessed=true 면 수락된 요청도 내려오고 열린 채팅방 id 가 채워진다")
+    void receivedRequests_IncludeProcessed() {
+        User sender = User.builder().nickname("보낸사람").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(sender, "id", 1L);
+        User receiver = User.builder().build();
+        ReflectionTestUtils.setField(receiver, "id", 2L);
+        ChatRequest accepted = ChatRequest.create(sender, receiver);
+        accepted.accept();
+        ChatRoom room = ChatRoom.create();
+        ReflectionTestUtils.setField(room, "id", 77L);
+        given(chatRequestRepository.findRecentReceivedWithSender(eq(2L), any(LocalDateTime.class))).willReturn(List.of(accepted));
+        given(chatRoomMemberRepository.findActiveRoomsBetween(2L, 1L))
+                .willReturn(List.of(ChatRoomMember.builder().chatRoom(room).user(receiver).isLeft(false).build()));
+
+        List<ChatRequestResponse> result = chatRequestService.getReceivedRequests(2L, true);
+
+        assertThat(result).singleElement().satisfies(r -> {
+            assertThat(r.getStatus()).isEqualTo(RequestStatus.ACCEPTED);
+            assertThat(r.getChatRoomId()).isEqualTo(77L);
+        });
     }
 }

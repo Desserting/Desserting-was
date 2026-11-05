@@ -11,6 +11,7 @@ import com.desserting.backend.domain.matching.dto.ChatRequestResponse;
 import com.desserting.backend.domain.matching.entity.ChatRequest;
 import com.desserting.backend.domain.matching.entity.RequestStatus;
 import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
+import com.desserting.backend.domain.matching.repository.MatchExposureRepository;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
@@ -34,6 +35,7 @@ public class ChatRequestService {
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final HeartService heartService;
     private final UserBlockRepository userBlockRepository;
+    private final MatchExposureRepository matchExposureRepository;
 
     @Transactional
     public ChatRequestResponse sendRequest(Long senderId, ChatRequestCreateRequest request) {
@@ -56,10 +58,15 @@ public class ChatRequestService {
         }
 
         // HRT-02: 하트 1개 차감 (동시성 lost update 방지를 위해 비관적 락으로 먼저 차감 및 최신 sender 획득)
-        User sender = heartService.deductHeartForRequest(senderId);
         User receiver = userRepository.findById(receiverId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "대화 요청 대상 사용자를 찾을 수 없습니다: " + receiverId));
-
+        User sender = heartService.deductHeartForRequest(senderId, receiver.getNickname());
+        // MAT-04/PRE-03: 원하는 프로필에 직접 요청은 프리미엄 전용. 일반 회원은 최근 24시간 매칭으로 만난 상대에게만 요청한다
+        // (예외 시 트랜잭션 롤백으로 하트 차감도 취소된다)
+        if (!Boolean.TRUE.equals(sender.getIsPremium()) && !matchExposureRepository.wasShownRecently(senderId, receiverId)) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED,
+                    "원하는 상대에게 직접 대화 요청하기는 프리미엄 패스 회원 전용 기능입니다. 랜덤 매칭으로 만난 상대에게 요청해 주세요.");
+        }
         ChatRequest chatRequest = ChatRequest.create(sender, receiver);
         ChatRequest savedRequest = chatRequestRepository.save(chatRequest);
 
@@ -71,9 +78,28 @@ public class ChatRequestService {
 
     @Transactional(readOnly = true)
     public List<ChatRequestResponse> getReceivedRequests(Long receiverId) {
-        List<ChatRequest> requests = chatRequestRepository.findReceivedRequestsWithSender(receiverId, RequestStatus.PENDING);
+        return getReceivedRequests(receiverId, false);
+    }
+
+    /**
+     * includeProcessed=true 면 최근 7일의 수락·거절·만료 요청도 함께 준다.
+     * 수락된 요청에는 지금 열려 있는 채팅방 id(chatRoomId)를 채운다 (새로고침 후 "채팅방 가기"용).
+     */
+    @Transactional(readOnly = true)
+    public List<ChatRequestResponse> getReceivedRequests(Long receiverId, boolean includeProcessed) {
+        List<ChatRequest> requests = includeProcessed
+                ? chatRequestRepository.findRecentReceivedWithSender(receiverId, java.time.LocalDateTime.now().minusDays(7))
+                : chatRequestRepository.findReceivedRequestsWithSender(receiverId, RequestStatus.PENDING);
         return requests.stream()
-                .map(ChatRequestResponse::from)
+                .map(r -> {
+                    ChatRequestResponse res = ChatRequestResponse.from(r);
+                    if (r.getStatus() == RequestStatus.ACCEPTED) {
+                        chatRoomMemberRepository.findActiveRoomsBetween(receiverId, r.getSender().getId()).stream()
+                                .findFirst()
+                                .ifPresent(m -> res.assignChatRoomId(m.getChatRoom().getId()));
+                    }
+                    return res;
+                })
                 .toList();
     }
 
@@ -85,6 +111,7 @@ public class ChatRequestService {
         if (!request.getReceiver().getId().equals(currentUserId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED, "본인에게 수신된 대화 요청만 수락할 수 있습니다.");
         }
+        ensurePending(request);
 
         request.accept();
 
@@ -114,11 +141,13 @@ public class ChatRequestService {
         if (!request.getReceiver().getId().equals(currentUserId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED, "본인에게 수신된 대화 요청만 거절할 수 있습니다.");
         }
+        ensurePending(request);
 
         request.reject();
 
         // HRT-03: 상대방 거절 시 보낸 사람에게 하트 1개 환불 처리
-        heartService.refundHeart(request.getSender().getId(), "상대방 대화 요청 거절 환불");
+        heartService.refundHeart(request.getSender().getId(),
+                request.getReceiver().getNickname() + "님이 대화 요청을 거절해 하트 환불");
 
         log.info("대화 요청 거절 처리: requestId={}, 보낸사람에게 하트 환불 완료", requestId);
     }
@@ -130,11 +159,23 @@ public class ChatRequestService {
         );
         for (ChatRequest req : staleRequests) {
             req.expire();
-            heartService.refundHeart(req.getSender().getId(), "대화 요청 24시간 미응답 자동 만료 환불");
+            heartService.refundHeart(req.getSender().getId(),
+                    req.getReceiver().getNickname() + "님이 24시간 동안 응답하지 않아 하트 환불");
         }
         if (!staleRequests.isEmpty()) {
             log.info("24시간 미응답 대화 요청 자동 만료 및 환불 완료: {}건", staleRequests.size());
         }
         return staleRequests.size();
+    }
+
+    /** 이미 처리됐거나 만료된 요청을 다시 수락·거절하면 500 대신 409(H005)/410(H006) */
+    private void ensurePending(ChatRequest request) {
+        if (request.getStatus() == RequestStatus.EXPIRED
+                || (request.getStatus() == RequestStatus.PENDING && request.isExpired())) {
+            throw new CustomException(ErrorCode.CHAT_REQUEST_EXPIRED);
+        }
+        if (request.getStatus() != RequestStatus.PENDING) {
+            throw new CustomException(ErrorCode.CHAT_REQUEST_ALREADY_PROCESSED);
+        }
     }
 }

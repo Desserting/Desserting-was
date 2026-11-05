@@ -7,17 +7,20 @@ import com.desserting.backend.domain.chat.dto.ChatRoomResponse;
 import com.desserting.backend.domain.chat.entity.ChatRoom;
 import com.desserting.backend.domain.chat.entity.ChatRoomMember;
 import com.desserting.backend.domain.chat.redis.RedisPublisher;
+import com.desserting.backend.domain.chat.repository.ChatMessageQueryRepository;
 import com.desserting.backend.domain.chat.repository.ChatMessageRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomMemberRepository;
 import com.desserting.backend.domain.chat.repository.ChatRoomRepository;
+import com.desserting.backend.domain.matching.entity.RequestStatus;
+import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
 import com.desserting.backend.domain.user.entity.User;
+import com.desserting.backend.domain.user.entity.UserRole;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserRepository;
 import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -39,6 +42,10 @@ public class ChatService {
     private final UserRepository userRepository;
     private final RedisPublisher redisPublisher;
     private final UserBlockRepository userBlockRepository;
+    private final ChatMessageQueryRepository chatMessageQueryRepository;
+    private final ChatRequestRepository chatRequestRepository;
+
+    private static final String SYSTEM_TYPE = "SYSTEM";
 
     @Transactional
     public ChatMessageDto sendMessage(Long senderId, ChatMessageRequest request) {
@@ -51,8 +58,16 @@ public class ChatService {
             throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED, "이미 퇴장한 채팅방입니다.");
         }
 
+        // SYSTEM 메시지는 서버만 만든다 (퇴장 안내 등)
+        if (SYSTEM_TYPE.equalsIgnoreCase(request.getMessageType())) {
+            throw new CustomException(ErrorCode.INVALID_INPUT_VALUE, "SYSTEM 메시지는 보낼 수 없습니다.");
+        }
+
         // 차단 관계 검증: 상대방과의 차단 상태 확인
         Optional<ChatRoomMember> otherMemberOpt = chatRoomMemberRepository.findOtherMember(roomId, senderId);
+        if (otherMemberOpt.isPresent() && Boolean.TRUE.equals(otherMemberOpt.get().getIsLeft())) {
+            throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED, "상대방이 나간 채팅방입니다.");
+        }
         if (otherMemberOpt.isPresent()) {
             Long otherUserId = otherMemberOpt.get().getUser().getId();
             if (userBlockRepository.isBlockedBetween(senderId, otherUserId)) {
@@ -100,6 +115,7 @@ public class ChatService {
             String otherNickname = "알 수 없음";
             String otherAvatarUrl = null;
             Long otherUserId = null;
+            boolean otherUserLeft = otherMemberOpt.map(m -> Boolean.TRUE.equals(m.getIsLeft())).orElse(false);
 
             if (otherMemberOpt.isPresent()) {
                 User otherUser = otherMemberOpt.get().getUser();
@@ -116,7 +132,8 @@ public class ChatService {
                     .otherUserAvatarUrl(otherAvatarUrl)
                     .lastMessagePreview(room.getLastMessagePreview())
                     .lastMessageAt(room.getLastMessageAt())
-                    .unreadCount(0L)
+                    .unreadCount(chatMessageQueryRepository.countUnread(room.getId(), userId))
+                    .otherUserLeft(otherUserLeft)
                     .build());
         }
 
@@ -132,13 +149,12 @@ public class ChatService {
             throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED);
         }
 
-        List<ChatMessageDocument> documents;
-        PageRequest pageRequest = PageRequest.of(0, Math.min(size, 100));
+        List<ChatMessageDocument> documents =
+                chatMessageQueryRepository.findPage(roomId, cursorId, Math.max(1, Math.min(size, 100)));
 
-        if (cursorId != null && !cursorId.isBlank()) {
-            documents = chatMessageRepository.findByRoomIdAndIdLessThanOrderByCreatedAtDesc(roomId, cursorId, pageRequest);
-        } else {
-            documents = chatMessageRepository.findByRoomIdOrderByCreatedAtDesc(roomId, pageRequest);
+        // 방에 들어와 최신 페이지를 열면 안 읽은 메시지를 모두 읽음 처리
+        if (cursorId == null || cursorId.isBlank()) {
+            chatMessageQueryRepository.markAllRead(roomId, userId);
         }
 
         // DTO 변환
@@ -151,10 +167,22 @@ public class ChatService {
                 .toList();
     }
 
+    /** 채팅방을 보고 있는 동안 실시간으로 받은 메시지를 읽음 처리 */
+    @Transactional(readOnly = true)
+    public void markAsRead(Long userId, Long roomId) {
+        if (!chatRoomMemberRepository.existsByChatRoomIdAndUserIdAndIsLeftFalse(roomId, userId)) {
+            throw new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED);
+        }
+        chatMessageQueryRepository.markAllRead(roomId, userId);
+    }
+
     @Transactional
     public void leaveChatRoom(Long userId, Long roomId) {
         ChatRoomMember member = chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.CHAT_MEMBER_NOT_ALLOWED));
+        if (Boolean.TRUE.equals(member.getIsLeft())) {
+            return; // 이미 나간 방
+        }
 
         // Soft delete: isLeft = true
         // Entity update via dirty checking or method
@@ -166,6 +194,7 @@ public class ChatService {
                 .isLeft(true)
                 .build();
         chatRoomMemberRepository.save(member);
+        publishLeaveNotice(member);
         log.info("채팅방 퇴장 완료: userId={}, roomId={}", userId, roomId);
     }
 
@@ -196,8 +225,16 @@ public class ChatService {
                     .otherUserAvatarUrl(targetUser.getDessertAvatarUrl())
                     .lastMessagePreview(room.getLastMessagePreview())
                     .lastMessageAt(room.getLastMessageAt())
-                    .unreadCount(0L)
+                    .unreadCount(chatMessageQueryRepository.countUnread(room.getId(), currentUserId))
                     .build();
+        }
+
+        // 새 방은 운영자(ADMIN)가 끼어 있거나, 두 사람 사이에 수락된 대화 요청이 있을 때만 연다 (하트·수락 절차 우회 방지)
+        boolean operatorChat = currentUser.getRole() == UserRole.ROLE_ADMIN || targetUser.getRole() == UserRole.ROLE_ADMIN;
+        boolean accepted = chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(currentUserId, targetUserId, RequestStatus.ACCEPTED)
+                || chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(targetUserId, currentUserId, RequestStatus.ACCEPTED);
+        if (!operatorChat && !accepted) {
+            throw new CustomException(ErrorCode.ACCESS_DENIED, "대화 요청이 수락된 상대와만 대화방을 열 수 있습니다.");
         }
 
         ChatRoom chatRoom = ChatRoom.create();
@@ -219,5 +256,23 @@ public class ChatService {
                 .lastMessageAt(savedRoom.getLastMessageAt())
                 .unreadCount(0L)
                 .build();
+    }
+
+    /** 상대 화면에 "OO님이 채팅방을 나갔습니다" SYSTEM 메시지를 남기고 실시간으로 보낸다 */
+    private void publishLeaveNotice(ChatRoomMember leaver) {
+        User user = leaver.getUser();
+        Long roomId = leaver.getChatRoom().getId();
+        String content = user.getNickname() + "님이 채팅방을 나갔습니다.";
+        ChatMessageDocument saved = chatMessageRepository.save(ChatMessageDocument.builder()
+                .roomId(roomId)
+                .senderId(user.getId())
+                .senderNickname(user.getNickname())
+                .messageType(SYSTEM_TYPE)
+                .content(content)
+                .readUserIds(new ArrayList<>(Collections.singletonList(user.getId())))
+                .createdAt(LocalDateTime.now())
+                .build());
+        leaver.getChatRoom().updateLastMessage(content);
+        redisPublisher.publish(ChannelTopic.of("chat:room:" + roomId), ChatMessageDto.from(saved, user.getDessertAvatarUrl()));
     }
 }

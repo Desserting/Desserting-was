@@ -36,4 +36,7 @@ public class ChatRoomResponse {
     @Schema(description = "안 읽은 메시지 수", example = "2")
     @Builder.Default
     private Long unreadCount = 0L;
+
+    @Schema(description = "상대방이 채팅방을 나갔는지 (true 면 메시지 전송 불가 → 입력창 비활성화)", example = "false")
+    private boolean otherUserLeft;
 }

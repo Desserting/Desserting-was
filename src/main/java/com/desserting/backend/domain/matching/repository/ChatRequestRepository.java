@@ -30,6 +30,14 @@ public interface ChatRequestRepository extends JpaRepository<ChatRequest, Long> 
             "WHERE r.id = :id")
     Optional<ChatRequest> findByIdWithUsers(@Param("id") Long id);
 
+    @Query("SELECT DISTINCT r FROM ChatRequest r " +
+            "JOIN FETCH r.sender s " +
+            "LEFT JOIN FETCH s.dessertTags " +
+            "WHERE r.receiver.id = :receiverId AND r.createdAt >= :since " +
+            "ORDER BY r.createdAt DESC")
+    List<ChatRequest> findRecentReceivedWithSender(@Param("receiverId") Long receiverId,
+                                                   @Param("since") java.time.LocalDateTime since);
+
     boolean existsBySenderIdAndReceiverIdAndStatus(Long senderId, Long receiverId, RequestStatus status);
 
     @Query("SELECT r FROM ChatRequest r WHERE r.status = :status AND r.expiredAt <= :now")

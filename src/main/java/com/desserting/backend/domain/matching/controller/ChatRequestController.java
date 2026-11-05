@@ -39,8 +39,10 @@ public class ChatRequestController {
             description = "내가 받은 대기 중(PENDING)인 대화 요청 목록을 조회합니다.")
     @GetMapping("/received")
     public ApiResponse<List<ChatRequestResponse>> getReceivedRequests(
-            @Parameter(hidden = true) @CurrentUser Long receiverId) {
-        List<ChatRequestResponse> responses = chatRequestService.getReceivedRequests(receiverId);
+            @Parameter(hidden = true) @CurrentUser Long receiverId,
+            @Parameter(description = "true 면 최근 7일의 수락·거절·만료 요청도 포함 (수락 건은 chatRoomId 포함)")
+            @RequestParam(defaultValue = "false") boolean includeProcessed) {
+        List<ChatRequestResponse> responses = chatRequestService.getReceivedRequests(receiverId, includeProcessed);
         return ApiResponse.success("받은 대화 요청 목록 조회에 성공하였습니다.", responses);
     }
 

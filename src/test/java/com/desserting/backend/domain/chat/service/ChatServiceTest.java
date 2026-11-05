@@ -1,5 +1,10 @@
 package com.desserting.backend.domain.chat.service;
 
+import com.desserting.backend.domain.chat.repository.ChatMessageQueryRepository;
+import com.desserting.backend.domain.matching.entity.RequestStatus;
+import com.desserting.backend.domain.matching.repository.ChatRequestRepository;
+import com.desserting.backend.domain.user.entity.UserRole;
+import static org.mockito.Mockito.never;
 import com.desserting.backend.domain.chat.document.ChatMessageDocument;
 import com.desserting.backend.domain.chat.dto.ChatMessageDto;
 import com.desserting.backend.domain.chat.dto.ChatMessageRequest;
@@ -57,6 +62,12 @@ class ChatServiceTest {
 
     @Mock
     private UserBlockRepository userBlockRepository;
+
+    @Mock
+    private ChatMessageQueryRepository chatMessageQueryRepository;
+
+    @Mock
+    private ChatRequestRepository chatRequestRepository;
 
     @InjectMocks
     private ChatService chatService;
@@ -200,6 +211,7 @@ class ChatServiceTest {
 
         given(chatRoomMemberRepository.findAllMyActiveMemberships(myId)).willReturn(List.of(myMembership));
         given(chatRoomMemberRepository.findOtherMember(100L, myId)).willReturn(Optional.of(otherMembership));
+        given(chatMessageQueryRepository.countUnread(100L, myId)).willReturn(3L);
 
         // when
         List<ChatRoomResponse> rooms = chatService.getMyChatRooms(myId);
@@ -211,6 +223,7 @@ class ChatServiceTest {
         assertThat(response.getOtherUserId()).isEqualTo(otherId);
         assertThat(response.getOtherUserNickname()).isEqualTo("상대방");
         assertThat(response.getLastMessagePreview()).isEqualTo("반갑습니다");
+        assertThat(response.getUnreadCount()).isEqualTo(3L);
     }
 
     @Test
@@ -240,8 +253,7 @@ class ChatServiceTest {
                 .build();
         ReflectionTestUtils.setField(doc1, "id", "doc-1");
 
-        given(chatMessageRepository.findByRoomIdOrderByCreatedAtDesc(eq(roomId), any(PageRequest.class)))
-                .willReturn(List.of(doc1));
+        given(chatMessageQueryRepository.findPage(roomId, null, 20)).willReturn(List.of(doc1));
         given(userRepository.findById(userId)).willReturn(Optional.of(user));
 
         // when
@@ -251,6 +263,72 @@ class ChatServiceTest {
         assertThat(messages).hasSize(1);
         assertThat(messages.get(0).getContent()).isEqualTo("첫 번째 메시지");
         assertThat(messages.get(0).getSenderAvatarUrl()).isEqualTo("https://avatar.png");
+        verify(chatMessageQueryRepository).markAllRead(roomId, userId);
+    }
+
+    @Test
+    @DisplayName("이전 페이지(cursorId) 조회는 읽음 처리를 하지 않는다")
+    void getChatMessages_cursorDoesNotMarkRead() {
+        User user = User.builder().nickname("유저1").build();
+        ReflectionTestUtils.setField(user, "id", 1L);
+        ChatRoomMember member = ChatRoomMember.builder().chatRoom(ChatRoom.create()).user(user).isLeft(false).build();
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(10L, 1L)).willReturn(Optional.of(member));
+        given(chatMessageQueryRepository.findPage(10L, "abc", 30)).willReturn(List.of());
+
+        chatService.getChatMessages(1L, 10L, "abc", 30);
+
+        verify(chatMessageQueryRepository, never()).markAllRead(any(), any());
+    }
+
+    @Test
+    @DisplayName("수락된 대화 요청도 운영자도 없으면 직통 채팅방을 열 수 없다")
+    void directRoom_deniedWithoutAcceptedRequest() {
+        User a = User.builder().nickname("A").build();
+        ReflectionTestUtils.setField(a, "id", 1L);
+        User b = User.builder().nickname("B").build();
+        ReflectionTestUtils.setField(b, "id", 2L);
+        given(userRepository.findById(1L)).willReturn(Optional.of(a));
+        given(userRepository.findById(2L)).willReturn(Optional.of(b));
+        given(chatRoomMemberRepository.findActiveRoomsBetween(1L, 2L)).willReturn(List.of());
+
+        assertThatThrownBy(() -> chatService.getOrCreateDirectRoom(1L, 2L))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+        verify(chatRoomRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("대화 요청이 수락된 상대면 (나간 뒤에도) 직통 채팅방을 다시 열 수 있다")
+    void directRoom_allowedAfterAcceptedRequest() {
+        User a = User.builder().nickname("A").build();
+        ReflectionTestUtils.setField(a, "id", 1L);
+        User b = User.builder().nickname("B").build();
+        ReflectionTestUtils.setField(b, "id", 2L);
+        given(userRepository.findById(1L)).willReturn(Optional.of(a));
+        given(userRepository.findById(2L)).willReturn(Optional.of(b));
+        given(chatRoomMemberRepository.findActiveRoomsBetween(1L, 2L)).willReturn(List.of());
+        given(chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(1L, 2L, RequestStatus.ACCEPTED)).willReturn(false);
+        given(chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(2L, 1L, RequestStatus.ACCEPTED)).willReturn(true);
+        given(chatRoomRepository.save(any(ChatRoom.class))).willAnswer(inv -> inv.getArgument(0));
+
+        ChatRoomResponse response = chatService.getOrCreateDirectRoom(1L, 2L);
+
+        assertThat(response.getOtherUserNickname()).isEqualTo("B");
+    }
+
+    @Test
+    @DisplayName("운영자(ADMIN)와는 요청 없이 직통 채팅방을 열 수 있다")
+    void directRoom_allowedWithOperator() {
+        User a = User.builder().nickname("A").build();
+        ReflectionTestUtils.setField(a, "id", 1L);
+        User admin = User.builder().nickname("운영자").role(UserRole.ROLE_ADMIN).build();
+        ReflectionTestUtils.setField(admin, "id", 9L);
+        given(userRepository.findById(1L)).willReturn(Optional.of(a));
+        given(userRepository.findById(9L)).willReturn(Optional.of(admin));
+        given(chatRoomMemberRepository.findActiveRoomsBetween(1L, 9L)).willReturn(List.of());
+        given(chatRoomRepository.save(any(ChatRoom.class))).willAnswer(inv -> inv.getArgument(0));
+
+        assertThat(chatService.getOrCreateDirectRoom(1L, 9L).getOtherUserNickname()).isEqualTo("운영자");
     }
 
     @Test
@@ -266,12 +344,41 @@ class ChatServiceTest {
         ReflectionTestUtils.setField(member, "id", 55L);
 
         given(chatRoomMemberRepository.findByChatRoomIdAndUserId(roomId, userId)).willReturn(Optional.of(member));
+        given(chatMessageRepository.save(any(ChatMessageDocument.class))).willAnswer(inv -> inv.getArgument(0));
 
         // when
         chatService.leaveChatRoom(userId, roomId);
 
         // then
         verify(chatRoomMemberRepository).save(any(ChatRoomMember.class));
+        // 상대에게 퇴장 안내 SYSTEM 메시지를 저장·발행한다
+        verify(chatMessageRepository).save(org.mockito.ArgumentMatchers.argThat(
+                (ChatMessageDocument d) -> "SYSTEM".equals(d.getMessageType()) && d.getContent().contains("유저1님이 채팅방을 나갔습니다")));
+        verify(redisPublisher).publish(any(), any());
+        assertThat(chatRoom.getLastMessagePreview()).isEqualTo("유저1님이 채팅방을 나갔습니다.");
+    }
+
+    @Test
+    @DisplayName("상대가 나간 방에는 메시지를 보낼 수 없고, 클라이언트는 SYSTEM 메시지를 보낼 수 없다")
+    void sendMessage_BlockedWhenOtherLeftOrSystem() {
+        User me = User.builder().nickname("나").build();
+        ReflectionTestUtils.setField(me, "id", 1L);
+        User other = User.builder().nickname("상대").build();
+        ReflectionTestUtils.setField(other, "id", 2L);
+        ChatRoom room = ChatRoom.create();
+        given(chatRoomMemberRepository.findByChatRoomIdAndUserId(10L, 1L))
+                .willReturn(Optional.of(ChatRoomMember.builder().chatRoom(room).user(me).isLeft(false).build()));
+
+        ChatMessageRequest system = ChatMessageRequest.builder().roomId(10L).messageType("SYSTEM").content("가짜 안내").build();
+        assertThatThrownBy(() -> chatService.sendMessage(1L, system))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
+
+        given(chatRoomMemberRepository.findOtherMember(10L, 1L))
+                .willReturn(Optional.of(ChatRoomMember.builder().chatRoom(room).user(other).isLeft(true).build()));
+        ChatMessageRequest text = ChatMessageRequest.builder().roomId(10L).messageType("TEXT").content("안녕").build();
+        assertThatThrownBy(() -> chatService.sendMessage(1L, text))
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_MEMBER_NOT_ALLOWED);
+        verify(chatMessageRepository, never()).save(any());
     }
 
     @Test

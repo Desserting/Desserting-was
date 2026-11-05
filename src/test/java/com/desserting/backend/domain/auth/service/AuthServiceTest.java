@@ -91,6 +91,29 @@ class AuthServiceTest {
     }
 
     @Test
+    @DisplayName("회원가입 시 기본 제공 목록에 없는 아바타 URL이면 INVALID_AVATAR_URL 예외 발생")
+    void signUp_InvalidAvatar() {
+        SignUpRequest request = SignUpRequest.builder()
+                .email("avatar@desserting.com")
+                .password("password123!")
+                .nickname("아바타테스트")
+                .gender("MALE")
+                .age(25)
+                .region("대구 중구")
+                .dessertTypes(List.of(DessertType.BAKERY))
+                .dessertAvatarUrl("https://evil.example.com/a.png")
+                .agreeToTerms(true)
+                .build();
+
+        given(userRepository.existsByEmail(request.getEmail())).willReturn(false);
+        given(userRepository.existsByNickname(request.getNickname())).willReturn(false);
+
+        assertThatThrownBy(() -> authService.signUp(request))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_AVATAR_URL);
+    }
+
+    @Test
     @DisplayName("이미 존재하는 이메일로 회원가입 시 DUPLICATE_EMAIL 예외 발생")
     void signUp_DuplicateEmail() {
         // given

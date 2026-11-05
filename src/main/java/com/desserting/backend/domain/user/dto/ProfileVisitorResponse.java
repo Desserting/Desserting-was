@@ -19,7 +19,7 @@ public record ProfileVisitorResponse(
         @Schema(description = "방문자 닉네임", example = "딸기케이크")
         String nickname,
 
-        @Schema(description = "방문자 프로필 아바타 이미지 URL", example = "https://desserting.com/avatars/CAKE.png")
+        @Schema(description = "방문자 프로필 아바타 이미지 URL", example = "https://desserting-web.vercel.app/avatars/cake.png")
         String profileImageUrl,
 
         @Schema(description = "방문자 활동 지역", example = "대구 중구")

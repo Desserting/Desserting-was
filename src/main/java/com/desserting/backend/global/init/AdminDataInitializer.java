@@ -74,6 +74,18 @@ public class AdminDataInitializer implements CommandLineRunner {
             log.debug("heart_histories_type_check 제약조건 해제 생략: {}", e.getMessage());
         }
 
+        // 접근 불가한 구 아바타 호스트(assets.desserting.com)로 저장된 URL을 Vercel 경로로 치환
+        int migrated = entityManager.createNativeQuery(
+                        "UPDATE users SET dessert_avatar_url = REPLACE(dessert_avatar_url, :legacy, :current) "
+                                + "WHERE dessert_avatar_url LIKE :legacyPattern")
+                .setParameter("legacy", DessertType.LEGACY_AVATAR_BASE_URL)
+                .setParameter("legacyPattern", DessertType.LEGACY_AVATAR_BASE_URL + "%")
+                .setParameter("current", DessertType.AVATAR_BASE_URL)
+                .executeUpdate();
+        if (migrated > 0) {
+            log.info("아바타 URL {}건을 Vercel 경로로 갱신했습니다.", migrated);
+        }
+
         if (userRepository.existsByEmail("minjung@desserting.com")) {
             log.info("종합 목업 데이터가 이미 존재합니다. 시딩을 건너뜁니다.");
             return;

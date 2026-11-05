@@ -60,7 +60,7 @@ class UserServiceTest {
                 .region("대구 수성구")
                 .heartCount(4)
                 .isPremium(false)
-                .dessertAvatarUrl("https://assets.desserting.com/avatars/coffee.png")
+                .dessertAvatarUrl("https://desserting-web.vercel.app/avatars/coffee.png")
                 .dessertTags(new ArrayList<>())
                 .build();
         ReflectionTestUtils.setField(user, "id", 1L);
@@ -111,6 +111,33 @@ class UserServiceTest {
         assertThat(response.getBio()).isEqualTo("새로운 자기소개입니다");
         assertThat(response.getRegion()).isEqualTo("대구 중구");
         assertThat(response.getDessertTags()).containsExactly(DessertType.BAKERY, DessertType.TEA_NON_COFFEE);
+    }
+
+    @Test
+    @DisplayName("프로필 수정 시 기본 제공 아바타 URL이면 대표 아바타가 변경된다")
+    void updateMyProfile_SelectableAvatar() {
+        User user = User.builder().email("me@desserting.com").nickname("닉네임")
+                .dessertAvatarUrl(DessertType.CAKE.getDefaultAvatarUrl()).dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(user, "id", 1L);
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
+
+        UserProfileResponse response = userService.updateMyProfile(1L, UpdateProfileRequest.builder()
+                .dessertAvatarUrl(DessertType.TEA_NON_COFFEE.getDefaultAvatarUrl()).build());
+
+        assertThat(response.getDessertAvatarUrl()).isEqualTo("https://desserting-web.vercel.app/avatars/tea.png");
+    }
+
+    @Test
+    @DisplayName("프로필 수정 시 기본 제공 목록에 없는 아바타 URL이면 INVALID_AVATAR_URL 예외 발생")
+    void updateMyProfile_InvalidAvatar() {
+        User user = User.builder().email("me@desserting.com").nickname("닉네임").dessertTags(new ArrayList<>()).build();
+        ReflectionTestUtils.setField(user, "id", 1L);
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(user));
+
+        assertThatThrownBy(() -> userService.updateMyProfile(1L, UpdateProfileRequest.builder()
+                .dessertAvatarUrl("https://evil.example.com/a.png").build()))
+                .isInstanceOf(CustomException.class)
+                .extracting("errorCode").isEqualTo(ErrorCode.INVALID_AVATAR_URL);
     }
 
     @Test
@@ -176,7 +203,7 @@ class UserServiceTest {
                 .region("대구 수성구")
                 .heartCount(10)
                 .isPremium(true)
-                .dessertAvatarUrl("https://assets.desserting.com/avatars/bakery.png")
+                .dessertAvatarUrl("https://desserting-web.vercel.app/avatars/bakery.png")
                 .dessertTags(new ArrayList<>())
                 .build();
         ReflectionTestUtils.setField(targetUser, "id", 99L);

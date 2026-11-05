@@ -25,7 +25,8 @@ public class UpdateProfileRequest {
     @Schema(description = "활동 지역", example = "대구 중구")
     private String region;
 
-    @Schema(description = "대표 디저트 아바타 이미지 URL")
+    @Schema(description = "대표 디저트 아바타 이미지 URL. GET /api/v1/users/avatars 목록의 avatarUrl만 허용(그 외 400 U004). 생략 시 기존 값 유지",
+            example = "https://desserting-web.vercel.app/avatars/tea.png")
     private String dessertAvatarUrl;
 
     @Schema(description = "선호 디저트 취향 목록", example = "[\"TART_PIE\", \"TEA_NON_COFFEE\"]")

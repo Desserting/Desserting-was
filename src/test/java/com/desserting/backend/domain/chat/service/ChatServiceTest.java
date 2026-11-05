@@ -254,7 +254,7 @@ class ChatServiceTest {
         ReflectionTestUtils.setField(doc1, "id", "doc-1");
 
         given(chatMessageQueryRepository.findPage(roomId, null, 20)).willReturn(List.of(doc1));
-        given(userRepository.findById(userId)).willReturn(Optional.of(user));
+        given(userRepository.findAllById(any())).willReturn(List.of(user));
 
         // when
         List<ChatMessageDto> messages = chatService.getChatMessages(userId, roomId, null, 20);

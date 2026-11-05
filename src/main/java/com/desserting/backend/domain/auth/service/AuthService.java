@@ -17,9 +17,13 @@ import com.desserting.backend.global.error.ErrorCode;
 import com.desserting.backend.global.security.JwtTokenProvider;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -30,6 +34,9 @@ public class AuthService {
     private final HeartHistoryRepository heartHistoryRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+
+    @Autowired(required = false)
+    private StringRedisTemplate redisTemplate;
 
     @Transactional
     public TokenResponse signUp(SignUpRequest request) {
@@ -101,6 +108,23 @@ public class AuthService {
         }
 
         Long userId = jwtTokenProvider.getUserIdFromToken(token);
+
+        // Redis 기반 Refresh Token 일치 여부 확인 (탈취/중복 갱신 방어)
+        if (redisTemplate != null) {
+            try {
+                String key = "auth:refresh:" + userId;
+                String savedToken = redisTemplate.opsForValue().get(key);
+                if (savedToken != null && !savedToken.equals(token)) {
+                    log.warn("Refresh Token 불일치 감지 (탈취 의심 또는 이미 갱신됨): userId={}", userId);
+                    throw new CustomException(ErrorCode.INVALID_JWT_TOKEN, "이미 사용되었거나 무효화된 Refresh Token입니다.");
+                }
+            } catch (CustomException ce) {
+                throw ce;
+            } catch (Exception e) {
+                log.warn("Redis Refresh Token 검증 실패 (fallback 유지): {}", e.getMessage());
+            }
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND));
 
@@ -108,9 +132,35 @@ public class AuthService {
         return createTokenResponse(user);
     }
 
+    public void logout(Long userId) {
+        if (userId != null && redisTemplate != null) {
+            try {
+                redisTemplate.delete("auth:refresh:" + userId);
+                log.info("로그아웃 완료 (Refresh Token 무효화): userId={}", userId);
+            } catch (Exception e) {
+                log.warn("Redis Refresh Token 삭제 실패: {}", e.getMessage());
+            }
+        }
+    }
+
     private TokenResponse createTokenResponse(User user) {
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId());
+
+        saveRefreshToken(user.getId(), refreshToken);
+
         return TokenResponse.of(accessToken, refreshToken, jwtTokenProvider.getAccessExpirationMs());
+    }
+
+    private void saveRefreshToken(Long userId, String refreshToken) {
+        if (redisTemplate != null) {
+            try {
+                String key = "auth:refresh:" + userId;
+                long ttl = jwtTokenProvider.getRefreshExpirationMs();
+                redisTemplate.opsForValue().set(key, refreshToken, ttl, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                log.warn("Redis Refresh Token 저장 실패 (fallback 유지): {}", e.getMessage());
+            }
+        }
     }
 }

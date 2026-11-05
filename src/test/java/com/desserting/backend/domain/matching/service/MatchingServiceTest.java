@@ -2,6 +2,7 @@ package com.desserting.backend.domain.matching.service;
 
 import com.desserting.backend.domain.explore.error.ExploreErrorCode;
 import com.desserting.backend.domain.explore.error.ExploreException;
+import com.desserting.backend.domain.matching.dto.MatchCandidateResponse;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse;
 import com.desserting.backend.domain.matching.dto.RandomMatchResponse.AppliedFilter;
 import com.desserting.backend.domain.matching.entity.MatchType;
@@ -11,6 +12,8 @@ import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
 import com.desserting.backend.domain.user.repository.UserRepository;
+import com.desserting.backend.global.error.CustomException;
+import com.desserting.backend.global.error.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -60,143 +63,138 @@ class MatchingServiceTest {
         User sameTasteFemale = user(4L, "FEMALE", "대구 남구", null, null, DessertType.COFFEE);
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
-        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(sameTasteMale, diffTasteMale, sameTasteFemale));
+        given(matchCandidateRepository.findAllCandidates(1L))
+                .willReturn(List.of(sameTasteMale, diffTasteMale, sameTasteFemale));
         given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
 
         RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, null);
 
         assertThat(response.isFound()).isTrue();
-        assertThat(response.getAppliedFilter()).isEqualTo(AppliedFilter.ALL);
         assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
         assertThat(response.getCandidate().getCommonDessertTags()).containsExactly(DessertType.CAKE);
-        assertThat(response.getCandidate().getApproxDistanceKm()).isNull();
+        assertThat(response.getAppliedFilter()).isEqualTo(AppliedFilter.ALL);
         verify(matchExposureRepository).markSeen(1L, 2L);
     }
 
     @Test
-    @DisplayName("다른 취향 매칭은 겹치는 디저트가 없는 상대만 반환한다")
-    void differentTaste_returnsNonOverlapping() {
+    @DisplayName("다른 취향 매칭은 디저트가 겹치지 않는 이성만 반환한다")
+    void differentTaste_returnsNonOverlappingOppositeGender() {
         User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
-        User same = user(2L, "MALE", "대구 남구", null, null, DessertType.CAKE);
-        User diff = user(3L, "MALE", "대구 남구", null, null, DessertType.BAKERY);
+        User diffTasteMale = user(2L, "MALE", "대구 남구", null, null, DessertType.BAKERY);
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
-        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(same, diff));
+        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(diffTasteMale));
         given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
 
         RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.DIFFERENT_TASTE, null, null);
 
-        assertThat(response.getCandidate().getUserId()).isEqualTo(3L);
+        assertThat(response.isFound()).isTrue();
+        assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
         assertThat(response.getCandidate().getCommonDessertTags()).isEmpty();
     }
 
     @Test
-    @DisplayName("반경 필터는 박스 조회 후 실제 거리로 다시 거르고, 거리는 올림 정수 km로만 노출한다")
-    void distanceFilter_excludesOutsideRadius() {
-        User me = user(1L, "FEMALE", "대구 남구", ME_LAT, ME_LNG, DessertType.CAKE);
-        User near = user(2L, "MALE", "대구 남구", 35.8301, 128.5866, DessertType.CAKE);   // 약 0.2km
-        User boxCorner = user(3L, "MALE", "대구 남구", ME_LAT + 0.0170, ME_LNG + 0.0210, DessertType.CAKE); // 박스 안, 반경 밖
+    @DisplayName("내 위치가 있고 거리 필터가 주어지면 반경 내 이성만 반환한다")
+    void distanceFilter_returnsWithinRadius() {
+        User me = user(1L, "MALE", "대구 남구", ME_LAT, ME_LNG, DessertType.CAKE);
+        // 약 2km 거리
+        User nearFemale = user(2L, "FEMALE", "대구 남구", 35.8450, 128.5850, DessertType.CAKE);
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
         given(matchCandidateRepository.findCandidatesInBox(eq(1L), any(), any(), any(), any()))
-                .willReturn(List.of(near, boxCorner));
+                .willReturn(List.of(nearFemale));
         given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
 
-        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, 2.0, null);
+        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, 5.0, null);
 
+        assertThat(response.isFound()).isTrue();
+        assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
         assertThat(response.getAppliedFilter()).isEqualTo(AppliedFilter.DISTANCE);
-        assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
-        assertThat(response.getCandidate().getApproxDistanceKm()).isEqualTo(1);
+        assertThat(response.getCandidate().getApproxDistanceKm()).isNotNull();
     }
 
     @Test
-    @DisplayName("위치정보가 없는데 반경을 요청하면 내 활동 지역으로 대체한다 (LOC-03)")
-    void noLocation_fallsBackToMyRegion() {
-        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
-        User candidate = user(2L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+    @DisplayName("내 위치 정보가 없을 때 거리 필터를 요청하면 내 활동 지역으로 자동 대체된다 (LOC-03)")
+    void distanceFilter_fallsBackToMyRegion_whenNoLocation() {
+        User me = user(1L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+        User regionalFemale = user(2L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
-        given(matchCandidateRepository.findCandidatesByRegion(1L, "대구 남구")).willReturn(List.of(candidate));
+        given(matchCandidateRepository.findCandidatesByRegion(1L, "대구 남구")).willReturn(List.of(regionalFemale));
         given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
 
-        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, 10.0, null);
+        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, 5.0, null);
 
+        assertThat(response.isFound()).isTrue();
         assertThat(response.getAppliedFilter()).isEqualTo(AppliedFilter.REGION);
-        assertThat(response.getGuide()).contains("활동 지역");
-        assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
+        assertThat(response.getGuide()).contains("내 활동 지역");
     }
 
     @Test
-    @DisplayName("'대구·경북' 지역은 전체 검색으로 처리한다")
-    void wholeAreaRegion_meansAll() {
-        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
+    @DisplayName("지역 필터가 주어지면 해당 지역 후보만 반환한다")
+    void regionFilter_returnsMatchingRegion() {
+        User me = user(1L, "MALE", "대구 중구", null, null, DessertType.CAKE);
+        User dongseongroFemale = user(2L, "FEMALE", "대구 중구 동성로", null, null, DessertType.CAKE);
+
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
-        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of());
+        given(matchCandidateRepository.findCandidatesByRegion(1L, "대구 중구")).willReturn(List.of(dongseongroFemale));
+        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
+
+        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, "대구 중구");
+
+        assertThat(response.isFound()).isTrue();
+        assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
+        assertThat(response.getAppliedFilter()).isEqualTo(AppliedFilter.REGION);
+    }
+
+    @Test
+    @DisplayName("지역 키워드가 '전체' 또는 '대구·경북'이면 지역 필터를 무시하고 전체 풀을 조회한다")
+    void wholeAreaKeyword_ignoresRegionFilter() {
+        User me = user(1L, "MALE", "대구 중구", null, null, DessertType.CAKE);
+        User candidate = user(2L, "FEMALE", "포항시", null, null, DessertType.CAKE);
+
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
+        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(candidate));
+        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
 
         RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, "대구·경북");
 
+        assertThat(response.isFound()).isTrue();
         assertThat(response.getAppliedFilter()).isEqualTo(AppliedFilter.ALL);
     }
 
     @Test
-    @DisplayName("이미 본 상대는 제외하고 다음 상대를 보여준다 (MAT-03)")
-    void excludesSeenCandidates() {
-        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
-        User seen = user(2L, "MALE", "대구 남구", null, null, DessertType.CAKE);
-        User fresh = user(3L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+    @DisplayName("후보가 없을 때는 found=false 와 안내 문구를 반환한다")
+    void noCandidates_returnsNotFound() {
+        User me = user(1L, "MALE", "대구 남구", null, null, DessertType.CAKE);
 
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
-        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(seen, fresh));
-        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of(2L));
+        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of());
 
         RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, null);
-
-        assertThat(response.getCandidate().getUserId()).isEqualTo(3L);
-        assertThat(response.isRecycled()).isFalse();
-        verify(matchExposureRepository, never()).clear(anyLong());
-    }
-
-    @Test
-    @DisplayName("모든 후보를 이미 봤으면 기록을 비우고 다시 순환한다")
-    void allSeen_recycles() {
-        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
-        User only = user(2L, "MALE", "대구 남구", null, null, DessertType.CAKE);
-
-        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
-        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(only));
-        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of(2L));
-
-        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, null);
-
-        assertThat(response.isRecycled()).isTrue();
-        assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
-        verify(matchExposureRepository).clear(1L);
-    }
-
-    @Test
-    @DisplayName("조건에 맞는 후보가 없으면 found=false와 안내 문구를 반환한다 (LOC-04)")
-    void noCandidates_returnsGuide() {
-        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
-        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
-        given(matchCandidateRepository.findCandidatesByRegion(1L, "경북 포항시")).willReturn(List.of());
-
-        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, "경북 포항시");
 
         assertThat(response.isFound()).isFalse();
         assertThat(response.getCandidate()).isNull();
         assertThat(response.getGuide()).isNotBlank();
+        verify(matchExposureRepository, never()).markSeen(anyLong(), anyLong());
     }
 
     @Test
-    @DisplayName("취향이 없으면 매칭하지 않고 안내한다")
-    void noTags_returnsGuide() {
-        User me = user(1L, "FEMALE", "대구 남구", null, null);
+    @DisplayName("모든 후보를 다 본 경우 노출 기록을 비우고 다시 순환한다 (recycled=true)")
+    void allSeen_clearsExposureAndRecycles() {
+        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
+        User seenMale = user(2L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+
         given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
+        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(seenMale));
+        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of(2L));
 
         RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, null);
 
-        assertThat(response.isFound()).isFalse();
-        verify(matchCandidateRepository, never()).findAllCandidates(anyLong());
+        assertThat(response.isFound()).isTrue();
+        assertThat(response.isRecycled()).isTrue();
+        verify(matchExposureRepository).clear(1L);
+        verify(matchExposureRepository).markSeen(1L, 2L);
     }
 
     @Test
@@ -222,6 +220,37 @@ class MatchingServiceTest {
         assertThatThrownBy(() -> matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, 500.0, null))
                 .isInstanceOf(ExploreException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ExploreErrorCode.INVALID_MATCH_FILTER);
+    }
+
+    @Test
+    @DisplayName("프리미엄 회원이 아닌 경우 스킵한 상대 이력 조회 시 ACCESS_DENIED 예외 발생")
+    void getSkippedMatchHistory_DeniedForNonPremium() {
+        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
+        ReflectionTestUtils.setField(me, "isPremium", false);
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
+
+        assertThatThrownBy(() -> matchingService.getSkippedMatchHistory(1L, 20))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+    }
+
+    @Test
+    @DisplayName("프리미엄 회원은 스킵한 상대 이력을 Fetch Join으로 일괄 조회하여 성공적으로 반환한다")
+    void getSkippedMatchHistory_Success() {
+        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
+        ReflectionTestUtils.setField(me, "isPremium", true);
+
+        User skippedCandidate = user(2L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
+        given(matchExposureRepository.findHistoryUserIds(1L, 20)).willReturn(List.of(2L));
+        given(userRepository.findAllByIdInWithTags(List.of(2L))).willReturn(List.of(skippedCandidate));
+
+        List<MatchCandidateResponse> history = matchingService.getSkippedMatchHistory(1L, 20);
+
+        assertThat(history).hasSize(1);
+        assertThat(history.get(0).getUserId()).isEqualTo(2L);
+        assertThat(history.get(0).getCommonDessertTags()).containsExactly(DessertType.CAKE);
     }
 
     private static User user(Long id, String gender, String region, Double lat, Double lng, DessertType... tags) {

@@ -90,12 +90,11 @@ public class AiRecommendationService {
         String tasteInfo = preferredTypes.isEmpty() ? "(선호 디저트 태그 없음)" :
                 preferredTypes.stream().map(DessertType::name).distinct().collect(Collectors.joining(", "));
 
-        // 5. 매장 및 대표 메뉴 정보 텍스트 구성
-        Map<Long, List<StoreMenu>> menuMap = partnerStores.stream()
-                .collect(Collectors.toMap(
-                        Store::getId,
-                        s -> storeMenuRepository.findAllByStoreIdAndIsSoldOutFalse(s.getId())
-                ));
+        // 5. 매장 및 대표 메뉴 정보 텍스트 구성 (N+1 쿼리 방지: IN 일괄 조회 후 메모리 매핑)
+        List<Long> partnerStoreIds = partnerStores.stream().map(Store::getId).toList();
+        Map<Long, List<StoreMenu>> menuMap = storeMenuRepository.findAllByStoreIdInAndIsSoldOutFalse(partnerStoreIds).stream()
+                .filter(m -> m.getStore() != null)
+                .collect(Collectors.groupingBy(m -> m.getStore().getId()));
 
         String candidateStoresText = partnerStores.stream()
                 .map(s -> {

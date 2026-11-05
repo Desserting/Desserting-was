@@ -1,6 +1,8 @@
 package com.desserting.backend.domain.store.entity;
 
 import com.desserting.backend.global.entity.BaseTimeEntity;
+import com.desserting.backend.global.error.CustomException;
+import com.desserting.backend.global.error.ErrorCode;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -54,6 +56,9 @@ public class StoreReservationSlot extends BaseTimeEntity {
     }
 
     public void increaseReservation() {
+        if (this.currentReservedCount >= this.maxCapacity) {
+            throw new CustomException(ErrorCode.RESERVATION_SLOT_FULL);
+        }
         this.currentReservedCount++;
         if (this.currentReservedCount >= this.maxCapacity) {
             this.isAvailable = false;

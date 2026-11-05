@@ -122,4 +122,8 @@ public class JwtTokenProvider {
     public long getAccessExpirationMs() {
         return accessExpirationMs;
     }
+
+    public long getRefreshExpirationMs() {
+        return refreshExpirationMs;
+    }
 }

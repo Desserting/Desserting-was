@@ -10,6 +10,8 @@ import com.desserting.backend.domain.store.repository.StoreRepository;
 import com.desserting.backend.domain.store.repository.StoreReservationSlotRepository;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.order.service.ReservationOrderService;
+import com.desserting.backend.global.error.CustomException;
+import com.desserting.backend.global.error.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +25,7 @@ import java.time.LocalTime;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -132,7 +135,7 @@ class AdminOrderServiceTest {
         // given
         Long storeId = 1L;
         Long reservationId = 100L;
-        LocalDate date = LocalDate.of(2026, 11, 10);
+        LocalDate date = LocalDate.now().plusDays(2);
         LocalTime time = LocalTime.of(14, 0);
 
         Store store = Store.builder().name("카페 루시드").build();
@@ -166,5 +169,68 @@ class AdminOrderServiceTest {
         assertThat(response.getStatus()).isEqualTo(ReservationStatus.CONFIRMED);
         assertThat(slot.getCurrentReservedCount()).isEqualTo(3);
         verify(reservationOrderService, never()).refundIfPaid(anyLong());
+    }
+
+    @Test
+    @DisplayName("취소된 예약 재확정 시 슬롯이 이미 만석이면 RESERVATION_SLOT_FULL 예외 발생")
+    void updateReservationStatus_RestoreCancelled_ThrowsWhenSlotFull() {
+        // given
+        Long storeId = 1L;
+        Long reservationId = 100L;
+        LocalDate date = LocalDate.now().plusDays(2);
+        LocalTime time = LocalTime.of(14, 0);
+
+        Store store = Store.builder().name("카페 루시드").build();
+        ReflectionTestUtils.setField(store, "id", storeId);
+
+        Reservation reservation = Reservation.builder()
+                .store(store)
+                .reservationDate(date)
+                .reservationTime(time)
+                .status(ReservationStatus.CANCELLED)
+                .build();
+        ReflectionTestUtils.setField(reservation, "id", reservationId);
+
+        StoreReservationSlot slot = StoreReservationSlot.builder()
+                .maxCapacity(4)
+                .currentReservedCount(4)
+                .isAvailable(false)
+                .build();
+
+        given(reservationRepository.findById(reservationId)).willReturn(Optional.of(reservation));
+        given(slotRepository.findByStoreIdAndSlotDateAndSlotTime(storeId, date, time)).willReturn(Optional.of(slot));
+
+        // when & then
+        assertThatThrownBy(() -> adminOrderService.updateReservationStatus(storeId, reservationId, ReservationStatus.CONFIRMED))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.RESERVATION_SLOT_FULL);
+    }
+
+    @Test
+    @DisplayName("과거 일시의 취소된 예약은 재확정할 수 없다")
+    void updateReservationStatus_RestoreCancelled_ThrowsWhenPastDate() {
+        // given
+        Long storeId = 1L;
+        Long reservationId = 100L;
+        LocalDate date = LocalDate.now().minusDays(1);
+        LocalTime time = LocalTime.of(14, 0);
+
+        Store store = Store.builder().name("카페 루시드").build();
+        ReflectionTestUtils.setField(store, "id", storeId);
+
+        Reservation reservation = Reservation.builder()
+                .store(store)
+                .reservationDate(date)
+                .reservationTime(time)
+                .status(ReservationStatus.CANCELLED)
+                .build();
+        ReflectionTestUtils.setField(reservation, "id", reservationId);
+
+        given(reservationRepository.findById(reservationId)).willReturn(Optional.of(reservation));
+
+        // when & then
+        assertThatThrownBy(() -> adminOrderService.updateReservationStatus(storeId, reservationId, ReservationStatus.CONFIRMED))
+                .isInstanceOf(CustomException.class)
+                .hasFieldOrPropertyWithValue("errorCode", ErrorCode.INVALID_INPUT_VALUE);
     }
 }

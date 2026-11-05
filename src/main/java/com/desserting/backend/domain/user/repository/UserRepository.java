@@ -8,6 +8,8 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, Long> {
@@ -19,7 +21,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByNickname(String nickname);
 
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.dessertTags ORDER BY u.id ASC")
-    java.util.List<User> findAllWithTags();
+    List<User> findAllWithTags();
+
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.dessertTags WHERE u.id IN :ids")
+    List<User> findAllByIdInWithTags(@Param("ids") Collection<Long> ids);
 
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.dessertTags WHERE u.id = :id")
     Optional<User> findByIdWithTags(@Param("id") Long id);

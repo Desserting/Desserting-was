@@ -227,7 +227,8 @@ public class MatchingService {
         }
 
         Set<DessertType> myTags = tagsOf(me);
-        List<User> candidates = userRepository.findAllById(candidateIds);
+        // N+1 지연 로딩 방지를 위한 fetch join 일괄 조회
+        List<User> candidates = userRepository.findAllByIdInWithTags(candidateIds);
         Map<Long, User> userMap = candidates.stream().collect(Collectors.toMap(User::getId, u -> u));
 
         return candidateIds.stream()

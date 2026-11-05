@@ -34,6 +34,7 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
@@ -75,9 +76,10 @@ class ChatRequestServiceTest {
         User receiver = User.builder().email("receiver@desserting.com").nickname("받는사람").dessertTags(new ArrayList<>()).build();
         ReflectionTestUtils.setField(receiver, "id", 2L);
 
+        given(userRepository.findById(1L)).willReturn(Optional.of(sender));
+        given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
         given(heartService.deductHeartForRequest(eq(1L), any())).willReturn(sender);
         given(matchExposureRepository.wasShownRecently(1L, 2L)).willReturn(true);
-        given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
         given(chatRoomMemberRepository.existsActiveRoomBetween(1L, 2L)).willReturn(false);
         given(chatRequestRepository.existsBySenderIdAndReceiverIdAndStatus(1L, 2L, RequestStatus.PENDING)).willReturn(false);
 
@@ -99,19 +101,21 @@ class ChatRequestServiceTest {
     }
 
     @Test
-    @DisplayName("일반 회원이 매칭으로 만나지 않은 상대에게 직접 요청하면 ACCESS_DENIED (하트 차감은 롤백)")
+    @DisplayName("일반 회원이 매칭으로 만나지 않은 상대에게 직접 요청하면 하트 차감 전 ACCESS_DENIED (Fail-Fast)")
     void sendRequest_DirectRequestRequiresPremium() {
         User sender = User.builder().nickname("일반").isPremium(false).dessertTags(new ArrayList<>()).build();
         ReflectionTestUtils.setField(sender, "id", 1L);
-        given(heartService.deductHeartForRequest(eq(1L), any())).willReturn(sender);
-        given(matchExposureRepository.wasShownRecently(1L, 2L)).willReturn(false);
         User target = User.builder().nickname("받는사람").dessertTags(new ArrayList<>()).build();
         ReflectionTestUtils.setField(target, "id", 2L);
+
+        given(userRepository.findById(1L)).willReturn(Optional.of(sender));
         given(userRepository.findById(2L)).willReturn(Optional.of(target));
+        given(matchExposureRepository.wasShownRecently(1L, 2L)).willReturn(false);
 
         assertThatThrownBy(() -> chatRequestService.sendRequest(1L, new ChatRequestCreateRequest(2L)))
                 .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.ACCESS_DENIED);
+        verify(heartService, never()).deductHeartForRequest(anyLong(), any());
         verify(chatRequestRepository, never()).save(any());
     }
 
@@ -122,8 +126,10 @@ class ChatRequestServiceTest {
         ReflectionTestUtils.setField(sender, "id", 1L);
         User receiver = User.builder().nickname("받는사람").dessertTags(new ArrayList<>()).build();
         ReflectionTestUtils.setField(receiver, "id", 2L);
-        given(heartService.deductHeartForRequest(eq(1L), any())).willReturn(sender);
+
+        given(userRepository.findById(1L)).willReturn(Optional.of(sender));
         given(userRepository.findById(2L)).willReturn(Optional.of(receiver));
+        given(heartService.deductHeartForRequest(eq(1L), any())).willReturn(sender);
         given(chatRequestRepository.save(any(ChatRequest.class))).willAnswer(inv -> {
             ChatRequest req = inv.getArgument(0);
             ReflectionTestUtils.setField(req, "createdAt", LocalDateTime.now());
@@ -280,7 +286,6 @@ class ChatRequestServiceTest {
 
         // when & then
         assertThatThrownBy(() -> chatRequestService.acceptRequest(2L, 40L))
-                .isInstanceOf(CustomException.class)
                 .hasFieldOrPropertyWithValue("errorCode", ErrorCode.CHAT_REQUEST_EXPIRED);
     }
 

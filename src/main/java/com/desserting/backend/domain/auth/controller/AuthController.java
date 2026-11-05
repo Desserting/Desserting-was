@@ -6,6 +6,7 @@ import com.desserting.backend.domain.auth.dto.SignUpRequest;
 import com.desserting.backend.domain.auth.dto.TokenResponse;
 import com.desserting.backend.domain.auth.service.AuthService;
 import com.desserting.backend.global.common.ApiResponse;
+import com.desserting.backend.global.security.CurrentUser;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -13,7 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-@Tag(name = "4-1. 계정 인증 및 토큰 API", description = "회원가입, 로그인, JWT Access/Refresh 토큰 발급 및 갱신 API (4-1)")
+@Tag(name = "4-1. 계정 인증 및 토큰 API", description = "회원가입, 로그인, 로그아웃, JWT Access/Refresh 토큰 발급 및 갱신 API (4-1)")
 @RestController
 @RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
@@ -42,5 +43,12 @@ public class AuthController {
     public ApiResponse<TokenResponse> refresh(@Valid @RequestBody RefreshTokenRequest request) {
         TokenResponse response = authService.refreshToken(request);
         return ApiResponse.success("토큰이 성공적으로 재발급되었습니다.", response);
+    }
+
+    @Operation(summary = "로그아웃", description = "서버에 저장된 Refresh Token을 무효화하여 로그아웃 처리합니다.")
+    @PostMapping("/logout")
+    public ApiResponse<Void> logout(@CurrentUser Long userId) {
+        authService.logout(userId);
+        return ApiResponse.success("성공적으로 로그아웃되었습니다.", null);
     }
 }

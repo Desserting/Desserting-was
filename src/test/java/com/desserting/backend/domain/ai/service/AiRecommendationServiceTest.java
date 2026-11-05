@@ -121,9 +121,8 @@ class AiRecommendationServiceTest {
                 .build();
         given(chatMessageRepository.findByRoomIdOrderByCreatedAtDesc(eq(roomId), any())).willReturn(List.of(doc));
 
-        StoreMenu menu = StoreMenu.builder().name("소금빵").price(3500).build();
-        given(storeMenuRepository.findAllByStoreIdAndIsSoldOutFalse(1L)).willReturn(List.of(menu));
-        given(storeMenuRepository.findAllByStoreIdAndIsSoldOutFalse(2L)).willReturn(List.of());
+        StoreMenu menu = StoreMenu.builder().name("소금빵").price(3500).store(storeLucid).build();
+        given(storeMenuRepository.findAllByStoreIdInAndIsSoldOutFalse(any())).willReturn(List.of(menu));
 
         // Ollama는 실패
         given(ollamaClient.generate(anyString(), anyString())).willReturn(Optional.empty());

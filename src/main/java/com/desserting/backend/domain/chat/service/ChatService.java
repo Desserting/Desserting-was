@@ -26,10 +26,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -157,11 +155,22 @@ public class ChatService {
             chatMessageQueryRepository.markAllRead(roomId, userId);
         }
 
-        // DTO 변환
+        // DTO 변환 (발신자 아바타 일괄 조회로 N+1 DB 쿼리 제거)
+        Set<Long> senderIds = documents.stream()
+                .map(ChatMessageDocument::getSenderId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        Map<Long, String> avatarMap = new HashMap<>();
+        if (!senderIds.isEmpty()) {
+            for (User sender : userRepository.findAllById(senderIds)) {
+                avatarMap.put(sender.getId(), sender.getDessertAvatarUrl());
+            }
+        }
+
         return documents.stream()
                 .map(doc -> {
-                    User sender = userRepository.findById(doc.getSenderId()).orElse(null);
-                    String avatarUrl = sender != null ? sender.getDessertAvatarUrl() : null;
+                    String avatarUrl = doc.getSenderId() != null ? avatarMap.get(doc.getSenderId()) : null;
                     return ChatMessageDto.from(doc, avatarUrl);
                 })
                 .toList();

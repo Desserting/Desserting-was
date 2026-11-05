@@ -57,16 +57,20 @@ public class ChatRequestService {
             throw new CustomException(ErrorCode.DUPLICATE_CHAT_REQUEST, "이미 해당 상대에게 보낸 대기 중인 요청이 존재합니다.");
         }
 
-        // HRT-02: 하트 1개 차감 (동시성 lost update 방지를 위해 비관적 락으로 먼저 차감 및 최신 sender 획득)
         User receiver = userRepository.findById(receiverId)
                 .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "대화 요청 대상 사용자를 찾을 수 없습니다: " + receiverId));
-        User sender = heartService.deductHeartForRequest(senderId, receiver.getNickname());
-        // MAT-04/PRE-03: 원하는 프로필에 직접 요청은 프리미엄 전용. 일반 회원은 최근 24시간 매칭으로 만난 상대에게만 요청한다
-        // (예외 시 트랜잭션 롤백으로 하트 차감도 취소된다)
+        User sender = userRepository.findById(senderId)
+                .orElseThrow(() -> new CustomException(ErrorCode.USER_NOT_FOUND, "대화 요청 발신 사용자를 찾을 수 없습니다: " + senderId));
+
+        // MAT-04/PRE-03: 원하는 프로필에 직접 요청은 프리미엄 전용. 일반 회원은 최근 24시간 매칭으로 만난 상대에게만 요청한다 (Fail-Fast: 락 획득 전 검증)
         if (!Boolean.TRUE.equals(sender.getIsPremium()) && !matchExposureRepository.wasShownRecently(senderId, receiverId)) {
             throw new CustomException(ErrorCode.ACCESS_DENIED,
                     "원하는 상대에게 직접 대화 요청하기는 프리미엄 패스 회원 전용 기능입니다. 랜덤 매칭으로 만난 상대에게 요청해 주세요.");
         }
+
+        // HRT-02: 하트 1개 차감 (권한 검증 통과 후 동시성 lost update 방지를 위해 비관적 락으로 차감 및 최신 sender 획득)
+        sender = heartService.deductHeartForRequest(senderId, receiver.getNickname());
+
         ChatRequest chatRequest = ChatRequest.create(sender, receiver);
         ChatRequest savedRequest = chatRequestRepository.save(chatRequest);
 

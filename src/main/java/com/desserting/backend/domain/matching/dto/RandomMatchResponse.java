@@ -36,6 +36,8 @@ public class RandomMatchResponse {
     public enum AppliedFilter {
         /** 내 좌표 기준 반경 검색 (LOC-01/02) */
         DISTANCE,
+        /** 반경 + 지역을 함께 지정 — 두 조건 모두 만족(AND) */
+        DISTANCE_AND_REGION,
         /** 지역명 기준 검색 (LOC-03 수동 선택 또는 위치 미허용 대체) */
         REGION,
         /** 대구·경북 전체 */

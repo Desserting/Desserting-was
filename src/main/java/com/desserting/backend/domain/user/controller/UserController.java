@@ -1,10 +1,12 @@
 package com.desserting.backend.domain.user.controller;
 
+import com.desserting.backend.domain.user.dto.AvatarOptionResponse;
 import com.desserting.backend.domain.user.dto.OtherUserProfileResponse;
 import com.desserting.backend.domain.user.dto.ProfileVisitorListResponse;
 import com.desserting.backend.domain.user.dto.UpdateLocationRequest;
 import com.desserting.backend.domain.user.dto.UpdateProfileRequest;
 import com.desserting.backend.domain.user.dto.UserProfileResponse;
+import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.service.UserService;
 import com.desserting.backend.global.common.ApiResponse;
 import com.desserting.backend.global.security.CurrentUser;
@@ -15,6 +17,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Tag(name = "4-1. 사용자 및 디저트 프로필 API", description = "내 프로필 조회/수정, 위치 갱신, 메이트 목록, 상대방 프로필 열람 API (4-1)")
@@ -31,6 +34,15 @@ public class UserController {
             @Parameter(hidden = true) @CurrentUser(required = false) Long currentUserId) {
         List<OtherUserProfileResponse> responses = userService.getAllOtherUsers(currentUserId);
         return ApiResponse.success("디저트 메이트 목록 조회에 성공하였습니다.", responses);
+    }
+
+    @Operation(summary = "선택 가능한 대표 아바타 목록 (PRF-02)",
+            description = "디저트 취향 8종에 대응하는 기본 아바타 목록입니다. 로그인 없이 조회 가능하며, "
+                    + "avatarUrl 값을 회원가입/프로필 수정의 dessertAvatarUrl 에 그대로 넣으면 됩니다.")
+    @GetMapping("/avatars")
+    public ApiResponse<List<AvatarOptionResponse>> getAvatarOptions() {
+        List<AvatarOptionResponse> options = Arrays.stream(DessertType.values()).map(AvatarOptionResponse::from).toList();
+        return ApiResponse.success("아바타 목록 조회에 성공하였습니다.", options);
     }
 
     @Operation(summary = "내 프로필 상세 조회 (PRF-01)", description = "로그인된 사용자의 프로필, 잔여 하트 수, 선호 디저트 태그 목록을 조회합니다.")

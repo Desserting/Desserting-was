@@ -105,8 +105,11 @@ api.interceptors.response.use(undefined, async (error) => {
 | A-03 취향 선택 | 가입 요청의 `dessertTypes`에 포함 | (별도 API 없음) |
 | A-04 프로필 생성 | 닉네임·소개 수정 | `PATCH /users/me/profile` `{nickname?, bio?, region?, dessertAvatarUrl?, dessertTypes?}` |
 
-- 회원가입 필드: `email`, `password`(6~50자), `nickname`(2~20자), `gender`, `age`(19~99), `region`(예: `대구 남구`), `dessertTypes`(1개 이상), `agreeToTerms`(true 필수)
+- 회원가입 필드: `email`, `password`(6~50자), `nickname`(2~20자), `gender`, `age`(19~99), `region`(예: `대구 남구`), `dessertTypes`(1개 이상), `dessertAvatarUrl`(선택), `agreeToTerms`(true 필수)
+- 선택 가능한 아바타 목록: `GET /users/avatars` (로그인 불필요) → `[{dessertType, description, avatarUrl}]`. `dessertAvatarUrl`(가입·프로필 수정)에는 이 목록의 `avatarUrl`만 허용되며, 그 외 값은 `400 U004`
 - 대표 아바타는 첫 번째 디저트 취향으로 **자동 생성**됩니다 (`dessertAvatarUrl`).
+  - 이미지 호스트: 프론트 Vercel `public/avatars/` → `https://desserting-web.vercel.app/avatars/{파일명}`
+  - 매핑: `CAKE`→`cake.png`, `BAKERY`→`bakery.png`, `COOKIE_FINANCIER`→`cookie.png`, `TART_PIE`→`tart.png`, `ICE_CREAM_BINGSU`→`bingsu.png`, `COFFEE`→`coffee.png`, `TEA_NON_COFFEE`→`tea.png`, `TRADITIONAL_KOREAN`→`traditional.png`
 - 가입 시 하트 5개 지급 (`WELCOME_BONUS`).
 - ❌ 카카오·구글·애플 로그인은 미구현 (이메일 로그인만 가능)
 
@@ -133,7 +136,8 @@ api.interceptors.response.use(undefined, async (error) => {
 |---|---|
 | `matchType` | 필수. `SAME_TASTE` / `DIFFERENT_TASTE` |
 | `radiusKm` | 선택. 1~100. 내 좌표가 없으면 활동 지역 기준으로 자동 대체 (`appliedFilter: REGION`) |
-| `region` | 선택. 지역명 앞부분 (`대구`, `대구 남구`). `전체`·`대구·경북`·미입력 = 전체 |
+| `region` | 선택. 지역명 앞부분 (`대구`, `대구 남구`). 쉼표로 여러 개 = OR (`대구 중구,대구 남구`). `전체`·`대구·경북`·미입력 = 전체 |
+| `radiusKm` + `region` | 둘 다 만족(AND), `appliedFilter: DISTANCE_AND_REGION`. 내 좌표가 없으면 `region`만 적용(`REGION`) |
 
 - 거리(`approxDistanceKm`)는 개인정보 보호를 위해 **정수 km 올림**으로만 옵니다 (예: `1` = 1km 이내).
 - 차단 관계인 사용자, 이성이 아닌 사용자는 나오지 않습니다.
@@ -165,7 +169,7 @@ api.interceptors.response.use(undefined, async (error) => {
 ```jsonc
 // POST /matches/requests (201), GET /matches/requests/received 항목도 같은 모양
 { "requestId": 5,               // accept/reject 경로에 쓰는 id
-  "senderId": 4, "senderNickname": "초코크로와상", "senderAvatarUrl": "https://.../bakery.png",
+  "senderId": 4, "senderNickname": "초코크로와상", "senderAvatarUrl": "https://desserting-web.vercel.app/avatars/bakery.png",
   "senderAge": 26, "senderRegion": "대구 수성구", "senderDessertTags": ["BAKERY"],
   "status": "PENDING",          // PENDING | ACCEPTED | REJECTED | EXPIRED
   "createdAt": "2026-11-05T08:47:22", "expiredAt": "2026-11-06T08:47:22",

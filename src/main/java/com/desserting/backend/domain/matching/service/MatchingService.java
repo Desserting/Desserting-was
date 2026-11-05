@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -50,7 +51,8 @@ public class MatchingService {
      * 조건에 맞는 랜덤 상대 1명을 반환한다. 다시 호출하면 다음 상대(MAT-03).
      *
      * @param radiusKm 반경(km). 내 좌표가 없으면 지역 필터로 대체한다(LOC-03).
-     * @param region   지역명 접두어(예: "대구", "대구 남구"). null/전체면 지역 무관.
+     * @param region   지역명 접두어. 쉼표로 여러 개 지정 가능(예: "대구 중구,대구 남구" → OR). null/전체면 지역 무관.
+     *                 반경과 함께 보내면 두 조건을 모두 만족(AND)하는 상대만 찾는다.
      */
     @Transactional(readOnly = true)
     public RandomMatchResponse findRandomMatch(Long userId, MatchType matchType, Double radiusKm, String region) {
@@ -72,23 +74,40 @@ public class MatchingService {
 
         boolean hasMyLocation = me.getLatitude() != null && me.getLongitude() != null;
         boolean useDistance = radiusKm != null && hasMyLocation;
-        String regionPrefix = normalizeRegion(region);
+        List<String> regionPrefixes = parseRegions(region);
         String guide = null;
 
-        if (radiusKm != null && !hasMyLocation && regionPrefix == null) {
+        if (radiusKm != null && !hasMyLocation && regionPrefixes.isEmpty()) {
             // 위치 권한 미허용 시 내 활동 지역으로 대체 (LOC-03)
-            regionPrefix = normalizeRegion(me.getRegion());
+            String myRegion = normalizeRegion(me.getRegion());
+            if (myRegion != null) {
+                regionPrefixes = List.of(myRegion);
+            }
             guide = "위치 정보가 없어 내 활동 지역 기준으로 찾았어요.";
         }
 
         AppliedFilter appliedFilter;
         List<User> pool;
-        if (useDistance) {
+        if (useDistance && !regionPrefixes.isEmpty()) {
+            // 반경 + 지역을 함께 보내면 두 조건 모두 만족(AND)
+            appliedFilter = AppliedFilter.DISTANCE_AND_REGION;
+            List<String> prefixes = regionPrefixes;
+            pool = findWithinRadius(me, radiusKm).stream()
+                    .filter(c -> matchesAnyRegion(c.getRegion(), prefixes))
+                    .toList();
+        } else if (useDistance) {
             appliedFilter = AppliedFilter.DISTANCE;
             pool = findWithinRadius(me, radiusKm);
-        } else if (regionPrefix != null) {
+        } else if (regionPrefixes.size() == 1) {
             appliedFilter = AppliedFilter.REGION;
-            pool = matchCandidateRepository.findCandidatesByRegion(userId, regionPrefix);
+            pool = matchCandidateRepository.findCandidatesByRegion(userId, regionPrefixes.get(0));
+        } else if (!regionPrefixes.isEmpty()) {
+            // 생활권 단위 등 여러 지역(OR)
+            appliedFilter = AppliedFilter.REGION;
+            List<String> prefixes = regionPrefixes;
+            pool = matchCandidateRepository.findAllCandidates(userId).stream()
+                    .filter(c -> matchesAnyRegion(c.getRegion(), prefixes))
+                    .toList();
         } else {
             appliedFilter = AppliedFilter.ALL;
             pool = matchCandidateRepository.findAllCandidates(userId);
@@ -160,6 +179,28 @@ public class MatchingService {
             return true;
         }
         return !me.getGender().equals(candidate.getGender());
+    }
+
+    /**
+     * 쉼표로 구분된 지역 접두어 목록을 파싱한다. 하나라도 '전체' 계열이면 지역 필터를 적용하지 않는다(빈 목록).
+     */
+    static List<String> parseRegions(String region) {
+        if (region == null || region.isBlank()) {
+            return List.of();
+        }
+        List<String> parts = Arrays.stream(region.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .distinct()
+                .toList();
+        if (parts.stream().anyMatch(WHOLE_AREA_KEYWORDS::contains)) {
+            return List.of();
+        }
+        return parts;
+    }
+
+    static boolean matchesAnyRegion(String candidateRegion, List<String> prefixes) {
+        return candidateRegion != null && prefixes.stream().anyMatch(candidateRegion::startsWith);
     }
 
     static String normalizeRegion(String region) {

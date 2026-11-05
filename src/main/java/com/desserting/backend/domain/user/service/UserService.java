@@ -51,6 +51,11 @@ public class UserService {
             }
         }
 
+        String avatarUrl = request.getDessertAvatarUrl();
+        if (avatarUrl != null && !avatarUrl.isBlank() && !DessertType.isSelectableAvatarUrl(avatarUrl)) {
+            throw new CustomException(ErrorCode.INVALID_AVATAR_URL);
+        }
+
         user.updateProfile(
                 request.getNickname(),
                 request.getBio(),

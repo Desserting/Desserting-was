@@ -127,6 +127,41 @@ class MatchingServiceTest {
     }
 
     @Test
+    @DisplayName("지역을 쉼표로 여러 개 보내면 그중 하나에 속한 상대를 찾는다 (생활권 단위)")
+    void multipleRegions_matchAny() {
+        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
+        User jung = user(2L, "MALE", "대구 중구", null, null, DessertType.CAKE);
+        User suseong = user(3L, "MALE", "대구 수성구", null, null, DessertType.CAKE);
+
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
+        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(jung, suseong));
+        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
+
+        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, "대구 중구, 대구 남구");
+
+        assertThat(response.getAppliedFilter()).isEqualTo(AppliedFilter.REGION);
+        assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
+    }
+
+    @Test
+    @DisplayName("반경과 지역을 함께 보내면 두 조건을 모두 만족하는 상대만 찾는다 (AND)")
+    void distanceAndRegion_appliesBoth() {
+        User me = user(1L, "FEMALE", "대구 남구", ME_LAT, ME_LNG, DessertType.CAKE);
+        User nearNamgu = user(2L, "MALE", "대구 남구", 35.8301, 128.5866, DessertType.CAKE);
+        User nearDalseo = user(3L, "MALE", "대구 달서구", 35.8305, 128.5860, DessertType.CAKE);
+
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
+        given(matchCandidateRepository.findCandidatesInBox(eq(1L), any(), any(), any(), any()))
+                .willReturn(List.of(nearNamgu, nearDalseo));
+        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
+
+        RandomMatchResponse response = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, 5.0, "대구 남구");
+
+        assertThat(response.getAppliedFilter()).isEqualTo(AppliedFilter.DISTANCE_AND_REGION);
+        assertThat(response.getCandidate().getUserId()).isEqualTo(2L);
+    }
+
+    @Test
     @DisplayName("'대구·경북' 지역은 전체 검색으로 처리한다")
     void wholeAreaRegion_meansAll() {
         User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);

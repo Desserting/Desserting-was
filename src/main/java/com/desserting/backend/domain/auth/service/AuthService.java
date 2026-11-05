@@ -41,8 +41,15 @@ public class AuthService {
         }
 
         // PRF-02: 첫 번째 선택한 디저트 종류를 기반으로 기본 대표 아바타 이미지 자동 할당
-        DessertType primaryDessert = request.getDessertTypes().get(0);
-        String defaultAvatarUrl = primaryDessert.getDefaultAvatarUrl();
+        // 아바타를 직접 고른 경우 기본 제공 8종 중 하나인지 검증하고, 없으면 첫 번째 취향 기준으로 자동 지정
+        String defaultAvatarUrl = request.getDessertTypes().get(0).getDefaultAvatarUrl();
+        String requestedAvatarUrl = request.getDessertAvatarUrl();
+        if (requestedAvatarUrl != null && !requestedAvatarUrl.isBlank()) {
+            if (!DessertType.isSelectableAvatarUrl(requestedAvatarUrl)) {
+                throw new CustomException(ErrorCode.INVALID_AVATAR_URL);
+            }
+            defaultAvatarUrl = requestedAvatarUrl;
+        }
 
         User user = User.builder()
                 .email(request.getEmail())

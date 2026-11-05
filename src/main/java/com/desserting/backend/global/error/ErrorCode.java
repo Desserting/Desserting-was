@@ -23,6 +23,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(HttpStatus.NOT_FOUND, "U001", "사용자를 찾을 수 없습니다."),
     DUPLICATE_EMAIL(HttpStatus.CONFLICT, "U002", "이미 존재하는 이메일입니다."),
     DUPLICATE_NICKNAME(HttpStatus.CONFLICT, "U003", "이미 존재하는 닉네임입니다."),
+    INVALID_AVATAR_URL(HttpStatus.BAD_REQUEST, "U004", "선택할 수 없는 아바타입니다. GET /api/v1/users/avatars 목록의 avatarUrl만 허용됩니다."),
 
     // Heart & Matching
     INSUFFICIENT_HEART(HttpStatus.BAD_REQUEST, "H001", "보유 하트가 부족합니다."),

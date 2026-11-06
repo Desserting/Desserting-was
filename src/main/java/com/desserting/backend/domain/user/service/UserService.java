@@ -134,7 +134,7 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public List<OtherUserProfileResponse> getAllOtherUsers(Long currentUserId) {
-        List<User> users = userRepository.findAllWithTags();
+        List<User> users = userRepository.findAllUsersWithTags();
         if (currentUserId == null) {
             return users.stream()
                     .map(u -> OtherUserProfileResponse.from(u, null))

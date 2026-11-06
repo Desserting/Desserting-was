@@ -124,8 +124,10 @@ public class MatchingService {
 
         // 내가 차단했거나 나를 차단한 사용자는 제외 (SEC-01)
         Set<Long> blocked = new HashSet<>(matchCandidateRepository.findBlockRelatedUserIds(userId));
+        Set<Long> activeChatPartners = new HashSet<>(chatRoomMemberRepository.findActivePartnerUserIds(userId));
         List<User> candidates = pool.stream()
                 .filter(c -> !blocked.contains(c.getId()))
+                .filter(c -> !activeChatPartners.contains(c.getId()))
                 .filter(c -> isOppositeGender(me, c))
                 .filter(c -> matchesTaste(matchType, myTags, tagsOf(c)))
                 .toList();

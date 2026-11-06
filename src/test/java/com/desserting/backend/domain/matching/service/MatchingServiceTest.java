@@ -300,6 +300,26 @@ class MatchingServiceTest {
         verify(userRepository).findAllByIdInWithTags(List.of(2L, 3L));
     }
 
+    @Test
+    @DisplayName("이미 활성 채팅 중인 상대는 랜덤 매칭 후보에서 제외된다")
+    void findRandomMatch_excludesActiveChatPartners() {
+        User me = user(1L, "FEMALE", "대구 남구", null, null, DessertType.CAKE);
+        User activePartner = user(2L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+        User newCandidate = user(3L, "MALE", "대구 남구", null, null, DessertType.CAKE);
+
+        given(userRepository.findByIdWithTags(1L)).willReturn(Optional.of(me));
+        given(matchCandidateRepository.findAllCandidates(1L)).willReturn(List.of(activePartner, newCandidate));
+        given(matchCandidateRepository.findBlockRelatedUserIds(1L)).willReturn(List.of());
+        given(chatRoomMemberRepository.findActivePartnerUserIds(1L)).willReturn(List.of(2L));
+        given(matchExposureRepository.findSeenUserIds(1L)).willReturn(Set.of());
+
+        RandomMatchResponse res = matchingService.findRandomMatch(1L, MatchType.SAME_TASTE, null, null);
+
+        assertThat(res.isFound()).isTrue();
+        assertThat(res.getCandidate().getUserId()).isEqualTo(3L);
+        verify(matchExposureRepository).markSeen(1L, 3L);
+    }
+
     private static User user(Long id, String gender, String region, Double lat, Double lng, DessertType... tags) {
         User.UserBuilder builder = User.builder()
                 .email("u" + id + "@test.com")

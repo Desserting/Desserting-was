@@ -48,4 +48,11 @@ public interface ChatRoomMemberRepository extends JpaRepository<ChatRoomMember, 
             @Param("userAId") Long userAId,
             @Param("userBId") Long userBId
     );
+
+    @Query("SELECT m2.user.id FROM ChatRoomMember m1, ChatRoomMember m2 " +
+            "WHERE m1.chatRoom.id = m2.chatRoom.id " +
+            "AND m1.user.id = :userId AND m2.user.id <> :userId " +
+            "AND m1.isLeft = false AND m2.isLeft = false")
+    List<Long> findActivePartnerUserIds(@Param("userId") Long userId);
 }
+

@@ -251,7 +251,7 @@ class UserServiceTest {
         User blockerUser = User.builder().nickname("나를차단한유저").dessertTags(new ArrayList<>()).build();
         ReflectionTestUtils.setField(blockerUser, "id", 4L);
 
-        given(userRepository.findAllWithTags()).willReturn(List.of(me, normalUser, blockedUser, blockerUser));
+        given(userRepository.findAllUsersWithTags()).willReturn(List.of(me, normalUser, blockedUser, blockerUser));
         given(userBlockRepository.findBlockedUserIdsByUserId(1L)).willReturn(List.of(3L));
         given(userBlockRepository.findBlockerUserIdsByUserId(1L)).willReturn(List.of(4L));
         given(userLikeRepository.findLikedReceiverIdsBySenderId(1L)).willReturn(Set.of(2L));
@@ -264,6 +264,7 @@ class UserServiceTest {
         assertThat(result.get(0).getUserId()).isEqualTo(2L);
         assertThat(result.get(0).getNickname()).isEqualTo("일반유저");
         assertThat(result.get(0).getLiked()).isTrue();
+        assertThat(result.get(0).getRole()).isEqualTo("USER");
     }
 
     @Test

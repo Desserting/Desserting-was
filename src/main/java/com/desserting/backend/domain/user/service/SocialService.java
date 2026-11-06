@@ -5,6 +5,7 @@ import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserBlock;
 import com.desserting.backend.domain.user.entity.UserLike;
 import com.desserting.backend.domain.user.entity.UserReport;
+import com.desserting.backend.domain.user.entity.UserRole;
 import com.desserting.backend.domain.user.repository.UserBlockRepository;
 import com.desserting.backend.domain.user.repository.UserLikeRepository;
 import com.desserting.backend.domain.user.repository.UserReportRepository;
@@ -84,6 +85,7 @@ public class SocialService {
 
         List<UserLike> likes = userLikeRepository.findLikesSentWithReceiver(userId);
         return likes.stream()
+                .filter(like -> like.getReceiver().getRole() == UserRole.ROLE_USER)
                 .filter(like -> !userBlockRepository.isBlockedBetween(userId, like.getReceiver().getId()))
                 .map(like -> OtherUserProfileResponse.from(like.getReceiver(), true))
                 .toList();

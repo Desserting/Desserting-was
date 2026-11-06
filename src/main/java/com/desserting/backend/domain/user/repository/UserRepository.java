@@ -23,6 +23,9 @@ public interface UserRepository extends JpaRepository<User, Long> {
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.dessertTags ORDER BY u.id ASC")
     List<User> findAllWithTags();
 
+    @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.dessertTags WHERE u.role = com.desserting.backend.domain.user.entity.UserRole.ROLE_USER ORDER BY u.id ASC")
+    List<User> findAllNormalUsersWithTags();
+
     @Query("SELECT DISTINCT u FROM User u LEFT JOIN FETCH u.dessertTags WHERE u.id IN :ids")
     List<User> findAllByIdInWithTags(@Param("ids") Collection<Long> ids);
 

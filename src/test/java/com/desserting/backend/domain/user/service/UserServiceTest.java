@@ -251,7 +251,7 @@ class UserServiceTest {
         User blockerUser = User.builder().nickname("나를차단한유저").dessertTags(new ArrayList<>()).build();
         ReflectionTestUtils.setField(blockerUser, "id", 4L);
 
-        given(userRepository.findAllWithTags()).willReturn(List.of(me, normalUser, blockedUser, blockerUser));
+        given(userRepository.findAllNormalUsersWithTags()).willReturn(List.of(me, normalUser, blockedUser, blockerUser));
         given(userBlockRepository.findBlockedUserIdsByUserId(1L)).willReturn(List.of(3L));
         given(userBlockRepository.findBlockerUserIdsByUserId(1L)).willReturn(List.of(4L));
         given(userLikeRepository.findLikedReceiverIdsBySenderId(1L)).willReturn(Set.of(2L));

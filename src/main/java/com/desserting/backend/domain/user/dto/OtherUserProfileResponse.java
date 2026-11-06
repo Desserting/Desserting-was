@@ -3,6 +3,7 @@ package com.desserting.backend.domain.user.dto;
 import com.desserting.backend.domain.user.entity.DessertType;
 import com.desserting.backend.domain.user.entity.User;
 import com.desserting.backend.domain.user.entity.UserDessertTag;
+import com.desserting.backend.domain.user.entity.UserRole;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
@@ -45,6 +46,20 @@ public class OtherUserProfileResponse {
     @Schema(description = "내가 이 사용자를 좋아요(Like)했는지 여부", example = "true")
     private Boolean liked;
 
+    @Schema(description = "계정 역할 (USER / OWNER / ADMIN)", example = "USER")
+    private String role;
+
+    private static String toRoleName(UserRole role) {
+        if (role == null) {
+            return "USER";
+        }
+        return switch (role) {
+            case ROLE_USER -> "USER";
+            case ROLE_STORE_OWNER -> "OWNER";
+            case ROLE_ADMIN -> "ADMIN";
+        };
+    }
+
     public static OtherUserProfileResponse from(User user) {
         return from(user, null);
     }
@@ -65,6 +80,7 @@ public class OtherUserProfileResponse {
                 .dessertAvatarUrl(user.getDessertAvatarUrl())
                 .dessertTags(tags)
                 .liked(liked)
+                .role(toRoleName(user.getRole()))
                 .build();
     }
 }

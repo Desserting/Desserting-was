@@ -90,6 +90,7 @@ public class AdminImageUploadController {
 
         return ResponseEntity.ok(ApiResponse.success("이미지가 성공적으로 업로드되었습니다.", Map.of(
                 "imageUrl", fullUrl,
+                "url", fullUrl,
                 "filename", uniqueFilename,
                 "size", String.valueOf(file.getSize())
         )));

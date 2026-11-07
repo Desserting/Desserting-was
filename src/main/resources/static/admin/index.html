@@ -423,16 +423,26 @@
         let selectedStoreId = null;
         const storeDetailCache = new Map();
 
+        function isTokenExpired(token) {
+            if (!token) return true;
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                return (payload.exp * 1000) < (Date.now() + 60000); // 1 min buffer
+            } catch (e) {
+                return true;
+            }
+        }
+
         // Init
         document.addEventListener('DOMContentLoaded', async () => {
             lucide.createIcons();
-            checkAuth();
             renderStoreSelectorSkeleton();
             renderMenuTableSkeleton();
 
-            if (!authToken) {
+            if (!authToken || isTokenExpired(authToken)) {
                 await quickAdminLogin();
             } else {
+                checkAuth();
                 loadStoreList();
             }
         });
@@ -781,8 +791,8 @@
                 });
 
                 const json = await res.json();
-                if (json.success && json.data?.url) {
-                    const uploadedUrl = json.data.url;
+                const uploadedUrl = json.data?.url || json.data?.imageUrl;
+                if (json.success && uploadedUrl) {
                     document.getElementById('input-menu-image-url').value = uploadedUrl;
                     updateImagePreview(uploadedUrl);
                     showToast('이미지가 성공적으로 업로드되었습니다.');

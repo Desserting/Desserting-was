@@ -20,4 +20,8 @@ public interface StoreExploreRepository extends Repository<Store, Long>, JpaSpec
             GROUP BY s.themeStreet.id
             """)
     List<Object[]> countPartnerStoresByThemeStreet();
+
+    @org.springframework.data.jpa.repository.EntityGraph(attributePaths = {"themeStreet"})
+    @Override
+    List<Store> findAll(org.springframework.data.jpa.domain.Specification<Store> spec);
 }

@@ -30,8 +30,8 @@
     <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Pretendard:wght@300;400;500;600;700&display=swap');
-        * { font-family: 'Pretendard', -apple-system, sans-serif; }
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+        * { font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif; }
         code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: #0a0a0c; }
@@ -399,22 +399,61 @@
 
     <!-- SCRIPT LOGIC -->
     <script>
-        // Global State
+        // Global State & Client-side In-Memory Cache
         const API_BASE = window.location.origin;
         let authToken = localStorage.getItem('desserting_admin_token') || '';
         let currentStores = [];
         let selectedStoreId = null;
+        const storeDetailCache = new Map();
 
         // Init
         document.addEventListener('DOMContentLoaded', async () => {
             lucide.createIcons();
+            checkAuth();
+            renderStoreSelectorSkeleton();
+            renderMenuTableSkeleton();
+
             if (!authToken) {
                 await quickAdminLogin();
             } else {
-                checkAuth();
                 loadStoreList();
             }
         });
+
+        // Skeleton UI Loaders
+        function renderStoreSelectorSkeleton() {
+            const grid = document.getElementById('store-selector-grid');
+            grid.innerHTML = '';
+            for (let i = 0; i < 5; i++) {
+                const skel = document.createElement('div');
+                skel.className = 'p-3 bg-zinc-950 border border-zinc-900 rounded animate-pulse flex flex-col justify-between h-[74px]';
+                skel.innerHTML = `
+                    <div class="h-2 w-12 bg-zinc-800 rounded"></div>
+                    <div class="h-3 w-28 bg-zinc-800 rounded mt-1"></div>
+                    <div class="h-2 w-36 bg-zinc-900 rounded mt-1"></div>
+                `;
+                grid.appendChild(skel);
+            }
+        }
+
+        function renderMenuTableSkeleton() {
+            const tbody = document.getElementById('menu-table-body');
+            tbody.innerHTML = '';
+            for (let i = 0; i < 3; i++) {
+                const tr = document.createElement('tr');
+                tr.className = 'animate-pulse border-b border-zinc-900';
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4"><div class="w-10 h-10 rounded bg-zinc-900 border border-zinc-800"></div></td>
+                    <td class="py-2.5 px-4"><div class="h-3.5 w-24 bg-zinc-800 rounded"></div></td>
+                    <td class="py-2.5 px-4"><div class="h-3.5 w-16 bg-zinc-800 rounded"></div></td>
+                    <td class="py-2.5 px-4"><div class="h-3 w-44 bg-zinc-900 rounded"></div></td>
+                    <td class="py-2.5 px-4"><div class="h-3 w-6 bg-zinc-900 rounded"></div></td>
+                    <td class="py-2.5 px-4"><div class="h-4 w-12 bg-zinc-900 rounded"></div></td>
+                    <td class="py-2.5 px-4 text-right"><div class="h-4 w-10 bg-zinc-900 rounded ml-auto"></div></td>
+                `;
+                tbody.appendChild(tr);
+            }
+        }
 
         // Toast Helper
         function showToast(message, type = 'info') {
@@ -458,7 +497,7 @@
                     authToken = data.data.accessToken;
                     localStorage.setItem('desserting_admin_token', authToken);
                     checkAuth();
-                    showToast('관리자(admin@desserting.com) 로그인 성공');
+                    showToast('관리자(admin@desserting.com) 세션 연결 성공');
                     loadStoreList();
                 } else {
                     showToast(data.message || '로그인 실패', 'error');
@@ -482,7 +521,7 @@
                 logoutBtn.classList.remove('hidden');
             } else {
                 dot.className = 'w-2 h-2 rounded-full bg-zinc-600';
-                txt.textContent = '인증 필요 (관리자 로그인 권장)';
+                txt.textContent = '인증 대기 중...';
                 txt.className = 'text-xs text-zinc-500 font-mono';
                 loginBtn.classList.remove('hidden');
                 logoutBtn.classList.add('hidden');
@@ -492,12 +531,13 @@
         function logout() {
             authToken = '';
             localStorage.removeItem('desserting_admin_token');
+            storeDetailCache.clear();
             checkAuth();
             showToast('로그아웃되었습니다.');
         }
 
         // -------------------------------------------------------------
-        // STORE & MENU CRUD
+        // STORE & MENU CRUD (With Client-side In-Memory Caching)
         // -------------------------------------------------------------
         async function loadStoreList() {
             try {
@@ -539,12 +579,20 @@
             });
         }
 
-        async function selectStore(storeId) {
+        async function selectStore(storeId, forceRefresh = false) {
             selectedStoreId = storeId;
             renderStoreSelector();
             const container = document.getElementById('active-store-container');
             container.classList.remove('hidden');
 
+            // 1. Instant Cache Hit (0ms Latency)
+            if (!forceRefresh && storeDetailCache.has(storeId)) {
+                applyStoreDetail(storeDetailCache.get(storeId));
+                return;
+            }
+
+            // 2. Cache Miss: Show skeleton and fetch
+            renderMenuTableSkeleton();
             try {
                 const res = await fetch(`${API_BASE}/api/v1/stores/${storeId}`, {
                     headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
@@ -552,16 +600,21 @@
                 const json = await res.json();
                 if (json.success && json.data) {
                     const store = json.data;
-                    document.getElementById('active-store-badge').textContent = `STORE ID #${store.storeId}`;
-                    document.getElementById('active-store-name').textContent = store.name;
-                    document.getElementById('active-store-address').innerHTML = `<i data-lucide="map-pin" class="w-3.5 h-3.5 text-zinc-500"></i> ${store.address || '주소 미등록'}`;
-                    document.getElementById('active-store-notice').textContent = `제휴 혜택: ${store.partnerDiscountNotice || '기본 제휴 매장'}`;
-                    renderMenuTable(store.menus || []);
-                    lucide.createIcons();
+                    storeDetailCache.set(storeId, store);
+                    applyStoreDetail(store);
                 }
             } catch (err) {
                 showToast('매장 상세 정보 로드 실패: ' + err.message, 'error');
             }
+        }
+
+        function applyStoreDetail(store) {
+            document.getElementById('active-store-badge').textContent = `STORE ID #${store.storeId}`;
+            document.getElementById('active-store-name').textContent = store.name;
+            document.getElementById('active-store-address').innerHTML = `<i data-lucide="map-pin" class="w-3.5 h-3.5 text-zinc-500"></i> ${store.address || '주소 미등록'}`;
+            document.getElementById('active-store-notice').textContent = `제휴 혜택: ${store.partnerDiscountNotice || '기본 제휴 매장'}`;
+            renderMenuTable(store.menus || []);
+            lucide.createIcons();
         }
 
         function renderMenuTable(menus) {
@@ -581,7 +634,7 @@
                     <td class="py-2.5 px-4">
                         <div class="w-10 h-10 rounded bg-zinc-900 border border-zinc-800 overflow-hidden flex items-center justify-center">
                             ${m.imageUrl
-                                ? `<img src="${m.imageUrl}" alt="${m.name}" class="w-full h-full object-cover">`
+                                ? `<img src="${m.imageUrl}" alt="${m.name}" loading="lazy" decoding="async" class="w-full h-full object-cover">`
                                 : `<span class="text-[9px] text-zinc-600 font-mono">NO IMG</span>`}
                         </div>
                     </td>
@@ -725,7 +778,8 @@
                 if (json.success) {
                     showToast(mode === 'edit' ? '메뉴가 성공적으로 수정되었습니다.' : '새 메뉴가 등록되었습니다.');
                     closeMenuModal();
-                    selectStore(selectedStoreId);
+                    storeDetailCache.delete(selectedStoreId);
+                    selectStore(selectedStoreId, true);
                 } else {
                     showToast(json.message || '저장 실패', 'error');
                 }
@@ -755,7 +809,8 @@
                 const json = await res.json();
                 if (json.success) {
                     showToast(!currentState ? '메뉴가 품절 처리되었습니다.' : '메뉴가 판매중으로 전환되었습니다.');
-                    selectStore(selectedStoreId);
+                    storeDetailCache.delete(selectedStoreId);
+                    selectStore(selectedStoreId, true);
                 } else {
                     showToast(json.message || '품절 상태 변경 실패', 'error');
                 }
@@ -779,7 +834,8 @@
                 const json = await res.json();
                 if (json.success) {
                     showToast('메뉴가 삭제되었습니다.');
-                    selectStore(selectedStoreId);
+                    storeDetailCache.delete(selectedStoreId);
+                    selectStore(selectedStoreId, true);
                 } else {
                     showToast(json.message || '메뉴 삭제 실패', 'error');
                 }

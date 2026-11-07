@@ -90,4 +90,29 @@ public class AdminOrderService {
         log.info("예약 상태 변경 완료: reservationId={}, {} -> {}", reservationId, oldStatus, newStatus);
         return AdminReservationResponse.from(reservation);
     }
+
+    @Transactional(readOnly = true)
+    public List<AdminReservationResponse> getAllReservations(Long storeId, ReservationStatus status) {
+        List<Reservation> reservations;
+        if (storeId != null && status != null) {
+            reservations = reservationRepository.findAllWithUserAndStoreByStoreIdAndStatus(storeId, status);
+        } else if (storeId != null) {
+            reservations = reservationRepository.findAllWithUserAndStoreByStoreId(storeId);
+        } else if (status != null) {
+            reservations = reservationRepository.findAllWithUserAndStoreByStatus(status);
+        } else {
+            reservations = reservationRepository.findAllWithUserAndStore();
+        }
+
+        return reservations.stream()
+                .map(AdminReservationResponse::from)
+                .toList();
+    }
+
+    @Transactional
+    public AdminReservationResponse updateGlobalReservationStatus(Long reservationId, ReservationStatus newStatus) {
+        Reservation reservation = reservationRepository.findById(reservationId)
+                .orElseThrow(() -> new CustomException(ErrorCode.RESERVATION_NOT_FOUND));
+        return updateReservationStatus(reservation.getStore().getId(), reservationId, newStatus);
+    }
 }

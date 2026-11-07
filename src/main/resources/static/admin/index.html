@@ -859,6 +859,16 @@
                 if (json.success && json.data) {
                     list.innerHTML = '';
                     json.data.forEach(t => {
+                        const rawPoly = t.boundaryPolygonJson || t.polygonJson || '';
+                        let formattedPoly = '좌표 데이터 없음';
+                        if (rawPoly) {
+                            try {
+                                formattedPoly = JSON.stringify(JSON.parse(rawPoly), null, 2);
+                            } catch (e) {
+                                formattedPoly = rawPoly;
+                            }
+                        }
+
                         const card = document.createElement('div');
                         card.className = 'p-5 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3';
                         card.innerHTML = `
@@ -867,12 +877,16 @@
                                     <span class="text-[10px] font-mono px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded border border-zinc-800">THEME #${t.id}</span>
                                     <h4 class="font-bold text-white text-sm">${t.name}</h4>
                                 </div>
-                                <span class="text-xs text-zinc-500 font-mono">반경: ${t.radiusMeter || 500}m</span>
+                                <div class="flex items-center gap-3 text-xs text-zinc-400 font-mono">
+                                    <span>중심: (${Number(t.centerLatitude).toFixed(4)}, ${Number(t.centerLongitude).toFixed(4)})</span>
+                                    <span class="text-zinc-600">|</span>
+                                    <span class="text-zinc-300 font-semibold">${t.isActive ? '운영중' : '비활성'}</span>
+                                </div>
                             </div>
                             <p class="text-xs text-zinc-400">${t.description || '설명 없음'}</p>
                             <div>
-                                <span class="text-[10px] font-mono text-zinc-500 block mb-1">다각형 영역 좌표 (Polygon Coordinates):</span>
-                                <pre class="p-2.5 bg-zinc-900 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 overflow-x-auto">${t.polygonJson || '좌표 데이터 없음'}</pre>
+                                <span class="text-[10px] font-mono text-zinc-500 block mb-1">다각형 영역 좌표 (Polygon Coordinates GeoJSON):</span>
+                                <pre class="p-3 bg-zinc-900 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 overflow-x-auto max-h-48 leading-relaxed">${formattedPoly}</pre>
                             </div>
                         `;
                         list.appendChild(card);
@@ -893,12 +907,12 @@
             tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">예약 목록 로드 중...</td></tr>`;
 
             try {
-                const res = await fetch(`${API_BASE}/api/v1/admin/reservations?page=0&size=20`, {
+                const res = await fetch(`${API_BASE}/api/v1/admin/reservations`, {
                     headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
                 });
                 const json = await res.json();
                 if (json.success && json.data) {
-                    const content = json.data.content || json.data;
+                    const content = Array.isArray(json.data) ? json.data : (json.data.content || []);
                     tbody.innerHTML = '';
                     if (content.length === 0) {
                         tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">접수된 예약 내역이 없습니다.</td></tr>`;
@@ -907,26 +921,36 @@
                     content.forEach(r => {
                         const tr = document.createElement('tr');
                         tr.className = 'hover:bg-zinc-900/40 transition';
+                        const timeStr = r.reservationDate ? `${r.reservationDate} ${r.reservationTime || ''}` : (r.reservedAt || '-');
                         tr.innerHTML = `
                             <td class="py-2.5 px-4 font-bold text-white">#${r.reservationId || r.id}</td>
-                            <td class="py-2.5 px-4 font-sans text-zinc-200">${r.storeName || '-'}</td>
-                            <td class="py-2.5 px-4 font-sans text-zinc-300">${r.userName || r.userNickname || '-'}</td>
-                            <td class="py-2.5 px-4 text-zinc-400">${r.reservedAt || r.reservationTime || '-'}</td>
-                            <td class="py-2.5 px-4 text-zinc-300">${Number(r.totalAmount || 0).toLocaleString()}원</td>
+                            <td class="py-2.5 px-4 font-sans text-zinc-200 font-medium">${r.storeName || '-'}</td>
+                            <td class="py-2.5 px-4 font-sans text-zinc-300">${r.userNickname || r.userName || `User #${r.userId || '-'}`}</td>
+                            <td class="py-2.5 px-4 text-zinc-400 font-mono">${timeStr}</td>
+                            <td class="py-2.5 px-4 text-zinc-300 font-mono font-medium">${Number(r.totalAmount || 0).toLocaleString()}원</td>
                             <td class="py-2.5 px-4">
-                                <span class="px-2 py-0.5 text-[10px] bg-zinc-900 text-zinc-300 rounded border border-zinc-800">${r.status}</span>
+                                <span class="px-2 py-0.5 text-[10px] font-mono rounded border ${
+                                    r.status === 'CONFIRMED' || r.status === 'COMPLETED'
+                                        ? 'bg-zinc-900 text-white border-zinc-700'
+                                        : r.status === 'CANCELLED'
+                                        ? 'bg-zinc-950 text-zinc-500 border-zinc-800 line-through'
+                                        : 'bg-zinc-900 text-zinc-300 border-zinc-800'
+                                }">${r.status}</span>
                             </td>
                             <td class="py-2.5 px-4 text-right">
-                                <select onchange="changeReservationStatus(${r.reservationId || r.id}, this.value)" class="bg-zinc-900 border border-zinc-800 text-[11px] rounded px-2 py-1 text-zinc-200">
+                                <select onchange="changeReservationStatus(${r.reservationId || r.id}, this.value)" class="bg-zinc-900 border border-zinc-800 text-[11px] font-mono rounded px-2 py-1 text-zinc-200">
                                     <option value="">상태 변경...</option>
-                                    <option value="CONFIRMED">CONFIRMED (승인)</option>
-                                    <option value="COMPLETED">COMPLETED (완료)</option>
-                                    <option value="CANCELLED">CANCELLED (취소)</option>
+                                    <option value="CONFIRMED" ${r.status === 'CONFIRMED' ? 'disabled' : ''}>CONFIRMED (승인)</option>
+                                    <option value="PREPARING" ${r.status === 'PREPARING' ? 'disabled' : ''}>PREPARING (준비중)</option>
+                                    <option value="COMPLETED" ${r.status === 'COMPLETED' ? 'disabled' : ''}>COMPLETED (방문완료)</option>
+                                    <option value="CANCELLED" ${r.status === 'CANCELLED' ? 'disabled' : ''}>CANCELLED (취소)</option>
                                 </select>
                             </td>
                         `;
                         tbody.appendChild(tr);
                     });
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">예약 데이터를 불러올 수 없습니다: ${json.message || ''}</td></tr>`;
                 }
             } catch (err) {
                 tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">로드 실패: ${err.message}</td></tr>`;

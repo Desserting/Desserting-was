@@ -76,7 +76,8 @@ class ReservationServiceTest {
     void setUp() {
         // 현재 시각: 2026-11-03 14:30 KST
         Clock clock = Clock.fixed(LocalDateTime.of(TODAY, LocalTime.of(14, 30)).atZone(KST).toInstant(), KST);
-        reservationService = new ReservationService(reservationRepository, slotRepository, storeRepository, storeCouponRepository, userRepository, orderService, chatRoomMemberRepository, clock);
+        reservationService = new ReservationService(reservationRepository, slotRepository, storeRepository,
+                storeCouponRepository, userRepository, orderService, chatRoomMemberRepository, clock, null);
 
         store = Store.builder()
                 .name("아눅 앞산")

@@ -60,18 +60,6 @@ public class ReservationService {
     private final Clock clock;
     private final SimpMessagingTemplate messagingTemplate;
 
-    public ReservationService(UserReservationRepository reservationRepository,
-                              ReservationSlotBookingRepository slotRepository,
-                              StoreRepository storeRepository,
-                              StoreCouponRepository storeCouponRepository,
-                              UserRepository userRepository,
-                              ReservationOrderService orderService,
-                              ChatRoomMemberRepository chatRoomMemberRepository,
-                              Clock clock) {
-        this(reservationRepository, slotRepository, storeRepository, storeCouponRepository,
-                userRepository, orderService, chatRoomMemberRepository, clock, null);
-    }
-
     /** RSV-01: 기간 내 날짜별 예약 가능 여부 (기본 오늘부터 14일) */
     @Transactional(readOnly = true)
     public List<ReservationDateResponse> getAvailableDates(Long storeId, LocalDate from, LocalDate to) {

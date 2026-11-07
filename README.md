@@ -9,9 +9,9 @@
 
 | 서비스 | 환경 | 접속 주소 |
 | :--- | :---: | :--- |
-| **Service** | **배포** | **[https://desserting-web.vercel.app/]** |
-| **API** | **운영** | **`https://desserting-api.duckdns.org`** |
-| **API Docs** | 운영 | **(https://desserting-api.duckdns.org/swagger-ui/index.html)** |
+| **Service** | **배포** | **https://desserting-web.vercel.app/** |
+| **API** | **운영** | **https://desserting-api.duckdns.org** |
+| **API Docs** | 운영 | **https://desserting-api.duckdns.org/swagger-ui/index.html** |
 
 ---
 

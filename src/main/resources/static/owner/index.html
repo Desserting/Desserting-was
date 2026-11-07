@@ -401,8 +401,11 @@
             }
         });
 
+        let currentTab = 'orders';
+
         // Tab Switching
         function switchTab(tabId) {
+            currentTab = tabId;
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             document.querySelector(`[data-tab="${tabId}"]`)?.classList.add('active');
 
@@ -441,14 +444,16 @@
         }
 
         async function initOwnerSession() {
-            // Update auth UI
+            // Update auth UI safely
             const email = parseJwtEmail(authToken) || 'owner@desserting.com';
-            document.getElementById('auth-email-text').textContent = email;
-            document.getElementById('auth-badge').innerHTML = `
-                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span class="text-zinc-200">${email}</span>
-            `;
-            document.getElementById('btn-logout').classList.remove('hidden');
+            const authBadge = document.getElementById('auth-badge');
+            if (authBadge) {
+                authBadge.innerHTML = `
+                    <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span id="auth-email-text" class="text-zinc-200">${email}</span>
+                `;
+            }
+            document.getElementById('btn-logout')?.classList.remove('hidden');
 
             // Fetch owned store
             try {
@@ -462,8 +467,8 @@
                     document.getElementById('header-store-name').textContent = myStore.name;
                     document.getElementById('header-store-id').textContent = `#${myStore.storeId}`;
 
-                    // Load initial data
-                    loadStoreReservations();
+                    // Refresh active tab and reconnect WebSocket
+                    switchTab(currentTab);
                     connectStoreWebSocket();
                 } else {
                     showToast('배정된 매장 정보를 찾을 수 없습니다.', 'error');
@@ -483,6 +488,9 @@
         // Real-Time WebSocket (STOMP) Connection
         function connectStoreWebSocket() {
             if (!myStore || !authToken) return;
+            if (stompClient) {
+                try { stompClient.disconnect(); } catch (e) {}
+            }
             try {
                 const socket = new SockJS(`${API_BASE}/ws`);
                 stompClient = Stomp.over(socket);

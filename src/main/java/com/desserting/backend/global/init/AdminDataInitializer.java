@@ -408,9 +408,9 @@ public class AdminDataInitializer implements CommandLineRunner {
         storeRepository.save(anook);
 
         List<StoreMenu> anookMenus = List.of(
-                StoreMenu.builder().store(anook).name("바스크 치즈케이크").price(8000).description("스페인 전통 방식으로 고온에서 진하게 구워낸 글루텐프리 치즈케이크").isRepresentative(true).isSoldOut(false).build(),
-                StoreMenu.builder().store(anook).name("피스타치오 크루키").price(6800).description("바삭한 크루아상과 진한 피스타치오 쿠키 도우의 환상적 조화").isRepresentative(true).isSoldOut(false).build(),
-                StoreMenu.builder().store(anook).name("아눅 크림 라떼").price(6500).description("달콤하고 묵직한 수제 생크림이 올라간 시그니처 커피").isRepresentative(false).isSoldOut(false).build()
+                StoreMenu.builder().store(anook).name("바스크 치즈케이크").price(8000).description("스페인 전통 방식으로 고온에서 진하게 구워낸 글루텐프리 치즈케이크").imageUrl("https://desserting-api.duckdns.org/images/menus/anook-basque.jpg").isRepresentative(true).isSoldOut(false).build(),
+                StoreMenu.builder().store(anook).name("피스타치오 크루키").price(6800).description("바삭한 크루아상과 진한 피스타치오 쿠키 도우의 환상적 조화").imageUrl("https://desserting-api.duckdns.org/images/menus/anook-crooky.jpg").isRepresentative(true).isSoldOut(false).build(),
+                StoreMenu.builder().store(anook).name("아눅 크림 라떼").price(6500).description("달콤하고 묵직한 수제 생크림이 올라간 시그니처 커피").imageUrl("https://desserting-api.duckdns.org/images/menus/anook-latte.jpg").isRepresentative(false).isSoldOut(false).build()
         );
         storeMenuRepository.saveAll(anookMenus);
 
@@ -430,8 +430,8 @@ public class AdminDataInitializer implements CommandLineRunner {
         storeRepository.save(capella);
 
         List<StoreMenu> capellaMenus = List.of(
-                StoreMenu.builder().store(capella).name("딸기 수플레 팬케이크").price(16000).description("입안에서 부드럽게 녹아내리는 폭신한 수플레와 생딸기").isRepresentative(true).isSoldOut(false).build(),
-                StoreMenu.builder().store(capella).name("말차 테린느").price(7000).description("제주 유기농 말차를 아낌없이 넣은 꾸덕한 테린느").isRepresentative(true).isSoldOut(false).build()
+                StoreMenu.builder().store(capella).name("딸기 수플레 팬케이크").price(16000).description("입안에서 부드럽게 녹아내리는 폭신한 수플레와 생딸기").imageUrl("https://desserting-api.duckdns.org/images/menus/capella-souffle.jpg").isRepresentative(true).isSoldOut(false).build(),
+                StoreMenu.builder().store(capella).name("말차 테린느").price(7000).description("제주 유기농 말차를 아낌없이 넣은 꾸덕한 테린느").imageUrl("https://desserting-api.duckdns.org/images/menus/capella-terrine.jpg").isRepresentative(true).isSoldOut(false).build()
         );
         storeMenuRepository.saveAll(capellaMenus);
 
@@ -451,9 +451,9 @@ public class AdminDataInitializer implements CommandLineRunner {
         storeRepository.save(lucid);
 
         List<StoreMenu> lucidMenus = List.of(
-                StoreMenu.builder().store(lucid).name("푸딩 빙수").price(18000).description("부드러운 커스터드 푸딩과 달콤한 카라멜 시럽이 올라간 원조 시그니처 빙수").isRepresentative(true).isSoldOut(false).build(),
-                StoreMenu.builder().store(lucid).name("체리 빙수").price(17500).description("상큼한 생체리가 가득 올라간 시즌 한정 눈꽃빙수").isRepresentative(true).isSoldOut(false).build(),
-                StoreMenu.builder().store(lucid).name("커스터드 푸딩").price(6500).description("진한 바닐라빈 향이 매력적인 일본식 수제 푸딩").isRepresentative(false).isSoldOut(false).build()
+                StoreMenu.builder().store(lucid).name("푸딩 빙수").price(18000).description("부드러운 커스터드 푸딩과 달콤한 카라멜 시럽이 올라간 원조 시그니처 빙수").imageUrl("https://desserting-api.duckdns.org/images/menus/lucid-pudding-bingsu.jpg").isRepresentative(true).isSoldOut(false).build(),
+                StoreMenu.builder().store(lucid).name("체리 빙수").price(17500).description("상큼한 생체리가 가득 올라간 시즌 한정 눈꽃빙수").imageUrl("https://desserting-api.duckdns.org/images/menus/lucid-cherry-bingsu.jpg").isRepresentative(true).isSoldOut(false).build(),
+                StoreMenu.builder().store(lucid).name("커스터드 푸딩").price(6500).description("진한 바닐라빈 향이 매력적인 일본식 수제 푸딩").imageUrl("https://desserting-api.duckdns.org/images/menus/lucid-custard-pudding.jpg").isRepresentative(false).isSoldOut(false).build()
         );
         storeMenuRepository.saveAll(lucidMenus);
 
@@ -473,8 +473,8 @@ public class AdminDataInitializer implements CommandLineRunner {
         storeRepository.save(slowTurtle);
 
         List<StoreMenu> turtleMenus = List.of(
-                StoreMenu.builder().store(slowTurtle).name("생딸기 와플").price(15800).description("주문 즉시 갓 구운 벨기에 와플에 동물성 생크림과 생딸기 토핑").isRepresentative(true).isSoldOut(false).build(),
-                StoreMenu.builder().store(slowTurtle).name("딸기 프레지에 케이크").price(8500).description("달콤한 마스카포네 크림과 신선한 딸기가 층층이 쌓인 케이크").isRepresentative(true).isSoldOut(false).build()
+                StoreMenu.builder().store(slowTurtle).name("생딸기 와플").price(15800).description("주문 즉시 갓 구운 벨기에 와플에 동물성 생크림과 생딸기 토핑").imageUrl("https://desserting-api.duckdns.org/images/menus/slowturtle-strawberry-waffle.jpg").isRepresentative(true).isSoldOut(false).build(),
+                StoreMenu.builder().store(slowTurtle).name("딸기 프레지에 케이크").price(8500).description("달콤한 마스카포네 크림과 신선한 딸기가 층층이 쌓인 케이크").imageUrl("https://desserting-api.duckdns.org/images/menus/slowturtle-strawberry-cake.jpg").isRepresentative(true).isSoldOut(false).build()
         );
         storeMenuRepository.saveAll(turtleMenus);
 
@@ -494,9 +494,9 @@ public class AdminDataInitializer implements CommandLineRunner {
         storeRepository.save(deepCoffee);
 
         List<StoreMenu> deepMenus = List.of(
-                StoreMenu.builder().store(deepCoffee).name("바치디다마 (Baci di Dama)").price(3500).description("이탈리아 피에몬테 전통 수제 초콜릿 샌드 쿠키").isRepresentative(true).isSoldOut(false).build(),
-                StoreMenu.builder().store(deepCoffee).name("에스프레소 아라냐").price(3800).description("진한 에스프레소 위에 부드러운 수제 크림과 카카오 파우더").isRepresentative(true).isSoldOut(false).build(),
-                StoreMenu.builder().store(deepCoffee).name("바닐라 로마노").price(4200).description("상큼한 레몬 즙과 바닐라빈 시럽이 어우러진 특색 있는 에스프레소").isRepresentative(false).isSoldOut(false).build()
+                StoreMenu.builder().store(deepCoffee).name("바치디다마 (Baci di Dama)").price(3500).description("이탈리아 피에몬테 전통 수제 초콜릿 샌드 쿠키").imageUrl("https://desserting-api.duckdns.org/images/menus/deepcoffee-baci.jpg").isRepresentative(true).isSoldOut(false).build(),
+                StoreMenu.builder().store(deepCoffee).name("에스프레소 아라냐").price(3800).description("진한 에스프레소 위에 부드러운 수제 크림과 카카오 파우더").imageUrl("https://desserting-api.duckdns.org/images/menus/deepcoffee-aranya.jpg").isRepresentative(true).isSoldOut(false).build(),
+                StoreMenu.builder().store(deepCoffee).name("바닐라 로마노").price(4200).description("상큼한 레몬 즙과 바닐라빈 시럽이 어우러진 특색 있는 에스프레소").imageUrl("https://desserting-api.duckdns.org/images/menus/deepcoffee-romano.jpg").isRepresentative(false).isSoldOut(false).build()
         );
         storeMenuRepository.saveAll(deepMenus);
 

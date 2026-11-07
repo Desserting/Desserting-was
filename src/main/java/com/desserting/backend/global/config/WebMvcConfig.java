@@ -23,5 +23,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     public void addViewControllers(org.springframework.web.servlet.config.annotation.ViewControllerRegistry registry) {
         registry.addViewController("/admin").setViewName("forward:/admin/index.html");
         registry.addViewController("/admin/").setViewName("forward:/admin/index.html");
+        registry.addViewController("/owner").setViewName("forward:/owner/index.html");
+        registry.addViewController("/owner/").setViewName("forward:/owner/index.html");
     }
 }

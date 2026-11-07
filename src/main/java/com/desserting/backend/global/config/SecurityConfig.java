@@ -66,6 +66,8 @@ public class SecurityConfig {
                                 "/admin",
                                 "/admin/**",
                                 "/admin.html",
+                                "/owner",
+                                "/owner/**",
                                 "/favicon.ico",
                                 "/static/**",
                                 "/assets/**",

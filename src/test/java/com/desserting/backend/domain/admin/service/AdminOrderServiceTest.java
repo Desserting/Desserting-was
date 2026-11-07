@@ -46,6 +46,9 @@ class AdminOrderServiceTest {
     @Mock
     private ReservationOrderService reservationOrderService;
 
+    @Mock
+    private org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
     @InjectMocks
     private AdminOrderService adminOrderService;
 

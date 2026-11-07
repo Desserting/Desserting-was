@@ -27,9 +27,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Clock;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
+
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
@@ -54,6 +58,19 @@ public class ReservationService {
     private final ReservationOrderService orderService;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
     private final Clock clock;
+    private final SimpMessagingTemplate messagingTemplate;
+
+    public ReservationService(UserReservationRepository reservationRepository,
+                              ReservationSlotBookingRepository slotRepository,
+                              StoreRepository storeRepository,
+                              StoreCouponRepository storeCouponRepository,
+                              UserRepository userRepository,
+                              ReservationOrderService orderService,
+                              ChatRoomMemberRepository chatRoomMemberRepository,
+                              Clock clock) {
+        this(reservationRepository, slotRepository, storeRepository, storeCouponRepository,
+                userRepository, orderService, chatRoomMemberRepository, clock, null);
+    }
 
     /** RSV-01: 기간 내 날짜별 예약 가능 여부 (기본 오늘부터 14일) */
     @Transactional(readOnly = true)
@@ -139,6 +156,28 @@ public class ReservationService {
         log.info("예약 생성: reservationId={}, userId={}, storeId={}, {} {} ({}명, couponId={}, chatRoomId={})",
                 reservation.getId(), userId, store.getId(), slot.getSlotDate(), slot.getSlotTime(),
                 request.guestCount(), request.couponId(), request.chatRoomId());
+
+        if (messagingTemplate != null) {
+            try {
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("type", "RESERVATION_CREATED");
+                payload.put("reservationId", reservation.getId());
+                payload.put("storeId", store.getId());
+                payload.put("storeName", store.getName());
+                payload.put("userNickname", user.getNickname());
+                payload.put("reservationDate", slot.getSlotDate().toString());
+                payload.put("reservationTime", slot.getSlotTime().toString());
+                payload.put("guestCount", request.guestCount());
+                payload.put("status", reservation.getStatus().name());
+                payload.put("timestamp", LocalDateTime.now().toString());
+
+                messagingTemplate.convertAndSend("/sub/stores/" + store.getId() + "/reservations", payload);
+                log.info("신규 예약 매장 채널 실시간 웹소켓 푸시 완료: storeId={}, reservationId={}", store.getId(), reservation.getId());
+            } catch (Exception e) {
+                log.warn("신규 예약 웹소켓 푸시 실패 (무시됨): {}", e.getMessage());
+            }
+        }
+
         return ReservationResponse.from(reservation);
     }
 
@@ -170,6 +209,24 @@ public class ReservationService {
         orderService.refundIfPaid(reservationId);
 
         log.info("예약 취소: reservationId={}, userId={}", reservationId, userId);
+
+        if (messagingTemplate != null) {
+            try {
+                Map<String, Object> payload = new HashMap<>();
+                payload.put("type", "RESERVATION_STATUS_CHANGED");
+                payload.put("reservationId", reservationId);
+                payload.put("storeId", reservation.getStore().getId());
+                payload.put("status", ReservationStatus.CANCELLED.name());
+                payload.put("timestamp", LocalDateTime.now().toString());
+
+                messagingTemplate.convertAndSend("/sub/reservations/" + reservationId, payload);
+                messagingTemplate.convertAndSend("/sub/stores/" + reservation.getStore().getId() + "/reservations", payload);
+                log.info("예약 취소 실시간 웹소켓 푸시 완료: reservationId={}", reservationId);
+            } catch (Exception e) {
+                log.warn("예약 취소 웹소켓 푸시 실패 (무시됨): {}", e.getMessage());
+            }
+        }
+
         return ReservationResponse.from(reservation);
     }
 

@@ -12,11 +12,14 @@ import com.desserting.backend.global.error.CustomException;
 import com.desserting.backend.global.error.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Service
@@ -27,6 +30,7 @@ public class AdminOrderService {
     private final StoreRepository storeRepository;
     private final StoreReservationSlotRepository slotRepository;
     private final ReservationOrderService reservationOrderService;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Transactional(readOnly = true)
     public List<AdminReservationResponse> getStoreReservations(Long storeId, ReservationStatus status) {
@@ -88,6 +92,32 @@ public class AdminOrderService {
 
         reservation.updateStatus(newStatus);
         log.info("예약 상태 변경 완료: reservationId={}, {} -> {}", reservationId, oldStatus, newStatus);
+
+        // 실시간 WebSocket 이벤트 푸시 (유저 앱 및 매장 콘솔 즉시 화면 갱신)
+        try {
+            Map<String, Object> payload = new HashMap<>();
+            payload.put("type", "RESERVATION_STATUS_CHANGED");
+            payload.put("reservationId", reservation.getId());
+            payload.put("storeId", storeId);
+            payload.put("storeName", reservation.getStore() != null ? reservation.getStore().getName() : "");
+            payload.put("status", newStatus.name());
+            payload.put("userId", reservation.getUser() != null ? reservation.getUser().getId() : null);
+            payload.put("timestamp", LocalDateTime.now().toString());
+
+            // 1. 해당 예약 단건 채널 (유저 내 예약 상세 화면 구독용)
+            messagingTemplate.convertAndSend("/sub/reservations/" + reservationId, payload);
+            // 2. 유저 개인 채널 (유저 내 예약 목록 화면 구독용)
+            if (reservation.getUser() != null) {
+                messagingTemplate.convertAndSend("/sub/users/" + reservation.getUser().getId() + "/reservations", payload);
+            }
+            // 3. 매장 채널 (점주 포털 화면 실시간 동기화용)
+            messagingTemplate.convertAndSend("/sub/stores/" + storeId + "/reservations", payload);
+
+            log.info("예약 상태 변경 실시간 웹소켓 이벤트 푸시 성공: reservationId={}, status={}", reservationId, newStatus);
+        } catch (Exception e) {
+            log.warn("실시간 웹소켓 이벤트 전송 실패 (트랜잭션 미영향): {}", e.getMessage());
+        }
+
         return AdminReservationResponse.from(reservation);
     }
 

@@ -517,7 +517,7 @@
             tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">예약 목록 로딩 중...</td></tr>`;
 
             try {
-                const res = await fetch(`${API_BASE}/api/v1/admin/reservations?storeId=${myStore.storeId}`, {
+                const res = await fetch(`${API_BASE}/api/v1/admin/stores/${myStore.storeId}/reservations`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 const json = await res.json();
@@ -623,7 +623,7 @@
         async function changeReservationStatus(reservationId, newStatus) {
             if (!confirm(`예약 #${reservationId} 상태를 [${newStatus}] 로 변경하시겠습니까?`)) return;
             try {
-                const res = await fetch(`${API_BASE}/api/v1/admin/reservations/${reservationId}/status`, {
+                const res = await fetch(`${API_BASE}/api/v1/admin/stores/${myStore.storeId}/reservations/${reservationId}/status`, {
                     method: 'PATCH',
                     headers: {
                         'Content-Type': 'application/json',

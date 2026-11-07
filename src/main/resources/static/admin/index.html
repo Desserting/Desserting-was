@@ -305,6 +305,83 @@
     </main>
 
     <!-- ========================================================== -->
+    <!-- MODAL: STORE CREATE MODAL                                  -->
+    <!-- ========================================================== -->
+    <div id="modal-store" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-950 border border-zinc-700 w-full max-w-xl rounded-lg shadow-2xl p-6 space-y-5 animate-in fade-in duration-150">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h3 class="text-sm font-bold text-white tracking-tight">신규 제휴 매장 등록</h3>
+                <button type="button" onclick="closeStoreModal()" class="text-zinc-500 hover:text-white transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="form-store" onsubmit="handleStoreSubmit(event)" class="space-y-4 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">매장명 *</label>
+                        <input id="input-store-name" type="text" required placeholder="예: 카페 루시드"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">소속 테마거리 (선택)</label>
+                        <select id="select-store-theme" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
+                            <option value="">소속 테마거리 없음</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">매장 도로명 주소 *</label>
+                    <input id="input-store-address" type="text" required placeholder="예: 대구 중구 동성로4길 94"
+                           class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">위도 (Latitude) *</label>
+                        <input id="input-store-lat" type="number" step="0.0000001" required placeholder="35.8687000"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">경도 (Longitude) *</label>
+                        <input id="input-store-lng" type="number" step="0.0000001" required placeholder="128.5982000"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">영업시간 안내</label>
+                        <input id="input-store-hours" type="text" placeholder="예: 매일 12:00 - 21:30"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">매장 대표 연락처</label>
+                        <input id="input-store-contact" type="text" placeholder="예: 053-422-7020"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">디저팅 제휴 혜택 안내 문구</label>
+                    <input id="input-store-discount" type="text" placeholder="예: 디저팅 회원 전 메뉴 10% 현장 할인"
+                           class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
+                </div>
+
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                    <button type="button" onclick="closeStoreModal()" class="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded transition font-medium">
+                        취소
+                    </button>
+                    <button id="btn-store-submit" type="submit" class="px-4 py-2 bg-white text-black hover:bg-zinc-200 rounded transition font-semibold">
+                        등록하기
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========================================================== -->
     <!-- MODAL: MENU CREATE / EDIT MODAL (WITH EASY IMAGE INSERTION) -->
     <!-- ========================================================== -->
     <div id="modal-menu" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
@@ -656,6 +733,10 @@
             }
 
             menus.forEach(m => {
+                const mid = m.menuId || m.id;
+                const isRep = m.isRepresentative ?? m.representative ?? false;
+                const isSold = m.isSoldOut ?? m.soldOut ?? false;
+
                 const tr = document.createElement('tr');
                 tr.className = 'hover:bg-zinc-900/40 transition';
                 tr.innerHTML = `
@@ -676,17 +757,17 @@
                         ${m.description || '-'}
                     </td>
                     <td class="py-2.5 px-4">
-                        ${m.isRepresentative
+                        ${isRep
                             ? `<span class="px-2 py-0.5 text-[10px] bg-white text-black font-semibold rounded">대표</span>`
                             : `<span class="text-zinc-600">-</span>`}
                     </td>
                     <td class="py-2.5 px-4">
-                        <button onclick="toggleSoldOut(${m.id}, ${m.isSoldOut})" class="px-2 py-0.5 text-[10px] font-mono rounded border transition ${
-                            m.isSoldOut
+                        <button onclick="toggleSoldOut(${mid}, ${isSold})" class="px-2 py-0.5 text-[10px] font-mono rounded border transition ${
+                            isSold
                                 ? 'bg-zinc-800 text-zinc-400 border-zinc-700 line-through'
                                 : 'bg-zinc-950 text-white border-zinc-800 hover:border-zinc-500'
                         }">
-                            ${m.isSoldOut ? '품절됨' : '판매중'}
+                            ${isSold ? '품절됨' : '판매중'}
                         </button>
                     </td>
                     <td class="py-2.5 px-4 text-right">
@@ -694,7 +775,7 @@
                             <button onclick='openMenuEditModal(${JSON.stringify(m)})' class="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition" title="수정">
                                 <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
                             </button>
-                            <button onclick="deleteMenu(${m.id})" class="p-1 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition" title="삭제">
+                            <button onclick="deleteMenu(${mid})" class="p-1 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition" title="삭제">
                                 <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                             </button>
                         </div>
@@ -845,7 +926,89 @@
             }
         });
 
-        // Modal Controls
+        // Store Modal Controls
+        async function openStoreCreateModal() {
+            if (!authToken) {
+                showToast('매장 등록을 위해 먼저 상단 [관리자 원클릭 로그인]을 진행해 주세요.', 'error');
+                return;
+            }
+            document.getElementById('input-store-name').value = '';
+            document.getElementById('input-store-address').value = '';
+            document.getElementById('input-store-lat').value = '35.8687000';
+            document.getElementById('input-store-lng').value = '128.5982000';
+            document.getElementById('input-store-hours').value = '매일 11:00 - 22:00';
+            document.getElementById('input-store-contact').value = '053-000-0000';
+            document.getElementById('input-store-discount').value = '디저팅 회원 전 메뉴 10% 할인';
+
+            const themeSel = document.getElementById('select-store-theme');
+            themeSel.innerHTML = '<option value="">소속 테마거리 없음</option>';
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/themes`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    json.data.forEach(t => {
+                        themeSel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+                    });
+                }
+            } catch (e) {
+                console.warn(e);
+            }
+
+            document.getElementById('modal-store').classList.remove('hidden');
+        }
+
+        function closeStoreModal() {
+            document.getElementById('modal-store').classList.add('hidden');
+        }
+
+        async function handleStoreSubmit(e) {
+            e.preventDefault();
+            const btn = document.getElementById('btn-store-submit');
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 등록 중...`;
+
+            const themeVal = document.getElementById('select-store-theme').value;
+            const payload = {
+                name: document.getElementById('input-store-name').value.trim(),
+                address: document.getElementById('input-store-address').value.trim(),
+                latitude: parseFloat(document.getElementById('input-store-lat').value),
+                longitude: parseFloat(document.getElementById('input-store-lng').value),
+                businessHours: document.getElementById('input-store-hours').value.trim(),
+                contact: document.getElementById('input-store-contact').value.trim(),
+                partnerDiscountNotice: document.getElementById('input-store-discount').value.trim(),
+                themeStreetId: themeVal ? parseInt(themeVal, 10) : null,
+                isPartner: true
+            };
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/stores`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showToast('새 매장이 성공적으로 등록되었습니다.');
+                    closeStoreModal();
+                    loadStoreList();
+                } else {
+                    showToast(json.message || '매장 등록 실패', 'error');
+                }
+            } catch (err) {
+                showToast('등록 요청 오류: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '등록하기';
+                lucide.createIcons();
+            }
+        }
+
+        // Menu Modal Controls
         function openMenuCreateModal() {
             if (!authToken) {
                 showToast('메뉴 등록을 위해 먼저 상단 [관리자 원클릭 로그인]을 진행해 주세요.', 'error');
@@ -869,15 +1032,19 @@
                 showToast('메뉴 수정을 위해 먼저 상단 [관리자 원클릭 로그인]을 진행해 주세요.', 'error');
                 return;
             }
+            const mid = menu.menuId || menu.id;
+            const isRep = menu.isRepresentative ?? menu.representative ?? false;
+            const isSold = menu.isSoldOut ?? menu.soldOut ?? false;
+
             document.getElementById('modal-menu-title').textContent = `메뉴 수정 — ${menu.name}`;
             document.getElementById('menu-form-mode').value = 'edit';
-            document.getElementById('menu-form-id').value = menu.id;
+            document.getElementById('menu-form-id').value = mid;
             document.getElementById('input-menu-name').value = menu.name;
             document.getElementById('input-menu-price').value = menu.price;
             document.getElementById('input-menu-desc').value = menu.description || '';
             document.getElementById('input-menu-image-url').value = menu.imageUrl || '';
-            document.getElementById('check-menu-rep').checked = !!menu.isRepresentative;
-            document.getElementById('check-menu-soldout').checked = !!menu.isSoldOut;
+            document.getElementById('check-menu-rep').checked = isRep;
+            document.getElementById('check-menu-soldout').checked = isSold;
             updateImagePreview(menu.imageUrl);
             document.getElementById('modal-menu').classList.remove('hidden');
         }
@@ -1376,7 +1543,10 @@
 
         // Close modal on ESC key
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeMenuModal();
+            if (e.key === 'Escape') {
+                closeMenuModal();
+                closeStoreModal();
+            }
         });
     </script>
 </body>

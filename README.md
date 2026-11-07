@@ -32,7 +32,7 @@
 ## 기술 스택 (Tech Stack)
 
 | 분류 | 기술 / 라이브러리 | 버전 |
-| :--- | :--- | :--- | :--- |
+| :--- | :--- | :--- |
 | **Cloud Infra** | **GCP Compute Engine + Caddy** | Ubuntu 24.04 |
 | **Language** | **Java** | 21 (LTS) |
 | **Framework** | **Spring Boot** | 3.3.5 |
@@ -43,3 +43,5 @@
 | **Security** | **Spring Security + JJWT** | JJWT 0.12.6 |
 | **API Docs** | **SpringDoc OpenAPI** | 2.6.0 |
 | **Container** | **Docker & Docker Compose** | v29.9 / v5.7 |
+
+---

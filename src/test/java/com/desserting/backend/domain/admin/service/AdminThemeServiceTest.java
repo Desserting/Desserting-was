@@ -14,7 +14,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.Optional;
+
+import com.desserting.backend.domain.store.repository.StoreRepository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -25,6 +28,9 @@ class AdminThemeServiceTest {
 
     @Mock
     private ThemeStreetRepository themeStreetRepository;
+
+    @Mock
+    private StoreRepository storeRepository;
 
     @InjectMocks
     private AdminThemeService adminThemeService;
@@ -71,6 +77,7 @@ class AdminThemeServiceTest {
         ReflectionTestUtils.setField(themeStreet, "id", 1L);
 
         given(themeStreetRepository.findById(1L)).willReturn(Optional.of(themeStreet));
+        given(storeRepository.findAllByThemeStreetIdAndIsPartnerTrue(1L)).willReturn(Collections.emptyList());
 
         ThemeStreetUpdateRequest request = ThemeStreetUpdateRequest.builder()
                 .name("김광석 다시그리기길 카페거리")

@@ -148,7 +148,8 @@ public class AdminStoreService {
                 request.getPrice(),
                 request.getDescription(),
                 request.getImageUrl(),
-                request.getIsRepresentative()
+                request.getIsRepresentative(),
+                request.getIsSoldOut()
         );
 
         log.info("매장 메뉴 수정 완료: storeId={}, menuId={}, name={}", storeId, menu.getId(), menu.getName());

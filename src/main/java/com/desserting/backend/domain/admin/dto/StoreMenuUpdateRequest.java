@@ -26,4 +26,7 @@ public class StoreMenuUpdateRequest {
 
     @Schema(description = "대표 메뉴 여부", example = "true")
     private Boolean isRepresentative;
+
+    @Schema(description = "품절 여부", example = "false")
+    private Boolean isSoldOut;
 }

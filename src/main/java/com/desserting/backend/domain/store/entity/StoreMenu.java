@@ -41,11 +41,16 @@ public class StoreMenu extends BaseTimeEntity {
     private Boolean isSoldOut = false;
 
     public void updateMenu(String name, Integer price, String description, String imageUrl, Boolean isRepresentative) {
+        updateMenu(name, price, description, imageUrl, isRepresentative, null);
+    }
+
+    public void updateMenu(String name, Integer price, String description, String imageUrl, Boolean isRepresentative, Boolean isSoldOut) {
         if (name != null && !name.isBlank()) this.name = name;
         if (price != null && price >= 0) this.price = price;
         if (description != null) this.description = description;
         if (imageUrl != null) this.imageUrl = imageUrl;
         if (isRepresentative != null) this.isRepresentative = isRepresentative;
+        if (isSoldOut != null) this.isSoldOut = isSoldOut;
     }
 
     public boolean toggleSoldOut() {

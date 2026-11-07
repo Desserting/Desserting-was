@@ -1209,8 +1209,11 @@
                         }
 
                         // Dropdown for adding available stores
-                        const availableStores = currentStores.filter(cs => !assignedStoreIds.has(cs.id));
-                        const optionsHtml = availableStores.map(cs => `<option value="${cs.id}">${cs.name} (#${cs.id})</option>`).join('');
+                        const availableStores = currentStores.filter(cs => !assignedStoreIds.has(cs.storeId || cs.id));
+                        const optionsHtml = availableStores.map(cs => {
+                            const sId = cs.storeId || cs.id;
+                            return `<option value="${sId}">${cs.name} (#${sId})</option>`;
+                        }).join('');
 
                         const card = document.createElement('div');
                         card.className = 'p-5 bg-zinc-950 border border-zinc-800 rounded-lg space-y-4';

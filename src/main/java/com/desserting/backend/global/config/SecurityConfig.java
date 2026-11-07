@@ -63,6 +63,9 @@ public class SecurityConfig {
                         .requestMatchers(
                                 "/",
                                 "/index.html",
+                                "/admin",
+                                "/admin/**",
+                                "/admin.html",
                                 "/favicon.ico",
                                 "/static/**",
                                 "/assets/**",

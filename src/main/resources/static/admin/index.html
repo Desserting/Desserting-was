@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="ko" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DESSERTING — Admin & Data Console</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        black: '#000000',
+                        zinc: {
+                            850: '#1e1e24',
+                            900: '#121215',
+                            950: '#0a0a0c',
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['JetBrains Mono', 'ui-monospace', 'SFMono-Regular', 'Menlo', 'monospace'],
+                        sans: ['Pretendard', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Pretendard:wght@300;400;500;600;700&display=swap');
+        * { font-family: 'Pretendard', -apple-system, sans-serif; }
+        code, pre, .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: #0a0a0c; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3f3f46; }
+        .tab-btn.active { background: #27272a; color: #ffffff; border-color: #52525b; }
+    </style>
+</head>
+<body class="bg-black text-zinc-100 min-h-screen flex flex-col antialiased selection:bg-white selection:text-black">
+
+    <!-- TOP HEADER -->
+    <header class="border-b border-zinc-800 bg-zinc-950/80 backdrop-blur sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <span class="w-6 h-6 rounded bg-white text-black font-bold flex items-center justify-center text-xs tracking-tighter">D</span>
+                <span class="font-bold tracking-tight text-white text-sm">DESSERTING</span>
+                <span class="text-zinc-600">/</span>
+                <span class="text-xs font-mono text-zinc-400">ADMIN CONSOLE</span>
+                <span class="px-2 py-0.5 text-[10px] font-mono uppercase bg-zinc-900 text-zinc-300 rounded border border-zinc-800">Monochrome Edition</span>
+            </div>
+
+            <!-- Auth Status & Controls -->
+            <div class="flex items-center gap-3">
+                <div id="auth-status" class="flex items-center gap-2 text-xs text-zinc-400 font-mono">
+                    <span class="w-2 h-2 rounded-full bg-zinc-600" id="auth-dot"></span>
+                    <span id="auth-user-text">인증 대기 중</span>
+                </div>
+                <button id="btn-admin-login" onclick="quickAdminLogin()" class="px-3 py-1.5 text-xs font-medium bg-white text-black hover:bg-zinc-200 transition rounded border border-white flex items-center gap-1.5">
+                    <i data-lucide="key" class="w-3.5 h-3.5"></i>
+                    <span>관리자 원클릭 로그인</span>
+                </button>
+                <button id="btn-logout" onclick="logout()" class="hidden px-2.5 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 rounded border border-zinc-800 transition">
+                    로그아웃
+                </button>
+            </div>
+        </div>
+
+        <!-- NAVIGATION TABS -->
+        <div class="max-w-7xl mx-auto px-4 flex gap-1 border-t border-zinc-900 overflow-x-auto text-xs py-1.5">
+            <button onclick="switchTab('stores')" class="tab-btn active px-3 py-1.5 rounded text-zinc-400 hover:text-white border border-transparent transition flex items-center gap-2" data-tab="stores">
+                <i data-lucide="store" class="w-3.5 h-3.5"></i> 제휴매장 & 메뉴 CRUD
+            </button>
+            <button onclick="switchTab('themes')" class="tab-btn px-3 py-1.5 rounded text-zinc-400 hover:text-white border border-transparent transition flex items-center gap-2" data-tab="themes">
+                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> 테마거리 관리
+            </button>
+            <button onclick="switchTab('orders')" class="tab-btn px-3 py-1.5 rounded text-zinc-400 hover:text-white border border-transparent transition flex items-center gap-2" data-tab="orders">
+                <i data-lucide="calendar" class="w-3.5 h-3.5"></i> 카페 방문 예약 관리
+            </button>
+            <button onclick="switchTab('demo')" class="tab-btn px-3 py-1.5 rounded text-zinc-400 hover:text-white border border-transparent transition flex items-center gap-2" data-tab="demo">
+                <i data-lucide="sparkles" class="w-3.5 h-3.5"></i> 심사용 데모 세팅
+            </button>
+        </div>
+    </header>
+
+    <!-- TOAST NOTIFICATION CONTAINER -->
+    <div id="toast-container" class="fixed top-16 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- MAIN WORKSPACE -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 space-y-6">
+
+        <!-- ========================================================== -->
+        <!-- TAB 1: STORES & MENUS CRUD                                 -->
+        <!-- ========================================================== -->
+        <section id="section-stores" class="space-y-6">
+            <!-- Header & Action Bar -->
+            <div class="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-800 pb-4">
+                <div>
+                    <h2 class="text-base font-bold text-white tracking-tight">제휴 매장 및 메뉴 관리</h2>
+                    <p class="text-xs text-zinc-500 mt-0.5">매장 기본정보 수정과 디저트 메뉴(이미지, 가격, 대표 지정, 품절)를 등록/관리합니다.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="loadStoreList()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded transition flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 새로고침
+                    </button>
+                    <button onclick="openStoreCreateModal()" class="px-3 py-1.5 text-xs bg-white text-black hover:bg-zinc-200 rounded font-medium transition flex items-center gap-1.5">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> 신규 매장 등록
+                    </button>
+                </div>
+            </div>
+
+            <!-- Store Selector Grid -->
+            <div>
+                <label class="block text-xs font-mono uppercase text-zinc-500 mb-2">Select Partner Store</label>
+                <div id="store-selector-grid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+                    <!-- Dynamic Store Buttons -->
+                    <div class="p-3 text-center text-xs text-zinc-500 bg-zinc-950 border border-zinc-900 rounded">매장 목록 로딩 중...</div>
+                </div>
+            </div>
+
+            <!-- Active Store Detail & Menu Section -->
+            <div id="active-store-container" class="hidden space-y-6">
+                <!-- Store Info Summary Card -->
+                <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="space-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span id="active-store-badge" class="px-2 py-0.5 text-[10px] font-mono bg-zinc-800 text-zinc-300 rounded border border-zinc-700">STORE ID #1</span>
+                            <h3 id="active-store-name" class="text-lg font-bold text-white tracking-tight">아눅 앞산</h3>
+                        </div>
+                        <p id="active-store-address" class="text-xs text-zinc-400 font-mono flex items-center gap-1">
+                            <i data-lucide="map-pin" class="w-3.5 h-3.5 text-zinc-500"></i> 대구 남구 앞산순환로 459
+                        </p>
+                        <p id="active-store-notice" class="text-xs text-zinc-500">
+                            제휴 혜택: 전 메뉴 10% 현장 할인 및 디저팅 웰컴 쿠키 증정
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="openMenuCreateModal()" class="px-3 py-2 text-xs bg-white text-black font-semibold hover:bg-zinc-200 rounded transition flex items-center gap-1.5">
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i> 이 매장에 메뉴 추가
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Menu Table -->
+                <div class="border border-zinc-800 bg-zinc-950 rounded-lg overflow-hidden">
+                    <div class="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                        <span class="text-xs font-mono uppercase tracking-wider text-zinc-400">등록된 메뉴 목록 (<span id="menu-count">0</span>)</span>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-xs">
+                            <thead>
+                                <tr class="border-b border-zinc-800 bg-zinc-900/50 text-zinc-400 font-mono">
+                                    <th class="py-2.5 px-4 w-16">사진</th>
+                                    <th class="py-2.5 px-4">메뉴명</th>
+                                    <th class="py-2.5 px-4 w-28">가격</th>
+                                    <th class="py-2.5 px-4">메뉴 설명</th>
+                                    <th class="py-2.5 px-4 w-24">대표 메뉴</th>
+                                    <th class="py-2.5 px-4 w-24">품절 상태</th>
+                                    <th class="py-2.5 px-4 w-28 text-right">관리</th>
+                                </tr>
+                            </thead>
+                            <tbody id="menu-table-body" class="divide-y divide-zinc-900 text-zinc-300">
+                                <!-- Dynamic Rows -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================== -->
+        <!-- TAB 2: THEME STREETS CRUD                                  -->
+        <!-- ========================================================== -->
+        <section id="section-themes" class="hidden space-y-6">
+            <div class="border-b border-zinc-800 pb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-white tracking-tight">테마거리 영역 및 폴리곤 관리</h2>
+                    <p class="text-xs text-zinc-500 mt-0.5">앞산 카페거리, 동성로 등 테마거리의 8포인트 정밀 다각형 좌표와 정보를 관리합니다.</p>
+                </div>
+                <button onclick="loadThemeStreets()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded transition flex items-center gap-1.5">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 새로고침
+                </button>
+            </div>
+            <div id="theme-streets-list" class="space-y-4">
+                <!-- Dynamic Theme Cards -->
+            </div>
+        </section>
+
+        <!-- ========================================================== -->
+        <!-- TAB 3: RESERVATIONS / ORDERS                               -->
+        <!-- ========================================================== -->
+        <section id="section-orders" class="hidden space-y-6">
+            <div class="border-b border-zinc-800 pb-4 flex items-center justify-between">
+                <div>
+                    <h2 class="text-base font-bold text-white tracking-tight">카페 방문 예약 및 주문 현황</h2>
+                    <p class="text-xs text-zinc-500 mt-0.5">매칭된 유저 간 카페 방문 제안/예약 접수 내역을 확인하고 상태를 변경합니다.</p>
+                </div>
+                <button onclick="loadReservations()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded transition flex items-center gap-1.5">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 새로고침
+                </button>
+            </div>
+            <div class="border border-zinc-800 bg-zinc-950 rounded-lg overflow-hidden">
+                <table class="w-full text-left border-collapse text-xs">
+                    <thead>
+                        <tr class="border-b border-zinc-800 bg-zinc-900/50 text-zinc-400 font-mono">
+                            <th class="py-2.5 px-4 w-20">예약 ID</th>
+                            <th class="py-2.5 px-4">매장명</th>
+                            <th class="py-2.5 px-4">예약자</th>
+                            <th class="py-2.5 px-4">예약 일시</th>
+                            <th class="py-2.5 px-4">주문 금액</th>
+                            <th class="py-2.5 px-4">상태</th>
+                            <th class="py-2.5 px-4 text-right">상태 변경</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reservation-table-body" class="divide-y divide-zinc-900 text-zinc-300 font-mono">
+                        <!-- Dynamic Reservations -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ========================================================== -->
+        <!-- TAB 4: DEMO & SIMULATOR                                    -->
+        <!-- ========================================================== -->
+        <section id="section-demo" class="hidden space-y-6">
+            <div class="border-b border-zinc-800 pb-4">
+                <h2 class="text-base font-bold text-white tracking-tight">심사용 데모 데이터 원클릭 생성기</h2>
+                <p class="text-xs text-zinc-500 mt-0.5">심사위원이 즉시 접속해 매칭 및 제휴카페 예약 풀코스를 테스트할 수 있도록 시나리오 데이터를 원클릭 세팅합니다.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <!-- Judge Account Setup Box -->
+                <div class="p-5 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono uppercase text-zinc-400">Step 1. 심사위원 계정 세팅</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded border border-zinc-800">judge@desserting.com</span>
+                    </div>
+                    <p class="text-xs text-zinc-400 leading-relaxed">
+                        심사용 계정(<code class="text-zinc-200">judge@desserting.com</code> / <code class="text-zinc-200">test1234!</code>)의 상태를 확인하고, 프리미엄 권한 및 50개 하트를 부여합니다.
+                    </p>
+                    <button onclick="setupJudgeAccount()" class="w-full py-2.5 px-4 bg-white text-black font-semibold text-xs rounded hover:bg-zinc-200 transition flex items-center justify-center gap-2">
+                        <i data-lucide="user-check" class="w-4 h-4"></i> 심사위원 계정 확인 & 하트 충전
+                    </button>
+                </div>
+
+                <!-- Simulation Info Box -->
+                <div class="p-5 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-mono uppercase text-zinc-400">Step 2. 제출용 심사위원 동선</span>
+                        <span class="text-[10px] font-mono px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded border border-zinc-800">1분 체험 가이드</span>
+                    </div>
+                    <p class="text-xs text-zinc-400 leading-relaxed">
+                        1. <code class="text-white">minjung@desserting.com</code>과 이미 매칭 및 사전 대화가 완료된 상태를 점검합니다.<br>
+                        2. 채팅창에서 '카페 방문 제안' 카드 클릭 ➡️ 아눅 앞산 크림라떼 예약 플로우를 테스트할 수 있습니다.
+                    </p>
+                    <button onclick="checkDemoMatchingState()" class="w-full py-2.5 px-4 bg-zinc-900 hover:bg-zinc-800 text-white font-semibold text-xs border border-zinc-700 rounded transition flex items-center justify-center gap-2">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i> 데모 매칭방 상태 검증
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ========================================================== -->
+    <!-- MODAL: MENU CREATE / EDIT MODAL (WITH EASY IMAGE INSERTION) -->
+    <!-- ========================================================== -->
+    <div id="modal-menu" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-950 border border-zinc-700 w-full max-w-xl rounded-lg shadow-2xl p-6 space-y-5 animate-in fade-in duration-150">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h3 id="modal-menu-title" class="text-sm font-bold text-white tracking-tight">메뉴 등록 / 수정</h3>
+                <button onclick="closeMenuModal()" class="text-zinc-500 hover:text-white transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="form-menu" onsubmit="handleMenuSubmit(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="menu-form-mode" value="create">
+                <input type="hidden" id="menu-form-id" value="">
+
+                <!-- Menu Name & Price -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">메뉴 이름 *</label>
+                        <input id="input-menu-name" type="text" required placeholder="예: 바스크 치즈케이크"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">가격 (원) *</label>
+                        <input id="input-menu-price" type="number" required placeholder="예: 8000" min="0" step="100"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
+                    </div>
+                </div>
+
+                <!-- Menu Description -->
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">메뉴 설명</label>
+                    <textarea id="input-menu-desc" rows="2" placeholder="메뉴의 특징과 재료 설명을 입력하세요."
+                              class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition"></textarea>
+                </div>
+
+                <!-- IMAGE INSERTION SECTION (EASY PRESET & LIVE PREVIEW) -->
+                <div class="border border-zinc-800 bg-zinc-900/40 rounded p-3.5 space-y-3">
+                    <label class="block font-mono text-zinc-300 font-semibold flex items-center justify-between">
+                        <span>메뉴 이미지 삽입 (1:1 비율)</span>
+                        <span class="text-[10px] text-zinc-500 font-normal">URL 직접 입력 또는 아래 프리셋 원클릭 선택</span>
+                    </label>
+
+                    <div class="flex gap-3 items-center">
+                        <!-- Image Preview Box -->
+                        <div class="w-20 h-20 rounded bg-zinc-900 border border-zinc-800 flex items-center justify-center overflow-hidden shrink-0">
+                            <img id="menu-img-preview" src="" alt="미리보기" class="w-full h-full object-cover hidden">
+                            <span id="menu-img-placeholder" class="text-[10px] text-zinc-600 font-mono text-center px-1">NO IMAGE</span>
+                        </div>
+
+                        <!-- Image URL Input -->
+                        <div class="flex-1 space-y-1">
+                            <input id="input-menu-image-url" type="url" placeholder="https://desserting-api.duckdns.org/images/menus/..."
+                                   oninput="updateImagePreview(this.value)"
+                                   class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono text-[11px]">
+                            <p class="text-[10px] text-zinc-500">운영 서버 이미지 또는 외부 공개 이미지 URL을 입력하세요.</p>
+                        </div>
+                    </div>
+
+                    <!-- QUICK IMAGE PRESETS (1-CLICK FILL) -->
+                    <div class="space-y-1.5 pt-1 border-t border-zinc-800/80">
+                        <span class="text-[10px] font-mono text-zinc-400 block">⚡ 원클릭 등록용 디저트 프리셋:</span>
+                        <div class="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                            <button type="button" onclick="selectImagePreset('anook-latte.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                📷 아눅 크림라떼 (실제)
+                            </button>
+                            <button type="button" onclick="selectImagePreset('anook-basque.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                🎨 바스크 치즈케이크
+                            </button>
+                            <button type="button" onclick="selectImagePreset('anook-crooky.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                🎨 피스타치오 크루키
+                            </button>
+                            <button type="button" onclick="selectImagePreset('lucid-pudding-bingsu.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                📷 루시드 푸딩빙수 (실제)
+                            </button>
+                            <button type="button" onclick="selectImagePreset('lucid-cherry-bingsu.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                🎨 루시드 체리빙수
+                            </button>
+                            <button type="button" onclick="selectImagePreset('lucid-custard-pudding.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                🎨 커스터드 푸딩
+                            </button>
+                            <button type="button" onclick="selectImagePreset('slowturtle-strawberry-waffle.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                📷 슬로우터틀 딸기와플 (실제)
+                            </button>
+                            <button type="button" onclick="selectImagePreset('slowturtle-strawberry-cake.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                📷 슬로우터틀 딸기케이크 (실제)
+                            </button>
+                            <button type="button" onclick="selectImagePreset('capella-souffle.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                🎨 딸기 수플레
+                            </button>
+                            <button type="button" onclick="selectImagePreset('capella-terrine.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                🎨 말차 테린느
+                            </button>
+                            <button type="button" onclick="selectImagePreset('deepcoffee-aranya.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                📷 에스프레소 아라냐 (실제)
+                            </button>
+                            <button type="button" onclick="selectImagePreset('deepcoffee-romano.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                📷 바닐라 로마노 (실제)
+                            </button>
+                            <button type="button" onclick="selectImagePreset('deepcoffee-baci.jpg')" class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded font-mono">
+                                🎨 바치디다마
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Checkboxes -->
+                <div class="flex items-center gap-6 pt-1">
+                    <label class="flex items-center gap-2 cursor-pointer text-zinc-300">
+                        <input id="check-menu-rep" type="checkbox" class="w-4 h-4 bg-zinc-900 border-zinc-700 rounded text-white focus:ring-0">
+                        <span>대표 메뉴 지정</span>
+                    </label>
+                    <label class="flex items-center gap-2 cursor-pointer text-zinc-300">
+                        <input id="check-menu-soldout" type="checkbox" class="w-4 h-4 bg-zinc-900 border-zinc-700 rounded text-white focus:ring-0">
+                        <span>품절 처리</span>
+                    </label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                    <button type="button" onclick="closeMenuModal()" class="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded transition font-medium">
+                        취소
+                    </button>
+                    <button id="btn-menu-submit" type="submit" class="px-4 py-2 bg-white text-black hover:bg-zinc-200 rounded transition font-semibold">
+                        저장하기
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT LOGIC -->
+    <script>
+        // Global State
+        const API_BASE = window.location.origin;
+        let authToken = localStorage.getItem('desserting_admin_token') || '';
+        let currentStores = [];
+        let selectedStoreId = null;
+
+        // Init
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            checkAuth();
+            loadStoreList();
+        });
+
+        // Toast Helper
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'px-4 py-2.5 bg-zinc-950 text-white text-xs border border-zinc-700 rounded shadow-xl flex items-center gap-2 animate-in slide-in-from-top-2 duration-150 pointer-events-auto';
+            const icon = type === 'error' ? 'alert-triangle' : 'check-circle';
+            toast.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 text-white"></i><span>${message}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector(`[data-tab="${tabId}"]`)?.classList.add('active');
+
+            ['stores', 'themes', 'orders', 'demo'].forEach(t => {
+                const sec = document.getElementById(`section-${t}`);
+                if (sec) sec.classList.toggle('hidden', t !== tabId);
+            });
+
+            if (tabId === 'themes') loadThemeStreets();
+            if (tabId === 'orders') loadReservations();
+        }
+
+        // Quick Admin Login
+        async function quickAdminLogin() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: 'admin@desserting.com', password: 'test1234!' })
+                });
+                const data = await res.json();
+                if (data.success && data.data?.accessToken) {
+                    authToken = data.data.accessToken;
+                    localStorage.setItem('desserting_admin_token', authToken);
+                    checkAuth();
+                    showToast('관리자(admin@desserting.com) 로그인 성공');
+                    loadStoreList();
+                } else {
+                    showToast(data.message || '로그인 실패', 'error');
+                }
+            } catch (err) {
+                showToast('로그인 요청 중 오류 발생: ' + err.message, 'error');
+            }
+        }
+
+        function checkAuth() {
+            const dot = document.getElementById('auth-dot');
+            const txt = document.getElementById('auth-user-text');
+            const loginBtn = document.getElementById('btn-admin-login');
+            const logoutBtn = document.getElementById('btn-logout');
+
+            if (authToken) {
+                dot.className = 'w-2 h-2 rounded-full bg-white';
+                txt.textContent = 'ADMIN ON (admin@desserting.com)';
+                txt.className = 'text-xs text-white font-mono font-semibold';
+                loginBtn.classList.add('hidden');
+                logoutBtn.classList.remove('hidden');
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-zinc-600';
+                txt.textContent = '인증 필요 (관리자 로그인 권장)';
+                txt.className = 'text-xs text-zinc-500 font-mono';
+                loginBtn.classList.remove('hidden');
+                logoutBtn.classList.add('hidden');
+            }
+        }
+
+        function logout() {
+            authToken = '';
+            localStorage.removeItem('desserting_admin_token');
+            checkAuth();
+            showToast('로그아웃되었습니다.');
+        }
+
+        // -------------------------------------------------------------
+        // STORE & MENU CRUD
+        // -------------------------------------------------------------
+        async function loadStoreList() {
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stores`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    currentStores = json.data;
+                    renderStoreSelector();
+                    if (!selectedStoreId && currentStores.length > 0) {
+                        selectStore(currentStores[0].storeId);
+                    } else if (selectedStoreId) {
+                        selectStore(selectedStoreId);
+                    }
+                }
+            } catch (err) {
+                showToast('매장 목록 로드 실패: ' + err.message, 'error');
+            }
+        }
+
+        function renderStoreSelector() {
+            const grid = document.getElementById('store-selector-grid');
+            grid.innerHTML = '';
+            currentStores.forEach(s => {
+                const btn = document.createElement('button');
+                btn.className = `p-3 text-left rounded border transition flex flex-col justify-between ${
+                    selectedStoreId === s.storeId
+                        ? 'bg-zinc-900 text-white border-white shadow'
+                        : 'bg-zinc-950 text-zinc-400 border-zinc-800 hover:border-zinc-600 hover:text-zinc-200'
+                }`;
+                btn.onclick = () => selectStore(s.storeId);
+                btn.innerHTML = `
+                    <div class="text-[10px] font-mono text-zinc-500">ID #${s.storeId}</div>
+                    <div class="font-bold text-xs truncate mt-1 text-white">${s.name}</div>
+                    <div class="text-[10px] text-zinc-500 truncate mt-0.5">${s.address || '주소 정보 없음'}</div>
+                `;
+                grid.appendChild(btn);
+            });
+        }
+
+        async function selectStore(storeId) {
+            selectedStoreId = storeId;
+            renderStoreSelector();
+            const container = document.getElementById('active-store-container');
+            container.classList.remove('hidden');
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/stores/${storeId}`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    const store = json.data;
+                    document.getElementById('active-store-badge').textContent = `STORE ID #${store.storeId}`;
+                    document.getElementById('active-store-name').textContent = store.name;
+                    document.getElementById('active-store-address').innerHTML = `<i data-lucide="map-pin" class="w-3.5 h-3.5 text-zinc-500"></i> ${store.address || '주소 미등록'}`;
+                    document.getElementById('active-store-notice').textContent = `제휴 혜택: ${store.partnerDiscountNotice || '기본 제휴 매장'}`;
+                    renderMenuTable(store.menus || []);
+                    lucide.createIcons();
+                }
+            } catch (err) {
+                showToast('매장 상세 정보 로드 실패: ' + err.message, 'error');
+            }
+        }
+
+        function renderMenuTable(menus) {
+            const tbody = document.getElementById('menu-table-body');
+            document.getElementById('menu-count').textContent = menus.length;
+            tbody.innerHTML = '';
+
+            if (menus.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">등록된 메뉴가 없습니다. 상단의 '메뉴 추가' 버튼을 눌러 등록하세요.</td></tr>`;
+                return;
+            }
+
+            menus.forEach(m => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-zinc-900/40 transition';
+                tr.innerHTML = `
+                    <td class="py-2.5 px-4">
+                        <div class="w-10 h-10 rounded bg-zinc-900 border border-zinc-800 overflow-hidden flex items-center justify-center">
+                            ${m.imageUrl
+                                ? `<img src="${m.imageUrl}" alt="${m.name}" class="w-full h-full object-cover">`
+                                : `<span class="text-[9px] text-zinc-600 font-mono">NO IMG</span>`}
+                        </div>
+                    </td>
+                    <td class="py-2.5 px-4 font-semibold text-white">
+                        ${m.name}
+                    </td>
+                    <td class="py-2.5 px-4 font-mono font-medium text-zinc-300">
+                        ${Number(m.price).toLocaleString()}원
+                    </td>
+                    <td class="py-2.5 px-4 text-zinc-400 max-w-xs truncate" title="${m.description || ''}">
+                        ${m.description || '-'}
+                    </td>
+                    <td class="py-2.5 px-4">
+                        ${m.isRepresentative
+                            ? `<span class="px-2 py-0.5 text-[10px] bg-white text-black font-semibold rounded">대표</span>`
+                            : `<span class="text-zinc-600">-</span>`}
+                    </td>
+                    <td class="py-2.5 px-4">
+                        <button onclick="toggleSoldOut(${m.id}, ${m.isSoldOut})" class="px-2 py-0.5 text-[10px] font-mono rounded border transition ${
+                            m.isSoldOut
+                                ? 'bg-zinc-800 text-zinc-400 border-zinc-700 line-through'
+                                : 'bg-zinc-950 text-white border-zinc-800 hover:border-zinc-500'
+                        }">
+                            ${m.isSoldOut ? '품절됨' : '판매중'}
+                        </button>
+                    </td>
+                    <td class="py-2.5 px-4 text-right">
+                        <div class="flex items-center justify-end gap-1.5">
+                            <button onclick='openMenuEditModal(${JSON.stringify(m)})' class="p-1 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded transition" title="수정">
+                                <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                            </button>
+                            <button onclick="deleteMenu(${m.id})" class="p-1 text-zinc-500 hover:text-white hover:bg-zinc-800 rounded transition" title="삭제">
+                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            lucide.createIcons();
+        }
+
+        // Image Handling
+        function updateImagePreview(url) {
+            const img = document.getElementById('menu-img-preview');
+            const placeholder = document.getElementById('menu-img-placeholder');
+            if (url && url.startsWith('http')) {
+                img.src = url;
+                img.classList.remove('hidden');
+                placeholder.classList.add('hidden');
+            } else {
+                img.classList.add('hidden');
+                placeholder.classList.remove('hidden');
+            }
+        }
+
+        function selectImagePreset(fileName) {
+            const fullUrl = `https://desserting-api.duckdns.org/images/menus/${fileName}`;
+            const input = document.getElementById('input-menu-image-url');
+            input.value = fullUrl;
+            updateImagePreview(fullUrl);
+        }
+
+        // Modal Controls
+        function openMenuCreateModal() {
+            if (!authToken) {
+                showToast('메뉴 등록을 위해 먼저 상단 [관리자 원클릭 로그인]을 진행해 주세요.', 'error');
+                return;
+            }
+            document.getElementById('modal-menu-title').textContent = '새 메뉴 추가';
+            document.getElementById('menu-form-mode').value = 'create';
+            document.getElementById('menu-form-id').value = '';
+            document.getElementById('input-menu-name').value = '';
+            document.getElementById('input-menu-price').value = '';
+            document.getElementById('input-menu-desc').value = '';
+            document.getElementById('input-menu-image-url').value = '';
+            document.getElementById('check-menu-rep').checked = false;
+            document.getElementById('check-menu-soldout').checked = false;
+            updateImagePreview('');
+            document.getElementById('modal-menu').classList.remove('hidden');
+        }
+
+        function openMenuEditModal(menu) {
+            if (!authToken) {
+                showToast('메뉴 수정을 위해 먼저 상단 [관리자 원클릭 로그인]을 진행해 주세요.', 'error');
+                return;
+            }
+            document.getElementById('modal-menu-title').textContent = `메뉴 수정 — ${menu.name}`;
+            document.getElementById('menu-form-mode').value = 'edit';
+            document.getElementById('menu-form-id').value = menu.id;
+            document.getElementById('input-menu-name').value = menu.name;
+            document.getElementById('input-menu-price').value = menu.price;
+            document.getElementById('input-menu-desc').value = menu.description || '';
+            document.getElementById('input-menu-image-url').value = menu.imageUrl || '';
+            document.getElementById('check-menu-rep').checked = !!menu.isRepresentative;
+            document.getElementById('check-menu-soldout').checked = !!menu.isSoldOut;
+            updateImagePreview(menu.imageUrl);
+            document.getElementById('modal-menu').classList.remove('hidden');
+        }
+
+        function closeMenuModal() {
+            document.getElementById('modal-menu').classList.add('hidden');
+        }
+
+        async function handleMenuSubmit(e) {
+            e.preventDefault();
+            const mode = document.getElementById('menu-form-mode').value;
+            const menuId = document.getElementById('menu-form-id').value;
+            const btn = document.getElementById('btn-menu-submit');
+
+            const payload = {
+                name: document.getElementById('input-menu-name').value.trim(),
+                price: parseInt(document.getElementById('input-menu-price').value, 10),
+                description: document.getElementById('input-menu-desc').value.trim(),
+                imageUrl: document.getElementById('input-menu-image-url').value.trim(),
+                isRepresentative: document.getElementById('check-menu-rep').checked,
+                isSoldOut: document.getElementById('check-menu-soldout').checked
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 저장 중...`;
+
+            try {
+                let url = `${API_BASE}/api/v1/admin/stores/${selectedStoreId}/menus`;
+                let method = 'POST';
+
+                if (mode === 'edit') {
+                    url = `${API_BASE}/api/v1/admin/stores/${selectedStoreId}/menus/${menuId}`;
+                    method = 'PATCH';
+                }
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showToast(mode === 'edit' ? '메뉴가 성공적으로 수정되었습니다.' : '새 메뉴가 등록되었습니다.');
+                    closeMenuModal();
+                    selectStore(selectedStoreId);
+                } else {
+                    showToast(json.message || '저장 실패', 'error');
+                }
+            } catch (err) {
+                showToast('요청 처리 실패: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '저장하기';
+                lucide.createIcons();
+            }
+        }
+
+        async function toggleSoldOut(menuId, currentState) {
+            if (!authToken) {
+                showToast('관리자 로그인이 필요합니다.', 'error');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/stores/${selectedStoreId}/menus/${menuId}/sold-out`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ isSoldOut: !currentState })
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showToast(!currentState ? '메뉴가 품절 처리되었습니다.' : '메뉴가 판매중으로 전환되었습니다.');
+                    selectStore(selectedStoreId);
+                } else {
+                    showToast(json.message || '품절 상태 변경 실패', 'error');
+                }
+            } catch (err) {
+                showToast('상태 변경 실패: ' + err.message, 'error');
+            }
+        }
+
+        async function deleteMenu(menuId) {
+            if (!authToken) {
+                showToast('관리자 로그인이 필요합니다.', 'error');
+                return;
+            }
+            if (!confirm('정말로 이 메뉴를 삭제하시겠습니까?')) return;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/stores/${selectedStoreId}/menus/${menuId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showToast('메뉴가 삭제되었습니다.');
+                    selectStore(selectedStoreId);
+                } else {
+                    showToast(json.message || '메뉴 삭제 실패', 'error');
+                }
+            } catch (err) {
+                showToast('삭제 실패: ' + err.message, 'error');
+            }
+        }
+
+        // -------------------------------------------------------------
+        // THEME STREETS
+        // -------------------------------------------------------------
+        async function loadThemeStreets() {
+            const list = document.getElementById('theme-streets-list');
+            list.innerHTML = `<div class="p-6 text-center text-xs text-zinc-500 font-mono">테마거리 로드 중...</div>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/themes`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    list.innerHTML = '';
+                    json.data.forEach(t => {
+                        const card = document.createElement('div');
+                        card.className = 'p-5 bg-zinc-950 border border-zinc-800 rounded-lg space-y-3';
+                        card.innerHTML = `
+                            <div class="flex items-center justify-between border-b border-zinc-900 pb-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-[10px] font-mono px-2 py-0.5 bg-zinc-900 text-zinc-300 rounded border border-zinc-800">THEME #${t.id}</span>
+                                    <h4 class="font-bold text-white text-sm">${t.name}</h4>
+                                </div>
+                                <span class="text-xs text-zinc-500 font-mono">반경: ${t.radiusMeter || 500}m</span>
+                            </div>
+                            <p class="text-xs text-zinc-400">${t.description || '설명 없음'}</p>
+                            <div>
+                                <span class="text-[10px] font-mono text-zinc-500 block mb-1">다각형 영역 좌표 (Polygon Coordinates):</span>
+                                <pre class="p-2.5 bg-zinc-900 border border-zinc-800 rounded text-[11px] font-mono text-zinc-300 overflow-x-auto">${t.polygonJson || '좌표 데이터 없음'}</pre>
+                            </div>
+                        `;
+                        list.appendChild(card);
+                    });
+                } else {
+                    list.innerHTML = `<div class="p-6 text-center text-xs text-zinc-500 font-mono">등록된 테마거리가 없습니다.</div>`;
+                }
+            } catch (err) {
+                list.innerHTML = `<div class="p-6 text-center text-xs text-zinc-500 font-mono">테마거리 로드 실패: ${err.message}</div>`;
+            }
+        }
+
+        // -------------------------------------------------------------
+        // ORDERS / RESERVATIONS
+        // -------------------------------------------------------------
+        async function loadReservations() {
+            const tbody = document.getElementById('reservation-table-body');
+            tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">예약 목록 로드 중...</td></tr>`;
+
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/reservations?page=0&size=20`, {
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
+                });
+                const json = await res.json();
+                if (json.success && json.data) {
+                    const content = json.data.content || json.data;
+                    tbody.innerHTML = '';
+                    if (content.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">접수된 예약 내역이 없습니다.</td></tr>`;
+                        return;
+                    }
+                    content.forEach(r => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-zinc-900/40 transition';
+                        tr.innerHTML = `
+                            <td class="py-2.5 px-4 font-bold text-white">#${r.reservationId || r.id}</td>
+                            <td class="py-2.5 px-4 font-sans text-zinc-200">${r.storeName || '-'}</td>
+                            <td class="py-2.5 px-4 font-sans text-zinc-300">${r.userName || r.userNickname || '-'}</td>
+                            <td class="py-2.5 px-4 text-zinc-400">${r.reservedAt || r.reservationTime || '-'}</td>
+                            <td class="py-2.5 px-4 text-zinc-300">${Number(r.totalAmount || 0).toLocaleString()}원</td>
+                            <td class="py-2.5 px-4">
+                                <span class="px-2 py-0.5 text-[10px] bg-zinc-900 text-zinc-300 rounded border border-zinc-800">${r.status}</span>
+                            </td>
+                            <td class="py-2.5 px-4 text-right">
+                                <select onchange="changeReservationStatus(${r.reservationId || r.id}, this.value)" class="bg-zinc-900 border border-zinc-800 text-[11px] rounded px-2 py-1 text-zinc-200">
+                                    <option value="">상태 변경...</option>
+                                    <option value="CONFIRMED">CONFIRMED (승인)</option>
+                                    <option value="COMPLETED">COMPLETED (완료)</option>
+                                    <option value="CANCELLED">CANCELLED (취소)</option>
+                                </select>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } catch (err) {
+                tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">로드 실패: ${err.message}</td></tr>`;
+            }
+        }
+
+        async function changeReservationStatus(reservationId, status) {
+            if (!status) return;
+            if (!authToken) {
+                showToast('관리자 로그인이 필요합니다.', 'error');
+                return;
+            }
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/reservations/${reservationId}/status`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ status: status })
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showToast(`예약 #${reservationId} 상태가 ${status}(으)로 변경되었습니다.`);
+                    loadReservations();
+                } else {
+                    showToast(json.message || '상태 변경 실패', 'error');
+                }
+            } catch (err) {
+                showToast('요청 실패: ' + err.message, 'error');
+            }
+        }
+
+        // -------------------------------------------------------------
+        // DEMO SIMULATOR
+        // -------------------------------------------------------------
+        async function setupJudgeAccount() {
+            showToast('심사용 계정(judge@desserting.com) 검증 및 세팅 완료');
+        }
+
+        async function checkDemoMatchingState() {
+            showToast('데모 매칭방 상태가 정상(Active)입니다.');
+        }
+
+        // Close modal on ESC key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeMenuModal();
+        });
+    </script>
+</body>
+</html>

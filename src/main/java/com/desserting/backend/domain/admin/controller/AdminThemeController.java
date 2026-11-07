@@ -60,4 +60,24 @@ public class AdminThemeController {
         ThemeStreetResponse response = adminThemeService.updateThemeStreet(themeId, request);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
+    @Operation(summary = "테마거리에 제휴매장 추가 (플랫폼 관리자, ADM-04)")
+    @PostMapping("/{themeId}/stores/{storeId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ThemeStreetResponse>> assignStore(
+            @PathVariable Long themeId,
+            @PathVariable Long storeId) {
+        ThemeStreetResponse response = adminThemeService.assignStoreToThemeStreet(themeId, storeId);
+        return ResponseEntity.ok(ApiResponse.success("매장이 테마거리에 추가되었습니다.", response));
+    }
+
+    @Operation(summary = "테마거리에서 제휴매장 제거 (플랫폼 관리자, ADM-04)")
+    @DeleteMapping("/{themeId}/stores/{storeId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ThemeStreetResponse>> removeStore(
+            @PathVariable Long themeId,
+            @PathVariable Long storeId) {
+        ThemeStreetResponse response = adminThemeService.removeStoreFromThemeStreet(themeId, storeId);
+        return ResponseEntity.ok(ApiResponse.success("매장이 테마거리에서 제거되었습니다.", response));
+    }
 }

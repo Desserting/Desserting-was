@@ -1,11 +1,14 @@
 package com.desserting.backend.domain.admin.dto;
 
+import com.desserting.backend.domain.store.entity.Store;
 import com.desserting.backend.domain.theme.entity.ThemeStreet;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
 
 @Getter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
@@ -41,7 +44,34 @@ public class ThemeStreetResponse {
     @Schema(description = "등록 일시")
     private LocalDateTime createdAt;
 
+    @Schema(description = "소속 제휴 매장 목록")
+    private List<StoreSummary> stores;
+
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class StoreSummary {
+        private Long storeId;
+        private String name;
+        private String address;
+        private Boolean isPartner;
+    }
+
     public static ThemeStreetResponse from(ThemeStreet themeStreet) {
+        return from(themeStreet, Collections.emptyList());
+    }
+
+    public static ThemeStreetResponse from(ThemeStreet themeStreet, List<Store> stores) {
+        List<StoreSummary> storeSummaries = stores != null ? stores.stream()
+                .map(s -> StoreSummary.builder()
+                        .storeId(s.getId())
+                        .name(s.getName())
+                        .address(s.getAddress())
+                        .isPartner(s.getIsPartner())
+                        .build())
+                .toList() : Collections.emptyList();
+
         return ThemeStreetResponse.builder()
                 .id(themeStreet.getId())
                 .name(themeStreet.getName())
@@ -52,6 +82,7 @@ public class ThemeStreetResponse {
                 .coverImageUrl(themeStreet.getCoverImageUrl())
                 .isActive(themeStreet.getIsActive())
                 .createdAt(themeStreet.getCreatedAt())
+                .stores(storeSummaries)
                 .build();
     }
 }

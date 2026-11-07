@@ -80,4 +80,12 @@ public class Store extends BaseTimeEntity {
     public void updateDiscountNotice(String partnerDiscountNotice) {
         this.partnerDiscountNotice = partnerDiscountNotice;
     }
+
+    public void assignThemeStreet(ThemeStreet themeStreet) {
+        this.themeStreet = themeStreet;
+    }
+
+    public void removeThemeStreet() {
+        this.themeStreet = null;
+    }
 }

@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.desserting.backend.domain.store.entity.Store;
+import com.desserting.backend.domain.store.repository.StoreRepository;
 import java.util.List;
 
 @Slf4j
@@ -20,6 +22,7 @@ import java.util.List;
 public class AdminThemeService {
 
     private final ThemeStreetRepository themeStreetRepository;
+    private final StoreRepository storeRepository;
 
     @Transactional
     public ThemeStreetResponse createThemeStreet(ThemeStreetCreateRequest request) {
@@ -35,20 +38,24 @@ public class AdminThemeService {
 
         ThemeStreet saved = themeStreetRepository.save(themeStreet);
         log.info("테마거리 등록 완료: themeId={}, name={}", saved.getId(), saved.getName());
-        return ThemeStreetResponse.from(saved);
+        return ThemeStreetResponse.from(saved, List.of());
     }
 
     @Transactional(readOnly = true)
     public ThemeStreetResponse getThemeStreet(Long themeId) {
         ThemeStreet themeStreet = themeStreetRepository.findById(themeId)
                 .orElseThrow(() -> new CustomException(ErrorCode.THEME_STREET_NOT_FOUND));
-        return ThemeStreetResponse.from(themeStreet);
+        List<Store> stores = storeRepository.findAllByThemeStreetIdAndIsPartnerTrue(themeId);
+        return ThemeStreetResponse.from(themeStreet, stores);
     }
 
     @Transactional(readOnly = true)
     public List<ThemeStreetResponse> getAllThemeStreets() {
         return themeStreetRepository.findAll().stream()
-                .map(ThemeStreetResponse::from)
+                .map(theme -> {
+                    List<Store> stores = storeRepository.findAllByThemeStreetIdAndIsPartnerTrue(theme.getId());
+                    return ThemeStreetResponse.from(theme, stores);
+                })
                 .toList();
     }
 
@@ -68,6 +75,35 @@ public class AdminThemeService {
         );
 
         log.info("테마거리 수정 완료: themeId={}, name={}", themeStreet.getId(), themeStreet.getName());
-        return ThemeStreetResponse.from(themeStreet);
+        List<Store> stores = storeRepository.findAllByThemeStreetIdAndIsPartnerTrue(themeId);
+        return ThemeStreetResponse.from(themeStreet, stores);
+    }
+
+    @Transactional
+    public ThemeStreetResponse assignStoreToThemeStreet(Long themeId, Long storeId) {
+        ThemeStreet themeStreet = themeStreetRepository.findById(themeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.THEME_STREET_NOT_FOUND));
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
+
+        store.assignThemeStreet(themeStreet);
+        log.info("테마거리에 매장 추가 완료: themeId={}, storeId={}, storeName={}", themeId, storeId, store.getName());
+        List<Store> stores = storeRepository.findAllByThemeStreetIdAndIsPartnerTrue(themeId);
+        return ThemeStreetResponse.from(themeStreet, stores);
+    }
+
+    @Transactional
+    public ThemeStreetResponse removeStoreFromThemeStreet(Long themeId, Long storeId) {
+        ThemeStreet themeStreet = themeStreetRepository.findById(themeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.THEME_STREET_NOT_FOUND));
+        Store store = storeRepository.findById(storeId)
+                .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
+
+        if (store.getThemeStreet() != null && store.getThemeStreet().getId().equals(themeId)) {
+            store.removeThemeStreet();
+            log.info("테마거리에서 매장 제거 완료: themeId={}, storeId={}, storeName={}", themeId, storeId, store.getName());
+        }
+        List<Store> stores = storeRepository.findAllByThemeStreetIdAndIsPartnerTrue(themeId);
+        return ThemeStreetResponse.from(themeStreet, stores);
     }
 }

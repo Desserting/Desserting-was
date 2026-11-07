@@ -61,6 +61,8 @@ services:
     restart: unless-stopped
     ports:
       - "${PORT:-8080}:8080"
+    volumes:
+      - /var/www/desserting-images:/var/www/desserting-images
     environment:
       - SPRING_PROFILES_ACTIVE=local
       - POSTGRES_HOST=postgres

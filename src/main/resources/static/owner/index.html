@@ -482,12 +482,13 @@
 
         // Real-Time WebSocket (STOMP) Connection
         function connectStoreWebSocket() {
-            if (!myStore) return;
+            if (!myStore || !authToken) return;
             try {
                 const socket = new SockJS(`${API_BASE}/ws`);
                 stompClient = Stomp.over(socket);
                 stompClient.debug = null; // Quiet console
-                stompClient.connect({}, () => {
+                const headers = { 'Authorization': `Bearer ${authToken}` };
+                stompClient.connect(headers, () => {
                     console.log('[Owner WebSocket] Connected to store channel:', myStore.storeId);
                     stompClient.subscribe(`/sub/stores/${myStore.storeId}/reservations`, (message) => {
                         const event = JSON.parse(message.body);
@@ -500,8 +501,8 @@
                         loadStoreReservations();
                     });
                 }, (err) => {
-                    console.warn('[Owner WebSocket] Disconnected, retry in 5s', err);
-                    setTimeout(connectStoreWebSocket, 5000);
+                    console.warn('[Owner WebSocket] Disconnected, retry in 10s', err);
+                    setTimeout(connectStoreWebSocket, 10000);
                 });
             } catch (e) {
                 console.warn('WebSocket init failed', e);
@@ -652,7 +653,7 @@
             tbody.innerHTML = `<tr><td colspan="7" class="py-6 text-center text-zinc-500 font-mono">메뉴 목록 로딩 중...</td></tr>`;
 
             try {
-                const res = await fetch(`${API_BASE}/api/v1/stores/${myStore.storeId}`, {
+                const res = await fetch(`${API_BASE}/api/v1/admin/stores/${myStore.storeId}`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 const json = await res.json();
@@ -982,7 +983,7 @@
         async function loadStoreProfile() {
             if (!myStore || !authToken) return;
             try {
-                const res = await fetch(`${API_BASE}/api/v1/stores/${myStore.storeId}`, {
+                const res = await fetch(`${API_BASE}/api/v1/admin/stores/${myStore.storeId}`, {
                     headers: { 'Authorization': `Bearer ${authToken}` }
                 });
                 const json = await res.json();

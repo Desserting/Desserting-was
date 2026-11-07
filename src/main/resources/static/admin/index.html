@@ -356,12 +356,12 @@
                          ondrop="handleFileDrop(event)"
                          class="border-2 border-dashed border-zinc-800 hover:border-zinc-500 rounded p-4 text-center cursor-pointer transition bg-zinc-950/80 hover:bg-zinc-900/50 group flex flex-col items-center justify-center gap-1.5 min-h-[90px]">
                         <input type="file" id="menu-file-input" accept="image/png,image/jpeg,image/webp,image/gif" class="hidden" onchange="handleFileSelect(this.files)">
-                        <div id="dropzone-idle" class="flex flex-col items-center gap-1 pointer-events-none">
+                        <div id="dropzone-idle" class="flex flex-col items-center gap-1.5 pointer-events-none">
                             <i data-lucide="upload-cloud" class="w-5 h-5 text-zinc-500 group-hover:text-white transition"></i>
                             <p class="text-xs text-zinc-300">
-                                <span class="font-semibold text-white underline underline-offset-2">파일 탐색기 열기</span> 또는 이미지를 여기로 드래그 & 드롭
+                                <span class="font-semibold text-white underline underline-offset-2">파일 선택</span>, 드래그 & 드롭 또는 <span class="px-1.5 py-0.5 bg-zinc-900 border border-zinc-700 rounded font-mono text-[10px] text-zinc-200">Ctrl+V / Cmd+V</span> 붙여넣기
                             </p>
-                            <span class="text-[10px] text-zinc-500 font-mono">JPG, PNG, WEBP, GIF (자동 운영서버 업로드)</span>
+                            <span class="text-[10px] text-zinc-500 font-mono">인터넷 이미지 복사 후 바로 붙여넣기 가능 (JPG, PNG, WEBP)</span>
                         </div>
                         <div id="dropzone-uploading" class="hidden flex items-center gap-2 text-xs text-zinc-300 font-mono pointer-events-none">
                             <i data-lucide="loader-2" class="w-4 h-4 animate-spin text-white"></i>
@@ -807,6 +807,43 @@
                 lucide.createIcons();
             }
         }
+
+        // Clipboard Paste Handler (Ctrl+V / Cmd+V Image & URL Paste)
+        document.addEventListener('paste', (e) => {
+            const modal = document.getElementById('modal-menu');
+            if (!modal || modal.classList.contains('hidden')) return;
+
+            const items = (e.clipboardData || window.clipboardData)?.items;
+            if (!items) return;
+
+            // 1. Check for raw Image File/Blob (copied image from browser or screenshot)
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].type && items[i].type.startsWith('image/')) {
+                    const blob = items[i].getAsFile();
+                    if (blob) {
+                        e.preventDefault();
+                        const ext = blob.type.split('/')[1] || 'png';
+                        const file = new File([blob], `pasted_image_${Date.now()}.${ext}`, { type: blob.type });
+                        showToast('클립보드 이미지 감지! 자동 업로드 중...');
+                        uploadImageFile(file);
+                        return;
+                    }
+                }
+            }
+
+            // 2. If focus is NOT on text input fields, check if pasted text is an image URL
+            const activeEl = document.activeElement;
+            const isTextInput = activeEl && (activeEl.id === 'input-menu-name' || activeEl.id === 'input-menu-price' || activeEl.id === 'input-menu-desc');
+            if (!isTextInput) {
+                const text = e.clipboardData?.getData('text/plain')?.trim();
+                if (text && text.startsWith('http') && (text.match(/\.(jpeg|jpg|png|webp|gif)($|\?)/i) || text.includes('/images/'))) {
+                    e.preventDefault();
+                    document.getElementById('input-menu-image-url').value = text;
+                    updateImagePreview(text);
+                    showToast('이미지 URL이 붙여넣기되었습니다.');
+                }
+            }
+        });
 
         // Modal Controls
         function openMenuCreateModal() {

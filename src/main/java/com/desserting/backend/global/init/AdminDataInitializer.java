@@ -368,8 +368,8 @@ public class AdminDataInitializer implements CommandLineRunner {
         themeStreetRepository.save(apsan);
 
         ThemeStreet dongseongro = ThemeStreet.builder()
-                .name("동성로 통신골목 카페거리")
-                .description("대구 중심 번화가 동성로의 푸딩, 빙수 및 트렌디한 디저트 핫플레이스")
+                .name("삼덕동 카페골목")
+                .description("대구 중구 삼덕동 및 동성로 일대의 푸딩, 빙수 및 트렌디한 디저트 핫플레이스")
                 .boundaryPolygonJson("{\"type\":\"Polygon\",\"coordinates\":[[[128.5940,35.8712],[128.5995,35.8715],[128.6025,35.8695],[128.6030,35.8665],[128.6005,35.8640],[128.5960,35.8645],[128.5935,35.8680],[128.5940,35.8712]]]}")
                 .centerLatitude(new BigDecimal("35.8687000"))
                 .centerLongitude(new BigDecimal("128.5982000"))
@@ -379,7 +379,7 @@ public class AdminDataInitializer implements CommandLineRunner {
         themeStreetRepository.save(dongseongro);
 
         ThemeStreet kimGwangseok = ThemeStreet.builder()
-                .name("김광석 다시그리기길 카페거리")
+                .name("김광석 다시그리기길")
                 .description("대구 중구 대봉동 감성 골목과 스페셜티 에스프레소 바 밀집 지역")
                 .boundaryPolygonJson("{\"type\":\"Polygon\",\"coordinates\":[[[128.6070,35.8648],[128.6095,35.8640],[128.6085,35.8605],[128.6075,35.8575],[128.6045,35.8580],[128.6050,35.8615],[128.6055,35.8645],[128.6070,35.8648]]]}")
                 .centerLatitude(new BigDecimal("35.8615000"))

@@ -183,9 +183,14 @@
                     <h2 class="text-base font-bold text-white tracking-tight">테마거리 영역 및 폴리곤 관리</h2>
                     <p class="text-xs text-zinc-500 mt-0.5">앞산 카페거리, 동성로 등 테마거리의 8포인트 정밀 다각형 좌표와 정보를 관리합니다.</p>
                 </div>
-                <button onclick="loadThemeStreets()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded transition flex items-center gap-1.5">
-                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 새로고침
-                </button>
+                <div class="flex items-center gap-2">
+                    <button onclick="loadThemeStreets()" class="px-3 py-1.5 text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded transition flex items-center gap-1.5">
+                        <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 새로고침
+                    </button>
+                    <button onclick="openThemeCreateModal()" class="px-3 py-1.5 text-xs bg-white text-black font-semibold rounded hover:bg-zinc-200 transition flex items-center gap-1.5 shadow-sm">
+                        <i data-lucide="plus" class="w-3.5 h-3.5"></i> 신규 테마거리 등록
+                    </button>
+                </div>
             </div>
             <div id="theme-streets-list" class="space-y-4">
                 <!-- Dynamic Theme Cards -->
@@ -491,12 +496,84 @@
         </div>
     </div>
 
+    <!-- ========================================================== -->
+    <!-- MODAL: THEME STREET CREATE / EDIT MODAL                    -->
+    <!-- ========================================================== -->
+    <div id="modal-theme" onclick="if(event.target === this) closeThemeModal()" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+        <div class="bg-zinc-950 border border-zinc-700 w-full max-w-xl rounded-lg shadow-2xl p-6 space-y-5 animate-in fade-in duration-150">
+            <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
+                <h3 id="modal-theme-title" class="text-sm font-bold text-white tracking-tight">테마거리 정보 수정</h3>
+                <button type="button" onclick="closeThemeModal()" class="text-zinc-500 hover:text-white transition">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+
+            <form id="form-theme" onsubmit="handleThemeSubmit(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="theme-form-id" value="">
+
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">테마거리 명칭 *</label>
+                    <input id="input-theme-name" type="text" required placeholder="예: 삼덕동 카페골목"
+                           class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
+                </div>
+
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">테마거리 소개</label>
+                    <textarea id="input-theme-desc" rows="2" placeholder="테마거리의 특징과 소개 문구를 입력하세요."
+                              class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">중심 위도 (Latitude) *</label>
+                        <input id="input-theme-lat" type="number" step="0.0000001" required placeholder="35.8687000"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
+                    </div>
+                    <div>
+                        <label class="block font-mono text-zinc-400 mb-1">중심 경도 (Longitude) *</label>
+                        <input id="input-theme-lng" type="number" step="0.0000001" required placeholder="128.5982000"
+                               class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">대표 커버 이미지 URL</label>
+                    <input id="input-theme-cover" type="url" placeholder="https://..."
+                           class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
+                </div>
+
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">지도 점선 구역 GeoJSON (Polygon Coordinates) *</label>
+                    <textarea id="input-theme-polygon" rows="5" required placeholder='{"type":"Polygon","coordinates":[[[128.594, 35.8712], ...]]}'
+                              class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-zinc-200 transition font-mono text-[11px] leading-relaxed"></textarea>
+                    <span class="text-[10px] text-zinc-500 font-mono mt-1 block">GeoJSON Polygon 형태 또는 좌표 배열 JSON</span>
+                </div>
+
+                <div class="flex items-center gap-2 pt-1">
+                    <input id="input-theme-active" type="checkbox" class="w-4 h-4 rounded bg-zinc-900 border-zinc-700 text-white focus:ring-0 focus:ring-offset-0 cursor-pointer">
+                    <label for="input-theme-active" class="font-mono text-zinc-300 cursor-pointer select-none">운영 활성화 (앱 지도에 노출)</label>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
+                    <button type="button" onclick="closeThemeModal()" class="px-3 py-2 bg-zinc-900 hover:bg-zinc-800 text-zinc-300 rounded transition font-medium">
+                        취소
+                    </button>
+                    <button id="btn-theme-submit" type="submit" class="px-4 py-2 bg-white text-black hover:bg-zinc-200 rounded transition font-semibold">
+                        저장하기
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- SCRIPT LOGIC -->
     <script>
         // Global State & Client-side In-Memory Cache
         const API_BASE = window.location.origin;
         let authToken = localStorage.getItem('desserting_admin_token') || '';
         let currentStores = [];
+        let currentThemeStreets = [];
         let selectedStoreId = null;
         const storeDetailCache = new Map();
 
@@ -1176,6 +1253,7 @@
                 });
                 const json = await res.json();
                 if (json.success && json.data) {
+                    currentThemeStreets = json.data;
                     list.innerHTML = '';
                     json.data.forEach(t => {
                         const rawPoly = t.boundaryPolygonJson || t.polygonJson || '';
@@ -1227,6 +1305,9 @@
                                     <span>중심: (${Number(t.centerLatitude).toFixed(4)}, ${Number(t.centerLongitude).toFixed(4)})</span>
                                     <span class="text-zinc-600">|</span>
                                     <span class="text-zinc-300 font-semibold">${t.isActive ? '운영중' : '비활성'}</span>
+                                    <button onclick="openThemeEditModal(${t.id})" class="px-2.5 py-1 text-[11px] font-mono bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded transition flex items-center gap-1.5 ml-1">
+                                        <i data-lucide="edit-2" class="w-3 h-3"></i> 정보 수정
+                                    </button>
                                 </div>
                             </div>
                             <p class="text-xs text-zinc-400">${t.description || '설명 없음'}</p>
@@ -1322,6 +1403,145 @@
                 }
             } catch (err) {
                 showToast('제외 요청 실패: ' + err.message, 'error');
+            }
+        }
+
+        // -------------------------------------------------------------
+        // THEME STREET MODAL (CREATE / EDIT)
+        // -------------------------------------------------------------
+        function openThemeCreateModal() {
+            document.getElementById('modal-theme-title').innerText = '신규 테마거리 등록';
+            document.getElementById('btn-theme-submit').innerText = '신규 등록';
+            document.getElementById('theme-form-id').value = '';
+            document.getElementById('input-theme-name').value = '';
+            document.getElementById('input-theme-desc').value = '';
+            document.getElementById('input-theme-lat').value = '';
+            document.getElementById('input-theme-lng').value = '';
+            document.getElementById('input-theme-cover').value = '';
+            document.getElementById('input-theme-polygon').value = '';
+            document.getElementById('input-theme-active').checked = true;
+
+            const modal = document.getElementById('modal-theme');
+            modal.classList.remove('hidden');
+            setTimeout(() => document.getElementById('input-theme-name').focus(), 50);
+        }
+
+        function openThemeEditModal(themeId) {
+            const theme = currentThemeStreets.find(t => t.id === themeId);
+            if (!theme) {
+                showToast('테마거리 정보를 찾을 수 없습니다.', 'error');
+                return;
+            }
+
+            document.getElementById('modal-theme-title').innerText = `테마거리 정보 수정 - ${theme.name}`;
+            document.getElementById('btn-theme-submit').innerText = '수정 저장';
+            document.getElementById('theme-form-id').value = theme.id;
+            document.getElementById('input-theme-name').value = theme.name || '';
+            document.getElementById('input-theme-desc').value = theme.description || '';
+            document.getElementById('input-theme-lat').value = theme.centerLatitude != null ? theme.centerLatitude : '';
+            document.getElementById('input-theme-lng').value = theme.centerLongitude != null ? theme.centerLongitude : '';
+            document.getElementById('input-theme-cover').value = theme.coverImageUrl || '';
+
+            const rawPoly = theme.boundaryPolygonJson || theme.polygonJson || '';
+            if (rawPoly) {
+                try {
+                    document.getElementById('input-theme-polygon').value = JSON.stringify(JSON.parse(rawPoly), null, 2);
+                } catch (e) {
+                    document.getElementById('input-theme-polygon').value = rawPoly;
+                }
+            } else {
+                document.getElementById('input-theme-polygon').value = '';
+            }
+
+            document.getElementById('input-theme-active').checked = theme.isActive !== false;
+
+            const modal = document.getElementById('modal-theme');
+            modal.classList.remove('hidden');
+            setTimeout(() => document.getElementById('input-theme-name').focus(), 50);
+        }
+
+        function closeThemeModal() {
+            document.getElementById('modal-theme').classList.add('hidden');
+        }
+
+        async function handleThemeSubmit(e) {
+            e.preventDefault();
+            if (!authToken) {
+                showToast('관리자 로그인이 필요합니다.', 'error');
+                return;
+            }
+
+            const id = document.getElementById('theme-form-id').value;
+            const isEdit = Boolean(id);
+            const name = document.getElementById('input-theme-name').value.trim();
+            const description = document.getElementById('input-theme-desc').value.trim();
+            const latVal = document.getElementById('input-theme-lat').value.trim();
+            const lngVal = document.getElementById('input-theme-lng').value.trim();
+            const coverImageUrl = document.getElementById('input-theme-cover').value.trim() || null;
+            const polyText = document.getElementById('input-theme-polygon').value.trim();
+            const isActive = document.getElementById('input-theme-active').checked;
+
+            if (!name) {
+                showToast('테마거리 명칭을 입력해주세요.', 'error');
+                return;
+            }
+
+            if (!latVal || !lngVal) {
+                showToast('중심 위도와 경도를 모두 입력해주세요.', 'error');
+                return;
+            }
+
+            // Compact JSON verification
+            let boundaryPolygonJson = polyText;
+            if (polyText) {
+                try {
+                    const parsed = JSON.parse(polyText);
+                    boundaryPolygonJson = JSON.stringify(parsed);
+                } catch (err) {
+                    showToast('다각형 좌표 GeoJSON 형식이 올바르지 않습니다.', 'error');
+                    return;
+                }
+            }
+
+            const payload = {
+                name: name,
+                description: description || null,
+                centerLatitude: parseFloat(latVal),
+                centerLongitude: parseFloat(lngVal),
+                coverImageUrl: coverImageUrl,
+                boundaryPolygonJson: boundaryPolygonJson || null,
+                isActive: isActive
+            };
+
+            const btn = document.getElementById('btn-theme-submit');
+            btn.disabled = true;
+            btn.innerText = '저장 중...';
+
+            try {
+                const url = isEdit ? `${API_BASE}/api/v1/admin/themes/${id}` : `${API_BASE}/api/v1/admin/themes`;
+                const method = isEdit ? 'PATCH' : 'POST';
+
+                const res = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if (json.success) {
+                    showToast(isEdit ? `'${name}' 테마거리가 성공적으로 수정되었습니다.` : `'${name}' 테마거리가 새로 등록되었습니다.`);
+                    closeThemeModal();
+                    await loadThemeStreets();
+                } else {
+                    showToast(json.message || '테마거리 저장 실패', 'error');
+                }
+            } catch (err) {
+                showToast('테마거리 저장 통신 오류: ' + err.message, 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = isEdit ? '수정 저장' : '신규 등록';
             }
         }
 
@@ -1549,6 +1769,7 @@
             if (e.key === 'Escape') {
                 closeMenuModal();
                 closeStoreModal();
+                closeThemeModal();
             }
         });
     </script>

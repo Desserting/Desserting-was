@@ -49,6 +49,9 @@ public class AdminUserResponse {
     @Schema(description = "선호 디저트 태그 목록")
     private List<DessertType> dessertTypes;
 
+    @Schema(description = "더미 유저 여부", example = "false")
+    private Boolean isDummy;
+
     @Schema(description = "가입 일시")
     private LocalDateTime createdAt;
 
@@ -67,6 +70,7 @@ public class AdminUserResponse {
                 .dessertTypes(user.getDessertTags().stream()
                         .map(UserDessertTag::getDessertType)
                         .toList())
+                .isDummy(Boolean.TRUE.equals(user.getIsDummy()))
                 .createdAt(user.getCreatedAt())
                 .build();
     }

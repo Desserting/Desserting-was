@@ -51,6 +51,10 @@ public class User extends BaseTimeEntity {
     @Builder.Default
     private Boolean isPremium = false;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean isDummy = false;
+
     @Column(length = 500)
     private String dessertAvatarUrl;
 

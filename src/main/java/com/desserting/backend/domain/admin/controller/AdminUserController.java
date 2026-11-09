@@ -23,6 +23,23 @@ import java.util.List;
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
+    private final com.desserting.backend.domain.matching.service.MatchingConfigService matchingConfigService;
+
+    @Operation(summary = "랜덤 매칭 더미 유저 활성화 여부 조회 (관리자)", description = "랜덤 매칭 시 더미 유저 포함 여부를 조회합니다.")
+    @GetMapping("/dummy-config")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Boolean>>> getDummyMatchConfig() {
+        boolean enabled = matchingConfigService.isDummyMatchEnabled();
+        return ResponseEntity.ok(ApiResponse.success(java.util.Map.of("dummyMatchEnabled", enabled)));
+    }
+
+    @Operation(summary = "랜덤 매칭 더미 유저 활성화 여부 토글 (관리자)", description = "랜덤 매칭 시 더미 유저 포함 여부를 ON/OFF 토글합니다.")
+    @PostMapping("/toggle-dummy")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Boolean>>> toggleDummyMatch() {
+        boolean nextState = matchingConfigService.toggleDummyMatch();
+        return ResponseEntity.ok(ApiResponse.success("더미 유저 매칭 설정이 변경되었습니다.", java.util.Map.of("dummyMatchEnabled", nextState)));
+    }
 
     @Operation(summary = "전체 사용자 목록 조회 (관리자, ADM-USER)", description = "등록된 전체 사용자(회원, 점주, 관리자) 목록과 보유 하트 수를 조회합니다.")
     @GetMapping

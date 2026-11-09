@@ -57,6 +57,8 @@ class MatchingServiceTest {
     private UserBlockRepository userBlockRepository;
     @Mock
     private ChatRoomMemberRepository chatRoomMemberRepository;
+    @Mock
+    private MatchingConfigService matchingConfigService;
 
     @InjectMocks
     private MatchingService matchingService;

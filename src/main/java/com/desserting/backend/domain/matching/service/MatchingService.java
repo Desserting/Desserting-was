@@ -55,6 +55,7 @@ public class MatchingService {
     private final UserLikeRepository userLikeRepository;
     private final UserBlockRepository userBlockRepository;
     private final ChatRoomMemberRepository chatRoomMemberRepository;
+    private final MatchingConfigService matchingConfigService;
 
     /**
      * 조건에 맞는 랜덤 상대 1명을 반환한다. 다시 호출하면 다음 상대(MAT-03).
@@ -125,7 +126,10 @@ public class MatchingService {
         // 내가 차단했거나 나를 차단한 사용자는 제외 (SEC-01)
         Set<Long> blocked = new HashSet<>(matchCandidateRepository.findBlockRelatedUserIds(userId));
         Set<Long> activeChatPartners = new HashSet<>(chatRoomMemberRepository.findActivePartnerUserIds(userId));
+        boolean allowDummy = matchingConfigService.isDummyMatchEnabled();
+
         List<User> candidates = pool.stream()
+                .filter(c -> allowDummy || !Boolean.TRUE.equals(c.getIsDummy()))
                 .filter(c -> !blocked.contains(c.getId()))
                 .filter(c -> !activeChatPartners.contains(c.getId()))
                 .filter(c -> isOppositeGender(me, c))

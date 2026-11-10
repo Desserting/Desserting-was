@@ -59,9 +59,9 @@
                     <span class="w-2 h-2 rounded-full bg-zinc-600" id="auth-dot"></span>
                     <span id="auth-user-text">인증 대기 중</span>
                 </div>
-                <button id="btn-admin-login" onclick="quickAdminLogin()" class="px-3 py-1.5 text-xs font-medium bg-white text-black hover:bg-zinc-200 transition rounded border border-white flex items-center gap-1.5">
-                    <i data-lucide="key" class="w-3.5 h-3.5"></i>
-                    <span>관리자 원클릭 로그인</span>
+                <button id="btn-admin-login" onclick="openLoginModal()" class="px-3 py-1.5 text-xs font-medium bg-white text-black hover:bg-zinc-200 transition rounded border border-white flex items-center gap-1.5">
+                    <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+                    <span>로그인</span>
                 </button>
                 <button id="btn-logout" onclick="logout()" class="hidden px-2.5 py-1.5 text-xs text-zinc-400 hover:text-white hover:bg-zinc-900 rounded border border-zinc-800 transition">
                     로그아웃
@@ -690,6 +690,37 @@
         </div>
     </div>
 
+    <!-- ============================================================== -->
+    <!-- MODAL: ADMIN LOGIN                                             -->
+    <!-- ============================================================== -->
+    <div id="modal-login" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+        <div class="bg-zinc-950 border border-zinc-800 rounded-xl max-w-sm w-full p-6 shadow-2xl relative space-y-5 animate-in fade-in zoom-in duration-150">
+            <div class="text-center space-y-1">
+                <div class="inline-flex w-10 h-10 bg-white text-black font-black items-center justify-center rounded text-base font-mono mb-2">D</div>
+                <h3 class="text-base font-bold text-white font-mono">ADMIN LOGIN</h3>
+                <p class="text-xs text-zinc-400">관리자 계정으로 로그인하여 콘솔에 접속하세요.</p>
+            </div>
+
+            <form onsubmit="handleManualLogin(event)" class="space-y-4 text-xs">
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">관리자 이메일</label>
+                    <input id="login-email" type="email" required autocomplete="username" placeholder="admin@desserting.com"
+                           class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white font-mono transition">
+                </div>
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1">비밀번호</label>
+                    <input id="login-password" type="password" required autocomplete="current-password" placeholder="••••••••"
+                           class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white font-mono transition">
+                </div>
+                <div class="pt-2">
+                    <button id="btn-submit-login" type="submit" class="w-full py-2.5 bg-white text-black hover:bg-zinc-200 rounded font-semibold transition flex items-center justify-center gap-1.5 font-mono text-xs">
+                        <i data-lucide="log-in" class="w-3.5 h-3.5"></i> 로그인
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- SCRIPT LOGIC -->
     <script>
         // Global State & Client-side In-Memory Cache
@@ -728,7 +759,7 @@
             renderMenuTableSkeleton();
 
             if (!authToken || isTokenExpired(authToken)) {
-                await quickAdminLogin();
+                openLoginModal();
             } else {
                 checkAuth();
                 loadStoreList();
@@ -800,30 +831,53 @@
             if (tabId === 'users') loadUsers();
         }
 
-        // Quick Admin Login
-        async function quickAdminLogin() {
+        function openLoginModal() {
+            document.getElementById('modal-login').classList.remove('hidden');
+            document.getElementById('login-email').focus();
+            lucide.createIcons();
+        }
+
+        function closeLoginModal() {
+            document.getElementById('modal-login').classList.add('hidden');
+        }
+
+        // Manual Admin Login
+        async function handleManualLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value.trim();
+            const password = document.getElementById('login-password').value;
+            const submitBtn = document.getElementById('btn-submit-login');
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = `<i data-lucide="loader-2" class="w-3.5 h-3.5 animate-spin"></i> 로그인 중...`;
+
             try {
                 const res = await fetch(`${API_BASE}/api/v1/auth/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email: 'admin@desserting.com', password: 'admin1234!' })
+                    body: JSON.stringify({ email, password })
                 });
                 const data = await res.json();
                 if (data.success && data.data?.accessToken) {
                     authToken = data.data.accessToken;
                     localStorage.setItem('desserting_admin_token', authToken);
-                    checkAuth();
-                    showToast('관리자(admin@desserting.com) 세션 연결 성공');
+                    closeLoginModal();
+                    checkAuth(email);
+                    showToast(`관리자(${email}) 로그인 성공`);
                     loadStoreList();
                 } else {
-                    showToast(data.message || '로그인 실패', 'error');
+                    showToast(data.message || '로그인 실패: 아이디 또는 비밀번호를 확인하세요.', 'error');
                 }
             } catch (err) {
                 showToast('로그인 요청 중 오류 발생: ' + err.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = `<i data-lucide="log-in" class="w-3.5 h-3.5"></i> 로그인`;
+                lucide.createIcons();
             }
         }
 
-        function checkAuth() {
+        function checkAuth(emailOverride) {
             const dot = document.getElementById('auth-dot');
             const txt = document.getElementById('auth-user-text');
             const loginBtn = document.getElementById('btn-admin-login');
@@ -831,7 +885,7 @@
 
             if (authToken) {
                 dot.className = 'w-2 h-2 rounded-full bg-white';
-                txt.textContent = 'ADMIN ON (admin@desserting.com)';
+                txt.textContent = emailOverride ? `ADMIN ON (${emailOverride})` : 'ADMIN ON';
                 txt.className = 'text-xs text-white font-mono font-semibold';
                 loginBtn.classList.add('hidden');
                 logoutBtn.classList.remove('hidden');

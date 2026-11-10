@@ -64,3 +64,5 @@ docs/notion/
 
 .playwright-mcp/
 skills/
+
+bin/

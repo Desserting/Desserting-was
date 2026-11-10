@@ -203,3 +203,92 @@ Desserting은 **"좋아하는 디저트"라는 가벼운 공통점**으로 첫 �
 ---
 
 
+## 실행 방법
+
+필요한 것: JDK 21, Docker, Docker Compose
+
+```bash
+# 1. 환경 변수 준비 (필요하면 값 수정)
+cp .env.example .env
+
+# 2. 인프라 실행 (PostgreSQL, MongoDB, Redis, Ollama)
+docker compose up -d postgres mongodb redis ollama
+
+# 3. AI 모델 내려받기
+docker exec desserting-ollama ollama pull qwen2.5:3b
+
+# 4. 서버 실행
+./gradlew bootRun
+```
+
+백엔드까지 Docker로 한 번에 실행하려면 `docker compose up -d --build`를 사용합니다.
+
+실행 후 `http://localhost:8080/swagger-ui/index.html`에서 API 문서를 확인할 수 있습니다. `local` 프로필에서는 시작할 때 관리자 계정과 데모 데이터가 자동으로 생성됩니다.
+
+---
+
+## 프로젝트 구조
+
+도메인별로 패키지를 나누고, 각 도메인 안에서 `controller` · `service` · `repository` · `entity` · `dto`로 계층을 구분합니다.
+
+```text
+src/main/java/com/desserting/backend
+├── domain
+│   ├── auth · user          # 인증, 프로필, 취향
+│   ├── matching · heart     # 랜덤 매칭, 대화 요청, 하트·프리미엄
+│   ├── chat · ai            # 실시간 채팅, AI 카페 추천
+│   ├── store · theme        # 제휴 매장·메뉴, 테마거리
+│   ├── reservation · order  # 예약, 주문·결제
+│   └── admin · storeowner   # 관리자 콘솔, 점주 포털
+└── global                   # 설정, 보안(JWT), 예외 처리, 공통 응답
+```
+
+그 밖에 `docs/`(API·연동 가이드), `scripts/`(더미 유저 생성), `Dockerfile`, `docker-compose.yml`이 있습니다.
+
+---
+
+## 아키텍처와 설계 결정
+
+```mermaid
+flowchart LR
+    Web["Web (Vercel)"] -->|"REST / STOMP"| API["Spring Boot"]
+    API --> PG[("PostgreSQL")]
+    API --> Mongo[("MongoDB")]
+    API <--> Redis[("Redis")]
+    API --> Ollama["Ollama"]
+```
+
+- **용도별 멀티 DB**: 유저·매장·예약처럼 정합성이 중요한 데이터는 PostgreSQL, 채팅 메시지는 MongoDB, 채팅 Pub/Sub은 Redis가 맡습니다.
+- **실시간 채팅**: STOMP(WebSocket)로 주고받고, Redis Pub/Sub으로 메시지를 전달합니다. 예약 상태 변경도 같은 방식으로 점주 포털에 실시간으로 반영됩니다.
+- **AI 추천 폴백**: 대화 내용을 로컬 LLM(Ollama)에 보내 카페와 메뉴를 추천받고, 모델이 실패하면 키워드 기반 추천으로 대체해 서비스가 끊기지 않게 했습니다.
+- **동시성 제어**: 하트 차감, 예약 결제, 예약 슬롯처럼 동시 요청이 몰릴 수 있는 곳은 비관적 락과 `@Version` 낙관적 락으로 보호합니다.
+- **인증·권한**: 무상태 JWT 인증이며, 권한은 `USER` · `STORE_OWNER` · `ADMIN` 세 가지입니다.
+
+---
+
+## 코드 작성 원칙
+
+- 도메인 단위로 패키지를 나누고, 여러 도메인이 쓰는 코드만 `global`에 둡니다.
+- 엔티티를 API에 직접 노출하지 않고 `dto`로 요청·응답을 분리합니다.
+- 예외는 `CustomException`과 `ErrorCode`로 던지고, `GlobalExceptionHandler`가 공통 형식으로 응답합니다.
+- 환경별 값과 비밀값은 코드에 넣지 않고 환경 변수로 받습니다.
+- API를 만들거나 바꾸면 Swagger 명세와 테스트도 함께 갱신합니다.
+
+---
+
+## 컨벤션과 협업 방식
+
+### 브랜치
+
+| 브랜치 | 용도 |
+| :--- | :--- |
+| `main` | 시연·제출용 안정 버전 (PR로만 병합) |
+| `feat/*` · `fix/*` · `docs/*` | 기능 개발, 버그 수정, 문서 수정 |
+
+### 커밋 메시지
+
+`type: 설명` 형식을 사용합니다. (`feat`, `fix`, `docs`, `refactor`, `test`, `chore`)
+
+### 협업
+
+- 프론트엔드([Desserting-web](https://github.com/Desserting/Desserting-web))와는 Swagger 명세와 `docs/`의 연동 가이드로 API 변경 사항을 공유합니다.

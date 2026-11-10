@@ -66,3 +66,9 @@ docs/notion/
 skills/
 
 bin/
+
+# Documents & Presentations
+*.pptx
+*.ppt
+*.pdf
+*.key

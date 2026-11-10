@@ -128,21 +128,32 @@
             <div id="active-store-container" class="hidden space-y-6">
                 <!-- Store Info Summary Card -->
                 <div class="bg-zinc-950 border border-zinc-800 rounded-lg p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div class="space-y-1.5">
-                        <div class="flex items-center gap-2">
-                            <span id="active-store-badge" class="px-2 py-0.5 text-[10px] font-mono bg-zinc-800 text-zinc-300 rounded border border-zinc-700">STORE ID #1</span>
-                            <h3 id="active-store-name" class="text-lg font-bold text-white tracking-tight">아눅 앞산</h3>
+                    <div class="flex items-start gap-4">
+                        <div id="active-store-cover-box" class="w-20 h-20 rounded-lg bg-zinc-900 border border-zinc-800 overflow-hidden shrink-0 flex items-center justify-center">
+                            <img id="active-store-cover" referrerpolicy="no-referrer" src="" alt="매장 사진" class="w-full h-full object-cover hidden">
+                            <span id="active-store-cover-placeholder" class="text-[9px] text-zinc-600 font-mono text-center px-1">NO COVER</span>
                         </div>
-                        <p id="active-store-address" class="text-xs text-zinc-400 font-mono flex items-center gap-1">
-                            <i data-lucide="map-pin" class="w-3.5 h-3.5 text-zinc-500"></i> 대구 남구 앞산순환로 459
-                        </p>
-                        <p id="active-store-notice" class="text-xs text-zinc-500">
-                            제휴 혜택: 전 메뉴 10% 현장 할인 및 디저팅 웰컴 쿠키 증정
-                        </p>
+                        <div class="space-y-1.5">
+                            <div class="flex items-center gap-2">
+                                <span id="active-store-badge" class="px-2 py-0.5 text-[10px] font-mono bg-zinc-800 text-zinc-300 rounded border border-zinc-700">STORE ID #1</span>
+                                <h3 id="active-store-name" class="text-lg font-bold text-white tracking-tight">아눅 앞산</h3>
+                            </div>
+                            <p id="active-store-address" class="text-xs text-zinc-400 font-mono flex items-center gap-1">
+                                <i data-lucide="map-pin" class="w-3.5 h-3.5 text-zinc-500"></i> 대구 남구 앞산순환로 459
+                            </p>
+                            <!-- Dessert Tags Chips -->
+                            <div id="active-store-tags" class="flex flex-wrap gap-1 items-center pt-0.5"></div>
+                            <p id="active-store-notice" class="text-xs text-emerald-400 font-mono">
+                                제휴 혜택: 전 메뉴 10% 현장 할인 및 디저팅 웰컴 쿠키 증정
+                            </p>
+                        </div>
                     </div>
-                    <div class="flex items-center gap-2">
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button onclick="openStoreEditModal()" class="px-3 py-2 text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-200 border border-zinc-700 rounded transition flex items-center gap-1.5 font-medium">
+                            <i data-lucide="edit-3" class="w-4 h-4 text-zinc-400"></i> 매장 정보 수정
+                        </button>
                         <button onclick="openMenuCreateModal()" class="px-3 py-2 text-xs bg-white text-black font-semibold hover:bg-zinc-200 rounded transition flex items-center gap-1.5">
-                            <i data-lucide="plus-circle" class="w-4 h-4"></i> 이 매장에 메뉴 추가
+                            <i data-lucide="plus-circle" class="w-4 h-4"></i> 메뉴 추가
                         </button>
                     </div>
                 </div>
@@ -319,15 +330,18 @@
     <!-- MODAL: STORE CREATE MODAL                                  -->
     <!-- ========================================================== -->
     <div id="modal-store" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
-        <div class="bg-zinc-950 border border-zinc-700 w-full max-w-xl rounded-lg shadow-2xl p-6 space-y-5 animate-in fade-in duration-150">
+        <div class="bg-zinc-950 border border-zinc-700 w-full max-w-xl max-h-[90vh] overflow-y-auto rounded-lg shadow-2xl p-6 space-y-5 animate-in fade-in duration-150">
             <div class="flex items-center justify-between border-b border-zinc-800 pb-3">
-                <h3 class="text-sm font-bold text-white tracking-tight">신규 제휴 매장 등록</h3>
+                <h3 id="modal-store-title" class="text-sm font-bold text-white tracking-tight">신규 제휴 매장 등록</h3>
                 <button type="button" onclick="closeStoreModal()" class="text-zinc-500 hover:text-white transition">
                     <i data-lucide="x" class="w-4 h-4"></i>
                 </button>
             </div>
 
             <form id="form-store" onsubmit="handleStoreSubmit(event)" class="space-y-4 text-xs">
+                <input type="hidden" id="store-form-mode" value="create">
+                <input type="hidden" id="store-form-id" value="">
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block font-mono text-zinc-400 mb-1">매장명 *</label>
@@ -348,15 +362,81 @@
                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
                 </div>
 
+                <!-- Store Cover Image URL & Preview -->
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1 flex items-center justify-between">
+                        <span>가게 대표 사진 (이미지 URL 또는 파일 업로드)</span>
+                        <span class="text-[10px] text-zinc-500 font-mono">가게 썸네일 및 상세 커버</span>
+                    </label>
+                    <div class="flex gap-2">
+                        <input id="input-store-image-url" type="url" placeholder="https://... 매장 대표 사진 링크"
+                               oninput="updateStoreCoverPreview(this.value)"
+                               class="flex-1 px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono text-xs">
+                        <input type="file" id="store-file-input" accept="image/*" class="hidden" onchange="handleStoreFileSelect(this.files)">
+                        <button type="button" onclick="document.getElementById('store-file-input').click()"
+                                class="px-3 py-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 border border-zinc-700 rounded transition font-medium text-xs flex items-center gap-1.5 shrink-0">
+                            <i data-lucide="upload-cloud" class="w-3.5 h-3.5"></i> 파일 선택
+                        </button>
+                    </div>
+                    <span class="text-[10px] text-zinc-500 font-mono mt-1 block">
+                        ※ 플레이스 페이지 링크가 아닌, 이미지 직접 링크나 파일 업로드를 권장합니다.
+                    </span>
+                    <div id="store-img-preview-box" class="mt-2 hidden">
+                        <img id="store-img-preview" referrerpolicy="no-referrer" src="" alt="매장 사진 미리보기" class="h-28 w-full object-cover rounded border border-zinc-800">
+                    </div>
+                </div>
+
+                <!-- 8 Dessert Category Tags -->
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1.5 flex items-center justify-between">
+                        <span>가게 디저트 태그 (최대 8가지 선택)</span>
+                        <span class="text-[10px] text-zinc-500 font-mono">검색 및 취향 필터에 반영</span>
+                    </label>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-zinc-900/50 border border-zinc-800/80 rounded-md">
+                        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white select-none">
+                            <input type="checkbox" name="store-tag" value="CAKE" class="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0">
+                            <span>🍰 케이크</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white select-none">
+                            <input type="checkbox" name="store-tag" value="BAKERY" class="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0">
+                            <span>🥐 베이커리</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white select-none">
+                            <input type="checkbox" name="store-tag" value="COOKIE_FINANCIER" class="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0">
+                            <span>🍪 구움과자</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white select-none">
+                            <input type="checkbox" name="store-tag" value="TART_PIE" class="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0">
+                            <span>🥧 타르트/파이</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white select-none">
+                            <input type="checkbox" name="store-tag" value="ICE_CREAM_BINGSU" class="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0">
+                            <span>🍨 빙수/아이스크림</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white select-none">
+                            <input type="checkbox" name="store-tag" value="COFFEE" class="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0">
+                            <span>☕ 스페셜티 커피</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white select-none">
+                            <input type="checkbox" name="store-tag" value="TEA_NON_COFFEE" class="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0">
+                            <span>🍵 티/논커피</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-zinc-300 hover:text-white select-none">
+                            <input type="checkbox" name="store-tag" value="TRADITIONAL_KOREAN" class="rounded bg-zinc-800 border-zinc-700 text-white focus:ring-0">
+                            <span>🍡 전통 디저트</span>
+                        </label>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="block font-mono text-zinc-400 mb-1">위도 (Latitude) *</label>
-                        <input id="input-store-lat" type="number" step="0.0000001" required placeholder="35.8687000"
+                        <input id="input-store-lat" type="number" step="any" required placeholder="35.8687000"
                                class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
                     </div>
                     <div>
                         <label class="block font-mono text-zinc-400 mb-1">경도 (Longitude) *</label>
-                        <input id="input-store-lng" type="number" step="0.0000001" required placeholder="128.5982000"
+                        <input id="input-store-lng" type="number" step="any" required placeholder="128.5982000"
                                class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
                     </div>
                 </div>
@@ -374,10 +454,33 @@
                     </div>
                 </div>
 
+                <!-- Partnership Discount & 4 Templates -->
                 <div>
                     <label class="block font-mono text-zinc-400 mb-1">디저팅 제휴 혜택 안내 문구</label>
-                    <input id="input-store-discount" type="text" placeholder="예: 디저팅 회원 전 메뉴 10% 현장 할인"
+                    <input id="input-store-discount" type="text" placeholder="예: 디저팅 인증 시 전 메뉴 10% 현장 할인"
                            class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition">
+                    <!-- Quick Preset Templates -->
+                    <div class="mt-2 space-y-1">
+                        <span class="text-[10px] text-zinc-500 font-mono block">거리/매장별 자연스러운 추천 혜택 문구 (클릭 시 자동 입력):</span>
+                        <div class="flex flex-wrap gap-1.5">
+                            <button type="button" onclick="setDiscountTemplate('디저팅 인증 시 전 메뉴 10% 현장 할인')"
+                                    class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded transition">
+                                ① 전 메뉴 10% 할인
+                            </button>
+                            <button type="button" onclick="setDiscountTemplate('디저트 메뉴 1종 구매 시 아메리카노 1잔 무료')"
+                                    class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded transition">
+                                ② 디저트 주문 시 음료 무료
+                            </button>
+                            <button type="button" onclick="setDiscountTemplate('디저팅 매칭 커플 방문 시 시그니처 웰컴 쿠키 증정')"
+                                    class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded transition">
+                                ③ 웰컴 쿠키/디저트 증정
+                            </button>
+                            <button type="button" onclick="setDiscountTemplate('2만원 이상 결제 시 전체 금액 5% 할인')"
+                                    class="px-2 py-1 text-[10px] bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 rounded transition">
+                                ④ 금액대별 5% 할인
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex items-center justify-end gap-2 pt-3 border-t border-zinc-800">
@@ -385,7 +488,7 @@
                         취소
                     </button>
                     <button id="btn-store-submit" type="submit" class="px-4 py-2 bg-white text-black hover:bg-zinc-200 rounded transition font-semibold">
-                        등록하기
+                        저장하기
                     </button>
                 </div>
             </form>
@@ -475,6 +578,20 @@
                                    class="w-full px-3 py-1.5 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono text-[11px]">
                         </div>
                     </div>
+                </div>
+
+                <!-- Category Select (DESSERT / DRINK / SET) -->
+                <div>
+                    <label class="block font-mono text-zinc-400 mb-1 flex items-center justify-between">
+                        <span>메뉴 카테고리 탭 분류</span>
+                        <span class="text-[10px] text-zinc-500 font-mono">앱 상세 탭(디저트/음료/세트) 노출 위치</span>
+                    </label>
+                    <select id="select-menu-category" class="w-full px-3 py-2 bg-zinc-900 border border-zinc-800 rounded focus:border-white focus:outline-none text-white transition font-mono">
+                        <option value="">자동 판별 (메뉴명 기반: 커피/라떼/티/에이드 등 → 음료, 그 외 → 디저트)</option>
+                        <option value="DESSERT">🍰 디저트 (DESSERT)</option>
+                        <option value="DRINK">☕ 음료 (DRINK)</option>
+                        <option value="SET">🎁 세트 (SET)</option>
+                    </select>
                 </div>
 
                 <!-- Checkboxes -->
@@ -582,6 +699,17 @@
         let currentThemeStreets = [];
         let selectedStoreId = null;
         const storeDetailCache = new Map();
+
+        const DESSERT_TAG_LABELS = {
+            'CAKE': '🍰 케이크',
+            'BAKERY': '🥐 베이커리',
+            'COOKIE_FINANCIER': '🍪 구움과자',
+            'TART_PIE': '🥧 타르트/파이',
+            'ICE_CREAM_BINGSU': '🍨 빙수/아이스크림',
+            'COFFEE': '☕ 스페셜티 커피',
+            'TEA_NON_COFFEE': '🍵 티/논커피',
+            'TRADITIONAL_KOREAN': '🍡 전통 디저트'
+        };
 
         function isTokenExpired(token) {
             if (!token) return true;
@@ -779,10 +907,14 @@
                 return;
             }
 
-            // 2. Cache Miss: Show skeleton and fetch
+            // 2. Cache Miss: Show skeleton and fetch (Try admin store detail first if authed)
             renderMenuTableSkeleton();
             try {
-                const res = await fetch(`${API_BASE}/api/v1/stores/${storeId}`, {
+                let fetchUrl = `${API_BASE}/api/v1/stores/${storeId}`;
+                if (authToken) {
+                    fetchUrl = `${API_BASE}/api/v1/admin/stores/${storeId}`;
+                }
+                const res = await fetch(fetchUrl, {
                     headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
                 });
                 const json = await res.json();
@@ -801,6 +933,37 @@
             document.getElementById('active-store-name').textContent = store.name;
             document.getElementById('active-store-address').innerHTML = `<i data-lucide="map-pin" class="w-3.5 h-3.5 text-zinc-500"></i> ${store.address || '주소 미등록'}`;
             document.getElementById('active-store-notice').textContent = `제휴 혜택: ${store.partnerDiscountNotice || '기본 제휴 매장'}`;
+
+            // Render Store Cover Image Thumbnail
+            const coverUrl = store.coverImageUrl || store.imageUrl || '';
+            const coverImg = document.getElementById('active-store-cover');
+            const coverPlaceholder = document.getElementById('active-store-cover-placeholder');
+            if (coverUrl && coverUrl.startsWith('http')) {
+                coverImg.src = coverUrl;
+                coverImg.classList.remove('hidden');
+                coverPlaceholder.classList.add('hidden');
+            } else {
+                coverImg.classList.add('hidden');
+                coverPlaceholder.classList.remove('hidden');
+            }
+
+            // Render Dessert Tags Chips
+            const tagsContainer = document.getElementById('active-store-tags');
+            if (tagsContainer) {
+                tagsContainer.innerHTML = '';
+                const tags = store.dessertTypes || [];
+                if (tags.length === 0) {
+                    tagsContainer.innerHTML = '<span class="text-[10px] text-zinc-500 font-mono">가게 태그 미등록 (매장 정보 수정에서 8가지 태그 설정 가능)</span>';
+                } else {
+                    tags.forEach(tag => {
+                        const chip = document.createElement('span');
+                        chip.className = 'px-2 py-0.5 text-[11px] bg-zinc-900 text-zinc-200 border border-zinc-700/80 rounded-md font-medium';
+                        chip.textContent = DESSERT_TAG_LABELS[tag] || tag;
+                        tagsContainer.appendChild(chip);
+                    });
+                }
+            }
+
             renderMenuTable(store.menus || []);
             lucide.createIcons();
         }
@@ -1009,37 +1172,159 @@
             }
         });
 
-        // Store Modal Controls
+        function updateStoreCoverPreview(url) {
+            const previewBox = document.getElementById('store-img-preview-box');
+            const previewImg = document.getElementById('store-img-preview');
+            if (url && url.startsWith('http')) {
+                previewImg.src = url;
+                previewBox.classList.remove('hidden');
+            } else {
+                previewBox.classList.add('hidden');
+            }
+        }
+
+        async function handleStoreFileSelect(files) {
+            if (!files || files.length === 0) return;
+            const file = files[0];
+            if (!authToken) {
+                showToast('로그인이 필요합니다.', 'error');
+                return;
+            }
+            if (!file.type.startsWith('image/')) {
+                showToast('이미지 파일만 업로드할 수 있습니다.', 'error');
+                return;
+            }
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('이미지 용량은 최대 10MB까지 가능합니다.', 'error');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', file);
+            showToast('매장 대표 사진 업로드 중...');
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/images/upload`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${authToken}` },
+                    body: formData
+                });
+                const json = await res.json();
+                const uploadedUrl = json.data?.url || json.data?.imageUrl;
+                if (json.success && uploadedUrl) {
+                    document.getElementById('input-store-image-url').value = uploadedUrl;
+                    updateStoreCoverPreview(uploadedUrl);
+                    showToast('매장 대표 사진이 성공적으로 업로드되었습니다.');
+                } else {
+                    showToast(json.message || '사진 업로드 실패', 'error');
+                }
+            } catch (err) {
+                showToast('사진 업로드 오류: ' + err.message, 'error');
+            }
+        }
+
+        function setDiscountTemplate(text) {
+            const input = document.getElementById('input-store-discount');
+            input.value = text;
+            input.focus();
+            showToast('추천 혜택 문구가 입력되었습니다.');
+        }
+
         async function openStoreCreateModal() {
             if (!authToken) {
                 showToast('매장 등록을 위해 먼저 상단 [관리자 원클릭 로그인]을 진행해 주세요.', 'error');
                 return;
             }
+            document.getElementById('modal-store-title').textContent = '신규 제휴 매장 등록';
+            document.getElementById('store-form-mode').value = 'create';
+            document.getElementById('store-form-id').value = '';
+            document.getElementById('btn-store-submit').textContent = '등록하기';
+
             document.getElementById('input-store-name').value = '';
             document.getElementById('input-store-address').value = '';
+            document.getElementById('input-store-image-url').value = '';
+            updateStoreCoverPreview('');
             document.getElementById('input-store-lat').value = '35.8687000';
             document.getElementById('input-store-lng').value = '128.5982000';
             document.getElementById('input-store-hours').value = '매일 11:00 - 22:00';
             document.getElementById('input-store-contact').value = '053-000-0000';
-            document.getElementById('input-store-discount').value = '디저팅 회원 전 메뉴 10% 할인';
+            document.getElementById('input-store-discount').value = '디저팅 인증 시 전 메뉴 10% 현장 할인';
 
+            // Reset tag checkboxes
+            document.querySelectorAll('input[name="store-tag"]').forEach(cb => cb.checked = false);
+
+            await populateThemeSelector(null);
+            document.getElementById('modal-store').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        async function openStoreEditModal() {
+            if (!authToken) {
+                showToast('매장 정보 수정을 위해 먼저 상단 [관리자 원클릭 로그인]을 진행해 주세요.', 'error');
+                return;
+            }
+            if (!selectedStoreId) {
+                showToast('선택된 제휴 매장이 없습니다.', 'error');
+                return;
+            }
+
+            // Always fetch latest admin store data to ensure dessertTypes & image are up to date
+            try {
+                const res = await fetch(`${API_BASE}/api/v1/admin/stores/${selectedStoreId}`, {
+                    headers: { 'Authorization': `Bearer ${authToken}` }
+                });
+                const json = await res.json();
+                if (!json.success || !json.data) {
+                    showToast('매장 정보 조회 실패: ' + (json.message || '데이터 없음'), 'error');
+                    return;
+                }
+                const store = json.data;
+
+                document.getElementById('modal-store-title').textContent = `매장 정보 수정 — ${store.name} (#${store.storeId})`;
+                document.getElementById('store-form-mode').value = 'edit';
+                document.getElementById('store-form-id').value = store.storeId;
+                document.getElementById('btn-store-submit').textContent = '수정 완료';
+
+                const currentImg = store.coverImageUrl || store.imageUrl || '';
+                document.getElementById('input-store-name').value = store.name || '';
+                document.getElementById('input-store-address').value = store.address || '';
+                document.getElementById('input-store-image-url').value = currentImg;
+                updateStoreCoverPreview(currentImg);
+                document.getElementById('input-store-lat').value = store.latitude ?? 35.8687000;
+                document.getElementById('input-store-lng').value = store.longitude ?? 128.5982000;
+                document.getElementById('input-store-hours').value = store.businessHours || '';
+                document.getElementById('input-store-contact').value = store.contact || '';
+                document.getElementById('input-store-discount').value = store.partnerDiscountNotice || '';
+
+                // Sync 8 tag checkboxes
+                const currentTags = store.dessertTypes || [];
+                document.querySelectorAll('input[name="store-tag"]').forEach(cb => {
+                    cb.checked = currentTags.includes(cb.value);
+                });
+
+                await populateThemeSelector(store.themeStreetId);
+                document.getElementById('modal-store').classList.remove('hidden');
+                lucide.createIcons();
+            } catch (err) {
+                showToast('매장 정보 조회 중 오류: ' + err.message, 'error');
+            }
+        }
+
+        async function populateThemeSelector(selectedThemeId) {
             const themeSel = document.getElementById('select-store-theme');
             themeSel.innerHTML = '<option value="">소속 테마거리 없음</option>';
             try {
                 const res = await fetch(`${API_BASE}/api/v1/admin/themes`, {
-                    headers: { 'Authorization': `Bearer ${authToken}` }
+                    headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
                 });
                 const json = await res.json();
                 if (json.success && json.data) {
                     json.data.forEach(t => {
-                        themeSel.innerHTML += `<option value="${t.id}">${t.name}</option>`;
+                        const isSelected = selectedThemeId && (selectedThemeId === t.id);
+                        themeSel.innerHTML += `<option value="${t.id}" ${isSelected ? 'selected' : ''}>${t.name}</option>`;
                     });
                 }
             } catch (e) {
-                console.warn(e);
+                console.warn('Failed to load theme streets:', e);
             }
-
-            document.getElementById('modal-store').classList.remove('hidden');
         }
 
         function closeStoreModal() {
@@ -1048,26 +1333,41 @@
 
         async function handleStoreSubmit(e) {
             e.preventDefault();
+            const mode = document.getElementById('store-form-mode').value;
+            const storeId = document.getElementById('store-form-id').value;
             const btn = document.getElementById('btn-store-submit');
             btn.disabled = true;
-            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 등록 중...`;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 저장 중...`;
 
             const themeVal = document.getElementById('select-store-theme').value;
+            const checkedTags = Array.from(document.querySelectorAll('input[name="store-tag"]:checked')).map(cb => cb.value);
+
             const payload = {
                 name: document.getElementById('input-store-name').value.trim(),
                 address: document.getElementById('input-store-address').value.trim(),
+                coverImageUrl: document.getElementById('input-store-image-url').value.trim(),
+                imageUrl: document.getElementById('input-store-image-url').value.trim(),
                 latitude: parseFloat(document.getElementById('input-store-lat').value),
                 longitude: parseFloat(document.getElementById('input-store-lng').value),
                 businessHours: document.getElementById('input-store-hours').value.trim(),
                 contact: document.getElementById('input-store-contact').value.trim(),
                 partnerDiscountNotice: document.getElementById('input-store-discount').value.trim(),
                 themeStreetId: themeVal ? parseInt(themeVal, 10) : null,
+                dessertTypes: checkedTags,
                 isPartner: true
             };
 
             try {
-                const res = await fetch(`${API_BASE}/api/v1/admin/stores`, {
-                    method: 'POST',
+                let url = `${API_BASE}/api/v1/admin/stores`;
+                let method = 'POST';
+
+                if (mode === 'edit') {
+                    url = `${API_BASE}/api/v1/admin/stores/${storeId}`;
+                    method = 'PATCH';
+                }
+
+                const res = await fetch(url, {
+                    method: method,
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${authToken}`
@@ -1076,17 +1376,26 @@
                 });
                 const json = await res.json();
                 if (json.success) {
-                    showToast('새 매장이 성공적으로 등록되었습니다.');
+                    showToast(mode === 'edit' ? '매장 정보 및 태그가 성공적으로 수정되었습니다.' : '새 제휴 매장이 등록되었습니다.');
                     closeStoreModal();
-                    loadStoreList();
+                    if (mode === 'edit') {
+                        storeDetailCache.delete(parseInt(storeId, 10));
+                        await loadStoreList();
+                        selectStore(parseInt(storeId, 10), true);
+                    } else {
+                        await loadStoreList();
+                        if (json.data && json.data.storeId) {
+                            selectStore(json.data.storeId, true);
+                        }
+                    }
                 } else {
-                    showToast(json.message || '매장 등록 실패', 'error');
+                    showToast(json.message || '매장 저장 실패', 'error');
                 }
             } catch (err) {
-                showToast('등록 요청 오류: ' + err.message, 'error');
+                showToast('저장 요청 오류: ' + err.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.textContent = '등록하기';
+                btn.textContent = mode === 'edit' ? '수정 완료' : '등록하기';
                 lucide.createIcons();
             }
         }
@@ -1104,6 +1413,7 @@
             document.getElementById('input-menu-price').value = '';
             document.getElementById('input-menu-desc').value = '';
             document.getElementById('input-menu-image-url').value = '';
+            document.getElementById('select-menu-category').value = '';
             document.getElementById('check-menu-rep').checked = false;
             document.getElementById('check-menu-soldout').checked = false;
             updateImagePreview('');
@@ -1126,6 +1436,7 @@
             document.getElementById('input-menu-price').value = menu.price;
             document.getElementById('input-menu-desc').value = menu.description || '';
             document.getElementById('input-menu-image-url').value = menu.imageUrl || '';
+            document.getElementById('select-menu-category').value = menu.category || '';
             document.getElementById('check-menu-rep').checked = isRep;
             document.getElementById('check-menu-soldout').checked = isSold;
             updateImagePreview(menu.imageUrl);
@@ -1140,6 +1451,7 @@
             e.preventDefault();
             const mode = document.getElementById('menu-form-mode').value;
             const menuId = document.getElementById('menu-form-id').value;
+            const categoryVal = document.getElementById('select-menu-category').value;
             const btn = document.getElementById('btn-menu-submit');
 
             const payload = {
@@ -1173,6 +1485,22 @@
                 });
                 const json = await res.json();
                 if (json.success) {
+                    const savedMenuId = (mode === 'edit') ? menuId : (json.data?.menuId || json.data?.id);
+                    if (categoryVal && savedMenuId) {
+                        try {
+                            await fetch(`${API_BASE}/api/v1/admin/stores/${selectedStoreId}/menus/${savedMenuId}/category`, {
+                                method: 'PUT',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${authToken}`
+                                },
+                                body: JSON.stringify({ category: categoryVal })
+                            });
+                        } catch (catErr) {
+                            console.warn('Failed to assign menu category:', catErr);
+                        }
+                    }
+
                     showToast(mode === 'edit' ? '메뉴가 성공적으로 수정되었습니다.' : '새 메뉴가 등록되었습니다.');
                     closeMenuModal();
                     storeDetailCache.delete(selectedStoreId);

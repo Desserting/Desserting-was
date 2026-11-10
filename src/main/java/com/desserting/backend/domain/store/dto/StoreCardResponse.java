@@ -43,6 +43,10 @@ public class StoreCardResponse {
     @Schema(description = "대표 이미지 URL")
     private String coverImageUrl;
 
+    public String getImageUrl() {
+        return coverImageUrl;
+    }
+
     @Schema(description = "판매 디저트 종류", example = "[\"CAKE\", \"COFFEE\"]")
     private List<DessertType> dessertTypes;
 

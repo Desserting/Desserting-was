@@ -20,7 +20,9 @@ public enum MenuCategory {
     private static final List<String> DRINK_KEYWORDS = List.of(
             "커피", "라떼", "아메리카노", "에스프레소", "카푸치노", "모카", "마끼아또", "콜드브루", "핸드드립", "드립",
             "밀크티", "홍차", "녹차", "얼그레이", "캐모마일", "아이스티", "에이드", "주스", "스무디", "쉐이크", "음료",
-            "coffee", "latte", "americano", "espresso", "tea", "ade", "juice", "smoothie");
+            "슈페너", "플랫화이트", "블렌디드", "프라페", "초코라떼", "말차라떼", "초콜릿", "루이보스", "페퍼민트",
+            "모히또", "뱅쇼", "아인슈페너", "브루잉", "더치커피", "바닐라라떼", "돌체라떼", "디카페인",
+            "coffee", "latte", "americano", "espresso", "tea", "ade", "juice", "smoothie", "frappe", "blended", "brew");
 
     /**
      * 점주가 분류를 지정하지 않은 메뉴는 이름으로 추정한다.

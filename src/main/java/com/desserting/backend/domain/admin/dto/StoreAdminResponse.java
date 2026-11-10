@@ -51,13 +51,24 @@ public class StoreAdminResponse {
     @Schema(description = "제휴 할인 혜택 문구", example = "디저팅 매칭 커플 전 메뉴 10% 할인")
     private String partnerDiscountNotice;
 
+    @Schema(description = "매장 대표 디저트 태그 목록")
+    private List<com.desserting.backend.domain.user.entity.DessertType> dessertTypes;
+
     @Schema(description = "등록된 디저트 메뉴 목록")
     private List<StoreMenuResponse> menus;
 
     @Schema(description = "매장 등록 일시")
     private LocalDateTime createdAt;
 
+    public String getImageUrl() {
+        return coverImageUrl;
+    }
+
     public static StoreAdminResponse from(Store store) {
+        return from(store, List.of());
+    }
+
+    public static StoreAdminResponse from(Store store, List<com.desserting.backend.domain.user.entity.DessertType> dessertTypes) {
         return StoreAdminResponse.builder()
                 .storeId(store.getId())
                 .themeStreetId(store.getThemeStreet() != null ? store.getThemeStreet().getId() : null)
@@ -71,6 +82,7 @@ public class StoreAdminResponse {
                 .coverImageUrl(store.getCoverImageUrl())
                 .isPartner(store.getIsPartner())
                 .partnerDiscountNotice(store.getPartnerDiscountNotice())
+                .dessertTypes(dessertTypes != null ? dessertTypes : List.of())
                 .menus(store.getMenus() != null ? store.getMenus().stream().map(StoreMenuResponse::from).toList() : List.of())
                 .createdAt(store.getCreatedAt())
                 .build();

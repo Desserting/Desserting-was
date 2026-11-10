@@ -37,6 +37,7 @@ public class AdminStoreService {
     private final ThemeStreetRepository themeStreetRepository;
     private final ReservationRepository reservationRepository;
     private final StoreCouponRepository storeCouponRepository;
+    private final com.desserting.backend.domain.store.repository.StoreDessertTagRepository storeDessertTagRepository;
 
     @Transactional
     public StoreAdminResponse createStore(StoreCreateRequest request) {
@@ -54,32 +55,50 @@ public class AdminStoreService {
                 .longitude(request.getLongitude())
                 .businessHours(request.getBusinessHours())
                 .contact(request.getContact())
-                .coverImageUrl(request.getCoverImageUrl())
+                .coverImageUrl(request.getEffectiveCoverImageUrl())
                 .isPartner(Boolean.TRUE.equals(request.getIsPartner()))
                 .partnerDiscountNotice(request.getPartnerDiscountNotice())
                 .build();
 
         Store savedStore = storeRepository.save(store);
+
+        List<com.desserting.backend.domain.user.entity.DessertType> tags = List.of();
+        if (request.getDessertTypes() != null && !request.getDessertTypes().isEmpty()) {
+            for (com.desserting.backend.domain.user.entity.DessertType dt : request.getDessertTypes()) {
+                storeDessertTagRepository.save(com.desserting.backend.domain.store.entity.StoreDessertTag.of(savedStore, dt));
+            }
+            storeDessertTagRepository.flush();
+            tags = request.getDessertTypes();
+        }
+
         log.info("새 제휴 매장 등록 완료: storeId={}, name={}, isPartner={}", savedStore.getId(), savedStore.getName(), savedStore.getIsPartner());
-        return StoreAdminResponse.from(savedStore);
+        return StoreAdminResponse.from(savedStore, tags);
     }
 
     @Transactional(readOnly = true)
     public StoreAdminResponse getStore(Long storeId) {
         Store store = storeRepository.findByIdWithMenus(storeId)
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
-        return StoreAdminResponse.from(store);
+        List<com.desserting.backend.domain.user.entity.DessertType> tags = storeDessertTagRepository.findByStoreId(storeId).stream()
+                .map(com.desserting.backend.domain.store.entity.StoreDessertTag::getDessertType)
+                .toList();
+        return StoreAdminResponse.from(store, tags);
     }
 
     @Transactional(readOnly = true)
     public Page<StoreAdminResponse> getAllStores(Pageable pageable) {
         return storeRepository.findAll(pageable)
-                .map(StoreAdminResponse::from);
+                .map(s -> {
+                    List<com.desserting.backend.domain.user.entity.DessertType> tags = storeDessertTagRepository.findByStoreId(s.getId()).stream()
+                        .map(com.desserting.backend.domain.store.entity.StoreDessertTag::getDessertType)
+                        .toList();
+                    return StoreAdminResponse.from(s, tags);
+                });
     }
 
     @Transactional
     public StoreAdminResponse updateStore(Long storeId, StoreUpdateRequest request) {
-        Store store = storeRepository.findById(storeId)
+        Store store = storeRepository.findByIdWithMenus(storeId)
                 .orElseThrow(() -> new CustomException(ErrorCode.STORE_NOT_FOUND));
 
         ThemeStreet themeStreet = store.getThemeStreet();
@@ -95,13 +114,25 @@ public class AdminStoreService {
                 request.getLongitude(),
                 request.getBusinessHours(),
                 request.getContact(),
-                request.getCoverImageUrl(),
+                request.getEffectiveCoverImageUrl(),
                 themeStreet,
                 request.getPartnerDiscountNotice()
         );
 
-        log.info("매장 정보 수정 완료: storeId={}, name={}", store.getId(), store.getName());
-        return StoreAdminResponse.from(store);
+        if (request.getDessertTypes() != null) {
+            storeDessertTagRepository.deleteByStoreId(storeId);
+            for (com.desserting.backend.domain.user.entity.DessertType dt : request.getDessertTypes()) {
+                storeDessertTagRepository.save(com.desserting.backend.domain.store.entity.StoreDessertTag.of(store, dt));
+            }
+            storeDessertTagRepository.flush();
+        }
+
+        List<com.desserting.backend.domain.user.entity.DessertType> tags = storeDessertTagRepository.findByStoreId(storeId).stream()
+                .map(com.desserting.backend.domain.store.entity.StoreDessertTag::getDessertType)
+                .toList();
+
+        log.info("매장 정보 수정 완료: storeId={}, name={}, tags={}", store.getId(), store.getName(), tags);
+        return StoreAdminResponse.from(store, tags);
     }
 
     @Transactional

@@ -36,6 +36,10 @@ public class StoreDetailResponse {
 
     private String coverImageUrl;
 
+    public String getImageUrl() {
+        return coverImageUrl;
+    }
+
     @Schema(description = "제휴 할인 안내 (SHOP-03)")
     private String partnerDiscountNotice;
 

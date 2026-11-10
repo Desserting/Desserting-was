@@ -42,6 +42,16 @@ public class StoreUpdateRequest {
     @Schema(description = "매장 대표 커버 이미지 URL", example = "https://images.desserting.com/stores/lucid_new.jpg")
     private String coverImageUrl;
 
+    @Schema(description = "매장 대표 커버 이미지 URL (호환용)", example = "https://images.desserting.com/stores/lucid_new.jpg")
+    private String imageUrl;
+
+    public String getEffectiveCoverImageUrl() {
+        return (coverImageUrl != null && !coverImageUrl.isBlank()) ? coverImageUrl : imageUrl;
+    }
+
     @Schema(description = "디저팅 제휴 혜택 안내", example = "디저팅 매칭 커플 전 메뉴 15% 할인")
     private String partnerDiscountNotice;
+
+    @Schema(description = "매장 대표 디저트 태그 목록 (8종 중 다중 선택)")
+    private java.util.List<com.desserting.backend.domain.user.entity.DessertType> dessertTypes;
 }

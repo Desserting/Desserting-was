@@ -13,5 +13,11 @@ public interface StoreDessertTagRepository extends JpaRepository<StoreDessertTag
     @Query("SELECT t FROM StoreDessertTag t WHERE t.store.id IN :storeIds ORDER BY t.id")
     List<StoreDessertTag> findAllByStoreIds(@Param("storeIds") Collection<Long> storeIds);
 
+    List<StoreDessertTag> findByStoreId(Long storeId);
+
+    @org.springframework.data.jpa.repository.Modifying(flushAutomatically = true, clearAutomatically = false)
+    @Query("DELETE FROM StoreDessertTag s WHERE s.store.id = :storeId")
+    void deleteByStoreId(@Param("storeId") Long storeId);
+
     boolean existsByStoreId(Long storeId);
 }
